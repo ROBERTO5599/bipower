@@ -1,4 +1,3 @@
-```blade
 <x-guest-layout>
     <!-- Session Status -->
     <x-auth-session-status class="mb-4 text-center text-sm text-gray-300" :status="session('status')" />
@@ -106,4 +105,3 @@
         }
     </script>
 </x-guest-layout>
-```

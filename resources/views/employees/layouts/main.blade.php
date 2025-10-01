@@ -4,7 +4,7 @@
         
         
 
-    <title>Valora mas | {{ $title }}</title>
+    <title>Valora mas | </title>
     <link rel="icon" href="{{ asset('img/valoramas.png') }}">
     <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ asset('css/plugins/iCheck/custom.css') }}" rel="stylesheet">
@@ -225,20 +225,7 @@
         <nav class="navbar-default navbar-static-side" role="navigation">
             <div class="sidebar-collapse">
                 <ul class="nav metismenu" id="side-menu">
-                    <li class="nav-header text-center" style="background-color: #321064;">
-                        <div class="dropdown profile-element">
-                            <img id="empleadoFoto" alt="Foto del empleado" class="rounded-circle" src="{{ $empleadoImageUrl }}" style="width: 70px"/>
-                            <a data-toggle="dropdown" class="dropdown-toggle" href="#">
-                                <span class="block m-t-xs font-bold">
-                                {{ $empleado->nombre }} {{ $empleado->primer_apellido }} {{ $empleado->segundo_apellido }}
-                                </span>
-                            </a>
-                        </div>
-                        <div class="logo-element" style="background-color: #321064;">
-                            <a href="{{ url('/') }}">
-                                <img src="{{ asset('iso.jpeg') }}" style="width: 50%;">
-                            </a>
-                        </div>
+                    <li class="nav-header text-center" style="background-color: #321064;">                        
                     </li>
                      
     
@@ -269,42 +256,12 @@
                         <div class="row align-items-center justify-content-between">
                             <!-- Información del empleado -->
                             <div class="">
-                                <h3 class="">
-                                    {{ $empleado->nombre }} {{ $empleado->primer_apellido }} {{ $empleado->segundo_apellido }}
-                                    <sup>
-                                        <small style="color: red;">{{ Auth::user()->id }}</small>
-                                        <input type="hidden" value="{{ Auth::user()->id }}" id="emp_codigo">
-                                    </sup>
-                                </h3>
-                                <h4 class="mb-1"><b>{{ $empleado->sucursal->nombre }}</b></h4>
-                                <h5 class="mb-0">{{ $empleado->puesto->nombre }}</h5>
+                               
                             </div>
-                            <!-- Fecha de ingreso -->
-                            <div class="text-end">
-                                <div>
-                                    <b>FECHA DE INGRESO</b>
-                                </div>
-                                <h5 class="mb-0 camelcase">
-                                    {{ \Carbon\Carbon::parse($empleado->fecha_ingreso)->translatedFormat('d \de F \de Y') }}
-                                </h5>
-                            </div>
+                            
                             <!-- Notificaciones -->
                             <div class=" text-end" style="margin-right: 30px">
-                                <div class="dropdown">
-                                    <button class="btn dropdown-toggle" style="color: #492b79; 
-        background-color: #321064;" type="button" id="dropdownMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        <i class="fa-solid fa-bell bell-icon"></i>
-                                        <span class="notification-count" id="notificationCount">{{ $cantidadBajoPromedio }}</span>
-                                    </button>
-                                    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenu2">
-                                        <h6 class="dropdown-header">CUESTIONARIOS PENDIENTES</h6>
-                                        @foreach ($cuestionariosBajoPromedio as $cuestionarioBajoPromedio)
-                                            <a class="dropdown-item" href="{{ url('cuestionarios/aplicar-cuestionarios/') }}">
-                                                {{ $cuestionarioBajoPromedio->nombre }}
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                </div>
+                                
                             </div>
                         </div>
 
@@ -363,113 +320,15 @@
     <script src="{{ asset('js/inspinia.js') }}"></script>
     @yield('scripts')
     <script type="text/javascript">
-        document.addEventListener("DOMContentLoaded", function() {
-            let notificationCount = document.getElementById("notificationCount").innerText;
-            let bellIcon = document.querySelector(".bell-icon");
-
-            // Si el número de notificaciones es mayor a 0, aplica la animación
-            if (parseInt(notificationCount) > 0) {
-                bellIcon.classList.add("shake");
-            }
-
-            // Forzar la apertura del dropdown si no funciona automáticamente
-            $('#dropdownMenu2').dropdown();
-        });
+        
         $(document).ready(function () {
             $('#side-menu').metisMenu();
         });
 
-        $(document).ready(function(){
-            toastr.options = {
-                "closeButton": true,
-                "debug": false,
-                "progressBar": true,
-                "preventDuplicates": false,
-                "positionClass": "toast-top-right",
-                "onclick": null,
-                "showDuration": "15000",
-                "hideDuration": "3000",
-                "timeOut": "7000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            };
+        
 
-            @if (Session::has('error'))
-                toastr.error('{{ Session::get('error') }}', '¡Cuidado!');
-            @elseif(Session::has('success'))
-                toastr.success('{{ Session::get('success') }}', '¡Hecho!');
-            @endif
-
-            // Verificar si el dispositivo es móvil
-            if (window.innerWidth > 768) { // Solo ejecutar si no es móvil
-                const $body = $('body');
-                const $menu = $('.navbar-static-side');
-
-                // Expandir menú al pasar el mouse
-                $menu.on('mouseenter', function () {
-                    $body.removeClass('mini-navbar');
-                    // Ensure notification counts are visible
-                    $('.notification-count').css('display', 'inline-block');
-                });
-
-                // Minimizar menú al quitar el mouse
-                $menu.on('mouseleave', function () {
-                    $body.addClass('mini-navbar');
-                    // Ensure notification counts are visible in collapsed state
-                    $('.notification-count').css('display', 'inline-block');
-                });
-            } else {
-                // Ensure notification counts are visible on mobile
-                $('.notification-count').css('display', 'inline-block');
-            }
-        });
-
-        $(document).ready(function () {
-            function actualizarMensajesSinLeer() {
-                $.ajax({
-                    url: '{{ route("mensajes.sinLeer") }}',
-                    method: 'GET',
-                    success: function (data) {
-                        const totalSinLeer = data.reduce((sum, incidencia) => sum + incidencia.sin_leer, 0);
-                        const $contador = $('#mensajesSinLeer');
-
-                        if (totalSinLeer > 0) {
-                            $contador.text(totalSinLeer).css('display', 'inline-block');
-                        } else {
-                            $contador.css('display', 'none');
-                        }
-                    },
-                    error: function (xhr) {
-                        console.error('Error al obtener mensajes sin leer:', xhr.responseText);
-                    }
-                });
-            }
-
-            // Llamar la función al cargar la página y cada 30 segundos
-            actualizarMensajesSinLeer();
-            setInterval(actualizarMensajesSinLeer, 1000);
-        });
-
-        $('.incidencia-item').on('click', function () {
-            const incidenciaId = $(this).data('id');
-
-            $.ajax({
-                url: `/mensajes/${incidenciaId}/marcar-leidos`,
-                method: 'POST',
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function () {
-                    console.log('Mensajes marcados como leídos.');
-                },
-                error: function (xhr) {
-                    console.error('Error al marcar mensajes como leídos:', xhr.responseText);
-                }
-            });
-        });
+        
+        
     </script>
 </body>
 
