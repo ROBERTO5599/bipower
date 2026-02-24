@@ -8,41 +8,38 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Exception;
+use App\Models\Sucursal;
 
 class HomeController extends Controller
 {
     public function index()
     {
-        // List of database suffixes provided by the user (1-22, skipping 12)
-        $suffixes = [
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-            11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22
-        ];
+        // Get database suffixes from Sucursal table where id_valora_mas is not null
+        $suffixes = Sucursal::whereNotNull('id_valora_mas')
+            ->pluck('id_valora_mas')
+            ->toArray();
 
         $totalEmpeno = 0;
 
         // Default to current month if not specified
-        // The user's query uses @fechaDel and @fechaAl.
-        // We assume "This Month" unless specified otherwise.
         $fechaDel = Carbon::now()->startOfMonth()->toDateString();
         $fechaAl = Carbon::now()->endOfMonth()->toDateString();
 
-        // Base connection configuration (using the default sqlsrv connection as a template)
-        // Ensure 'sqlsrv' is defined in config/database.php
-        $baseConfig = Config::get('database.connections.sqlsrv');
+        // Base connection configuration (using the default mysql connection as a template)
+        $baseConfig = Config::get('database.connections.mysql');
 
         if (!$baseConfig) {
-            // Fallback or error if sqlsrv is not configured
-            Log::error("SQL Server connection 'sqlsrv' is not configured.");
+            Log::error("MySQL connection 'mysql' is not configured.");
             return view('employees.home', ['totalEmpeno' => 0, 'error' => 'Database configuration missing']);
         }
 
         foreach ($suffixes as $suffix) {
             $dbName = 'sistema_prendario_' . $suffix;
-            $connectionName = 'dynamic_sqlsrv';
+            $connectionName = 'dynamic_mysql'; // Changed from dynamic_sqlsrv
 
             try {
                 // Clone the base config and update the database name
+                // We assume the secondary databases are on the same MySQL host with same credentials
                 $config = $baseConfig;
                 $config['database'] = $dbName;
 
@@ -53,16 +50,8 @@ class HomeController extends Controller
                 DB::purge($connectionName);
 
                 // Run the query
-                // We use the simplified logic: Sum prestamo for contracts with movements 1,2,3,4 in the date range
-                // and active contracts (f_cancelacion IS NULL)
-                // Note: The user's query uses CAST(mo.f_alta AS DATE), which is T-SQL specific.
+                // MySQL syntax check: CAST(x AS DATE) is valid in MySQL as well.
 
-                // We fetch the sum directly.
-                // The query filters:
-                // - Active contracts (f_cancelacion IS NULL)
-                // - Movements of type 1, 2, 3, 4
-                // - Date range on movement creation date
-                // - Pledge types 1, 2, 3 (Alhajas, Autos, Varios)
                 $query = "
                     SELECT SUM(con.prestamo) as total
                     FROM movimientos mo
