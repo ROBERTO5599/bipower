@@ -18,7 +18,12 @@ class HomeController extends Controller
         $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
 
         $totalEmpeno = 0;
-        $sucursalesDetalle = []; // To store name and total per branch
+        $totalRefrendo = 0;
+        $totalDesempeno = 0;
+
+        $sucursalesDetalleEmpeno = [];
+        $sucursalesDetalleRefrendo = [];
+        $sucursalesDetalleDesempeno = [];
 
         // Default to current month with precise time boundaries
         $fechaDel = Carbon::now()->startOfMonth()->format('Y-m-d H:i:s');
@@ -31,8 +36,12 @@ class HomeController extends Controller
             Log::error("MySQL connection 'mysql' is not configured.");
             return view('employees.home', [
                 'totalEmpeno' => 0,
+                'totalRefrendo' => 0,
+                'totalDesempeno' => 0,
                 'error' => 'Database configuration missing',
-                'sucursalesDetalle' => [],
+                'sucursalesDetalleEmpeno' => [],
+                'sucursalesDetalleRefrendo' => [],
+                'sucursalesDetalleDesempeno' => [],
                 'fechaDel' => $fechaDel,
                 'fechaAl' => $fechaAl
             ]);
@@ -43,7 +52,9 @@ class HomeController extends Controller
             $dbName = 'sistema_prendario_' . $suffix;
             $connectionName = 'dynamic_mysql';
 
-            $sucursalTotal = 0;
+            $empeno = 0;
+            $refrendo = 0;
+            $desempeno = 0;
 
             try {
                 // Clone the base config and update the database name
@@ -57,45 +68,71 @@ class HomeController extends Controller
                 DB::purge($connectionName);
 
                 // Updated Query:
-                // - Only movement type 1 (Empeño)
+                // - Movement types 1 (Empeno), 2 (Refrendo), 4 (Desempeno)
+                // - Using conditional aggregation to get all 3 sums in one query
                 // - Filter on mo.f_alta using precise DATETIME range using CAST AS DATE as requested
                 // - Embedding dates directly into query string for precise control/debugging
                 $query = "
-                    SELECT SUM(con.prestamo) as total
+                    SELECT
+                        SUM(CASE WHEN mo.cod_tipo_movimiento = 1 THEN con.prestamo ELSE 0 END) as total_empeno,
+                        SUM(CASE WHEN mo.cod_tipo_movimiento = 2 THEN con.prestamo ELSE 0 END) as total_refrendo,
+                        SUM(CASE WHEN mo.cod_tipo_movimiento = 4 THEN con.prestamo ELSE 0 END) as total_desempeno
                     FROM movimientos mo
                     INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE con.f_cancelacion IS NULL
-                    AND mo.cod_tipo_movimiento IN (1)
+                    AND mo.cod_tipo_movimiento IN (1, 2, 4)
                     AND CAST(mo.f_alta AS DATE) BETWEEN '$fechaDel' AND '$fechaAl'
                     AND con.cod_tipo_prenda IN (1, 2, 3)
                 ";
 
                 $result = DB::connection($connectionName)->selectOne($query);
 
-                if ($result && isset($result->total)) {
-                    $sucursalTotal = $result->total;
-                    $totalEmpeno += $sucursalTotal;
+                if ($result) {
+                    $empeno = $result->total_empeno ?? 0;
+                    $refrendo = $result->total_refrendo ?? 0;
+                    $desempeno = $result->total_desempeno ?? 0;
+
+                    $totalEmpeno += $empeno;
+                    $totalRefrendo += $refrendo;
+                    $totalDesempeno += $desempeno;
                 }
 
             } catch (Exception $e) {
                 // Log the error
                 Log::error("Error connecting to or querying {$dbName}: " . $e->getMessage());
-                // Set total to 0 for this branch on error
-                $sucursalTotal = 0;
+                // Totals remain 0 for this branch on error
             }
 
-            // Add to detail list
-            $sucursalesDetalle[] = [
+            // Add to detail lists
+            $sucursalesDetalleEmpeno[] = [
                 'nombre' => $sucursal->nombre,
-                'total' => $sucursalTotal
+                'total' => $empeno
+            ];
+            $sucursalesDetalleRefrendo[] = [
+                'nombre' => $sucursal->nombre,
+                'total' => $refrendo
+            ];
+            $sucursalesDetalleDesempeno[] = [
+                'nombre' => $sucursal->nombre,
+                'total' => $desempeno
             ];
         }
 
         // Sort details by total descending
-        usort($sucursalesDetalle, function($a, $b) {
+        usort($sucursalesDetalleEmpeno, function($a, $b) {
+            return $b['total'] <=> $a['total'];
+        });
+        usort($sucursalesDetalleRefrendo, function($a, $b) {
+            return $b['total'] <=> $a['total'];
+        });
+        usort($sucursalesDetalleDesempeno, function($a, $b) {
             return $b['total'] <=> $a['total'];
         });
 
-        return view('employees.home', compact('totalEmpeno', 'sucursalesDetalle', 'fechaDel', 'fechaAl'));
+        return view('employees.home', compact(
+            'totalEmpeno', 'totalRefrendo', 'totalDesempeno',
+            'sucursalesDetalleEmpeno', 'sucursalesDetalleRefrendo', 'sucursalesDetalleDesempeno',
+            'fechaDel', 'fechaAl'
+        ));
     }
 }

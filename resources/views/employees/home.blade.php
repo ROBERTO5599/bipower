@@ -21,8 +21,8 @@
 	</div>
 
 	<div class="row">
-		<div class="col-12 col-md-6 col-lg-4">
-			<!-- Added data-bs-toggle and data-bs-target for modal -->
+		<!-- Card Total Empeño -->
+		<div class="col-12 col-md-6 col-lg-4 mb-3">
 			<div class="card shadow-sm border-0 card-hover cursor-pointer" data-bs-toggle="modal" data-bs-target="#empenoModal" title="Click para ver detalles por sucursal">
 				<div class="card-body">
 					<h5 class="card-title text-muted mb-3">Total Empeño</h5>
@@ -40,15 +40,55 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Card Total Refrendo -->
+		<div class="col-12 col-md-6 col-lg-4 mb-3">
+			<div class="card shadow-sm border-0 card-hover cursor-pointer" data-bs-toggle="modal" data-bs-target="#refrendoModal" title="Click para ver detalles por sucursal">
+				<div class="card-body">
+					<h5 class="card-title text-muted mb-3">Total Refrendo</h5>
+					<div class="d-flex align-items-center">
+						<div class="flex-grow-1">
+							<h2 class="mb-0 font-weight-bold text-success">$ {{ number_format($totalRefrendo ?? 0, 2) }}</h2>
+						</div>
+						<div class="icon-shape bg-light text-success rounded-circle p-3">
+							<i class="bi bi-arrow-repeat fs-1"></i>
+						</div>
+					</div>
+					<p class="mt-3 mb-0 text-muted text-sm">
+						<span class="text-nowrap">Acumulado de todas las sucursales</span>
+					</p>
+				</div>
+			</div>
+		</div>
+
+		<!-- Card Total Desempeño -->
+		<div class="col-12 col-md-6 col-lg-4 mb-3">
+			<div class="card shadow-sm border-0 card-hover cursor-pointer" data-bs-toggle="modal" data-bs-target="#desempenoModal" title="Click para ver detalles por sucursal">
+				<div class="card-body">
+					<h5 class="card-title text-muted mb-3">Total Desempeño</h5>
+					<div class="d-flex align-items-center">
+						<div class="flex-grow-1">
+							<h2 class="mb-0 font-weight-bold text-info">$ {{ number_format($totalDesempeno ?? 0, 2) }}</h2>
+						</div>
+						<div class="icon-shape bg-light text-info rounded-circle p-3">
+							<i class="bi bi-box-arrow-right fs-1"></i>
+						</div>
+					</div>
+					<p class="mt-3 mb-0 text-muted text-sm">
+						<span class="text-nowrap">Acumulado de todas las sucursales</span>
+					</p>
+				</div>
+			</div>
+		</div>
 	</div>
 </div>
 
-<!-- Modal -->
+<!-- Modal Empeño -->
 <div class="modal fade" id="empenoModal" tabindex="-1" aria-labelledby="empenoModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="empenoModalLabel">Detalle por Sucursal</h5>
+        <h5 class="modal-title" id="empenoModalLabel">Detalle Empeño por Sucursal</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
@@ -56,10 +96,10 @@
 			<small>Periodo: <strong>{{ \Carbon\Carbon::parse($fechaDel)->format('d/m/Y H:i') }}</strong> al <strong>{{ \Carbon\Carbon::parse($fechaAl)->format('d/m/Y H:i') }}</strong></small>
 		</div>
         <ul class="list-group list-group-flush">
-			@if(isset($sucursalesDetalle) && count($sucursalesDetalle) > 0)
-				@foreach($sucursalesDetalle as $detalle)
+			@if(isset($sucursalesDetalleEmpeno) && count($sucursalesDetalleEmpeno) > 0)
+				@foreach($sucursalesDetalleEmpeno as $detalle)
 				<li class="list-group-item d-flex justify-content-between align-items-center px-0">
-					{{ $detalle['nombre'] }}
+					<strong>{{ $detalle['nombre'] }}</strong>
 					<span class="badge bg-primary rounded-pill">$ {{ number_format($detalle['total'], 2) }}</span>
 				</li>
 				@endforeach
@@ -68,6 +108,74 @@
 		<div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
 			<strong>Total General:</strong>
 			<h5 class="mb-0 text-primary font-weight-bold">$ {{ number_format($totalEmpeno ?? 0, 2) }}</h5>
+		</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Refrendo -->
+<div class="modal fade" id="refrendoModal" tabindex="-1" aria-labelledby="refrendoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="refrendoModalLabel">Detalle Refrendo por Sucursal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+		<div class="alert alert-info py-2 mb-3">
+			<small>Periodo: <strong>{{ \Carbon\Carbon::parse($fechaDel)->format('d/m/Y H:i') }}</strong> al <strong>{{ \Carbon\Carbon::parse($fechaAl)->format('d/m/Y H:i') }}</strong></small>
+		</div>
+        <ul class="list-group list-group-flush">
+			@if(isset($sucursalesDetalleRefrendo) && count($sucursalesDetalleRefrendo) > 0)
+				@foreach($sucursalesDetalleRefrendo as $detalle)
+				<li class="list-group-item d-flex justify-content-between align-items-center px-0">
+					<strong>{{ $detalle['nombre'] }}</strong>
+					<span class="badge bg-success rounded-pill">$ {{ number_format($detalle['total'], 2) }}</span>
+				</li>
+				@endforeach
+			@endif
+		</ul>
+		<div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
+			<strong>Total General:</strong>
+			<h5 class="mb-0 text-success font-weight-bold">$ {{ number_format($totalRefrendo ?? 0, 2) }}</h5>
+		</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Desempeño -->
+<div class="modal fade" id="desempenoModal" tabindex="-1" aria-labelledby="desempenoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="desempenoModalLabel">Detalle Desempeño por Sucursal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+		<div class="alert alert-info py-2 mb-3">
+			<small>Periodo: <strong>{{ \Carbon\Carbon::parse($fechaDel)->format('d/m/Y H:i') }}</strong> al <strong>{{ \Carbon\Carbon::parse($fechaAl)->format('d/m/Y H:i') }}</strong></small>
+		</div>
+        <ul class="list-group list-group-flush">
+			@if(isset($sucursalesDetalleDesempeno) && count($sucursalesDetalleDesempeno) > 0)
+				@foreach($sucursalesDetalleDesempeno as $detalle)
+				<li class="list-group-item d-flex justify-content-between align-items-center px-0">
+					<strong>{{ $detalle['nombre'] }}</strong>
+					<span class="badge bg-info text-dark rounded-pill">$ {{ number_format($detalle['total'], 2) }}</span>
+				</li>
+				@endforeach
+			@endif
+		</ul>
+		<div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
+			<strong>Total General:</strong>
+			<h5 class="mb-0 text-info font-weight-bold">$ {{ number_format($totalDesempeno ?? 0, 2) }}</h5>
 		</div>
       </div>
       <div class="modal-footer">
