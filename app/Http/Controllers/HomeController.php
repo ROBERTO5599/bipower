@@ -58,14 +58,14 @@ class HomeController extends Controller
 
                 // Updated Query:
                 // - Only movement type 1 (Empeño)
-                // - Filter on mo.f_alta using precise DATETIME range (no CAST AS DATE)
+                // - Filter on mo.f_alta using precise DATETIME range using CAST AS DATE as requested
                 $query = "
                     SELECT SUM(con.prestamo) as total
                     FROM movimientos mo
                     INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE con.f_cancelacion IS NULL
                     AND mo.cod_tipo_movimiento IN (1)
-                    AND mo.f_alta BETWEEN ? AND ?
+                    AND CAST(mo.f_alta AS DATE) BETWEEN ? AND ?
                     AND con.cod_tipo_prenda IN (1, 2, 3)
                 ";
 
