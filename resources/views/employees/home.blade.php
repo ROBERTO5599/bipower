@@ -99,7 +99,7 @@
 			@if(isset($sucursalesDetalleEmpeno) && count($sucursalesDetalleEmpeno) > 0)
 				@foreach($sucursalesDetalleEmpeno as $detalle)
 				<li class="list-group-item d-flex justify-content-between align-items-center px-0">
-					<strong>{{ $detalle['nombre'] }}</strong>
+					<strong class="text-dark">{{ $detalle['nombre'] }}</strong>
 					<span class="badge bg-primary rounded-pill">$ {{ number_format($detalle['total'], 2) }}</span>
 				</li>
 				@endforeach
@@ -133,7 +133,7 @@
 			@if(isset($sucursalesDetalleRefrendo) && count($sucursalesDetalleRefrendo) > 0)
 				@foreach($sucursalesDetalleRefrendo as $detalle)
 				<li class="list-group-item d-flex justify-content-between align-items-center px-0">
-					<strong>{{ $detalle['nombre'] }}</strong>
+					<strong class="text-dark">{{ $detalle['nombre'] }}</strong>
 					<span class="badge bg-success rounded-pill">$ {{ number_format($detalle['total'], 2) }}</span>
 				</li>
 				@endforeach
@@ -167,7 +167,7 @@
 			@if(isset($sucursalesDetalleDesempeno) && count($sucursalesDetalleDesempeno) > 0)
 				@foreach($sucursalesDetalleDesempeno as $detalle)
 				<li class="list-group-item d-flex justify-content-between align-items-center px-0">
-					<strong>{{ $detalle['nombre'] }}</strong>
+					<strong class="text-dark">{{ $detalle['nombre'] }}</strong>
 					<span class="badge bg-info text-dark rounded-pill">$ {{ number_format($detalle['total'], 2) }}</span>
 				</li>
 				@endforeach
