@@ -20,9 +20,9 @@ class HomeController extends Controller
         $totalEmpeno = 0;
         $sucursalesDetalle = []; // To store name and total per branch
 
-        // Default to current month if not specified
-        $fechaDel = Carbon::now()->startOfMonth()->toDateString();
-        $fechaAl = Carbon::now()->endOfMonth()->toDateString();
+        // Default to current month with precise time boundaries
+        $fechaDel = Carbon::now()->startOfMonth()->format('Y-m-d H:i:s');
+        $fechaAl = Carbon::now()->endOfMonth()->format('Y-m-d H:i:s');
 
         // Base connection configuration (using the default mysql connection as a template)
         $baseConfig = Config::get('database.connections.mysql');
@@ -56,14 +56,16 @@ class HomeController extends Controller
                 // Purge the connection to ensure fresh connection with new config
                 DB::purge($connectionName);
 
-                // Updated Query: Only movement type 1 (Empeño)
+                // Updated Query:
+                // - Only movement type 1 (Empeño)
+                // - Filter on mo.f_alta using precise DATETIME range (no CAST AS DATE)
                 $query = "
                     SELECT SUM(con.prestamo) as total
                     FROM movimientos mo
                     INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE con.f_cancelacion IS NULL
                     AND mo.cod_tipo_movimiento IN (1)
-                    AND CAST(mo.f_alta AS DATE) BETWEEN ? AND ?
+                    AND mo.f_alta BETWEEN ? AND ?
                     AND con.cod_tipo_prenda IN (1, 2, 3)
                 ";
 

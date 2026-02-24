@@ -16,7 +16,7 @@
 <div class="container-fluid p-4">
 	<div class="row mb-4">
 		<div class="col-12 d-flex justify-content-between align-items-center">
-			<h4 class="title">Bienvenido, {{ Auth::user()->nombre_completo ?? Auth::user()->nombre ?? '' }} (del {{ \Carbon\Carbon::parse($fechaDel)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($fechaAl)->format('d/m/Y') }})</h4>
+			<h4 class="title">Bienvenido, {{ Auth::user()->nombre_completo ?? Auth::user()->nombre ?? '' }} (del {{ \Carbon\Carbon::parse($fechaDel)->format('d/m/Y H:i') }} al {{ \Carbon\Carbon::parse($fechaAl)->format('d/m/Y H:i') }})</h4>
 		</div>
 	</div>
 
@@ -53,7 +53,7 @@
       </div>
       <div class="modal-body">
 		<div class="alert alert-info py-2 mb-3">
-			<small>Periodo: <strong>{{ \Carbon\Carbon::parse($fechaDel)->format('d/m/Y') }}</strong> al <strong>{{ \Carbon\Carbon::parse($fechaAl)->format('d/m/Y') }}</strong></small>
+			<small>Periodo: <strong>{{ \Carbon\Carbon::parse($fechaDel)->format('d/m/Y H:i') }}</strong> al <strong>{{ \Carbon\Carbon::parse($fechaAl)->format('d/m/Y H:i') }}</strong></small>
 		</div>
         <ul class="list-group list-group-flush">
 			@if(isset($sucursalesDetalle) && count($sucursalesDetalle) > 0)
