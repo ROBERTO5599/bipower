@@ -5,83 +5,87 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use App\Models\Sucursal;
 
 class ResumenEjecutivoController extends Controller
 {
+    // Carga la vista base sin datos (renderizado rápido)
     public function index(Request $request)
     {
-        // 1. Obtencion de Fechas y Filtros (Periodo y Sucursal)
+        $fechaInicio = now()->subDays(30)->toDateString();
+        $fechaFin = now()->toDateString();
+        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+
+        return view('resumen-ejecutivo.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+    }
+
+    // Endpoint AJAX para obtener los datos
+    public function data(Request $request)
+    {
         $fechaInicio = $request->input('fecha_inicio', now()->subDays(30)->toDateString());
         $fechaFin = $request->input('fecha_fin', now()->toDateString());
         $fechaFinQuery = $fechaFin . ' 23:59:59';
         
-        // Obtener sucursales válidas (que tengan ID de sistema prendario)
         $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
         $sucursalId = $request->input('sucursal_id');
 
-        // Filtrar sucursales seleccionadas
         if ($sucursalId) {
             $sucursalesSeleccionadas = $sucursales->where('id_valora_mas', $sucursalId);
         } else {
             $sucursalesSeleccionadas = $sucursales;
         }
 
-        // Colecciones para agregar datos de todas las sucursales
+        $baseConfig = Config::get('database.connections.mysql');
+
         $globalMovimientos = collect();
         $globalInventario = collect();
         $totalGastosGlobal = 0;
 
-        // Array para datos desglosados por sucursal
         $branchKPIs = [];
 
-        // 2. Iterar sobre sucursales y extraer datos
         foreach ($sucursalesSeleccionadas as $sucursal) {
             $dbName = 'sistema_prendario_' . $sucursal->id_valora_mas;
+            $connectionName = 'dynamic_kpi';
 
             try {
-                // Configurar conexión dinámica
-                $this->switchDatabaseConnection($dbName);
+                if ($baseConfig) {
+                    $config = $baseConfig;
+                    $config['database'] = $dbName;
+                    Config::set("database.connections.{$connectionName}", $config);
+                    DB::purge($connectionName);
+                } else {
+                    throw new \Exception("Base MySQL configuration not found.");
+                }
 
-                // Ejecutar Queries
-
-                // Movimientos
                 $queryMov = $this->getQueryMovimientos();
-                $movimientosRaw = $this->runQuery($queryMov, [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
+                $movimientosRaw = DB::connection($connectionName)->select($queryMov, [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
 
-                // Gastos
                 $queryGas = $this->getQueryGastos();
-                $gastosRaw = $this->runQuery($queryGas, [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
+                $gastosRaw = DB::connection($connectionName)->select($queryGas, [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
 
-                // Inventario
                 $queryInv = $this->getQueryInventario();
-                $inventarioRaw = $this->runQuery($queryInv, []);
+                $inventarioRaw = DB::connection($connectionName)->select($queryInv, []);
 
-                // Procesar resultados de esta sucursal
                 $mov = collect($movimientosRaw);
                 $inv = collect($inventarioRaw);
                 $gastos = count($gastosRaw) > 0 ? (float)($gastosRaw[0]->TotalGastos ?? 0) : 0;
 
-                // Agregar metadatos de sucursal
                 $mov->each(function($item) use ($sucursal) { $item->sucursal = $sucursal->nombre; });
                 $inv->each(function($item) use ($sucursal) { $item->sucursal = $sucursal->nombre; });
 
-                // Acumular globales
                 $globalMovimientos = $globalMovimientos->merge($mov);
                 $globalInventario = $globalInventario->merge($inv);
                 $totalGastosGlobal += $gastos;
 
-                // Calcular KPIs específicos de la sucursal
                 $branchKPIs[$sucursal->nombre] = $this->calculateBranchKPIs($mov, $inv, $gastos);
 
             } catch (\Exception $e) {
-                // Si falla una sucursal (ej. BD no existe), continuamos con las otras
-                // \Log::error("Error procesando sucursal {$sucursal->nombre}: " . $e->getMessage());
+                Log::error("Error procesando sucursal {$sucursal->nombre} ({$dbName}): " . $e->getMessage());
                 continue;
             }
         }
 
-        // 3. Cálculos Globales (Agregados)
         $ventasData = $this->calcularVentas($globalMovimientos);
         $apartadosData = $this->calcularApartadosLiquidados($globalMovimientos);
         
@@ -92,15 +96,10 @@ class ResumenEjecutivoController extends Controller
         $totalEgresos = $totalGastosGlobal;
         $utilidadNeta = $totalIngresos - $totalEgresos;
         
-        // Inventario
         $inventarioPisoVentaTotal = $globalInventario->where('Ubicacion', 'Piso de venta')->sum('prestamo');
-        $inventarioDepositariaTotal = $globalInventario->where('Ubicacion', 'Depositaria')->sum('prestamo');
         
-        // KPIs Empeño
         $empenosData = $this->calcularEmpenos($globalMovimientos);
-        $refrendosData = $this->calcularRefrendos($globalMovimientos);
         
-        // Datos para Gráficos
         $chartFinanciero = [
             'labels' => ['Ingresos', 'Gastos', 'Utilidad'],
             'data' => [$totalIngresos, $totalEgresos, $utilidadNeta]
@@ -116,32 +115,19 @@ class ResumenEjecutivoController extends Controller
             'data' => [$invOro, $invPlata, $invVarios, $invAutos]
         ];
 
-        // Preparar datos para gráfico de barras por sucursal
         $chartSucursales = $this->prepareBranchChartData($branchKPIs);
 
-        return view('resumen-ejecutivo.index', compact(
-            'fechaInicio', 'fechaFin', 'sucursales', 'sucursalId',
-            'totalIngresos', 'totalEgresos', 'utilidadNeta',
-            'ventasData', 'apartadosData', 'empenosData', 'refrendosData',
-            'inventarioPisoVentaTotal', 'inventarioDepositariaTotal',
-            'totalGastosGlobal', 'chartFinanciero', 'chartInventario', 'branchKPIs', 'chartSucursales'
-        ));
-    }
-
-    // --- INFRAESTRUCTURA ---
-
-    private function switchDatabaseConnection($dbName)
-    {
-        $config = Config::get('database.connections.mysql');
-        $config['database'] = $dbName;
-        Config::set('database.connections.dynamic_kpi', $config);
-        DB::purge('dynamic_kpi');
-    }
-
-    private function runQuery($query, $bindings)
-    {
-        // En Laravel (PDO), los bindings con nombre son soportados de forma nativa.
-        return DB::connection('dynamic_kpi')->select($query, $bindings);
+        return response()->json([
+            'totalIngresos' => $totalIngresos,
+            'totalEgresos' => $totalEgresos,
+            'utilidadNeta' => $utilidadNeta,
+            'inventarioPisoVentaTotal' => $inventarioPisoVentaTotal,
+            'empenosData' => $empenosData,
+            'chartFinanciero' => $chartFinanciero,
+            'chartInventario' => $chartInventario,
+            'branchKPIs' => $branchKPIs,
+            'chartSucursales' => $chartSucursales
+        ]);
     }
 
     // --- CÁLCULOS POR SUCURSAL ---
