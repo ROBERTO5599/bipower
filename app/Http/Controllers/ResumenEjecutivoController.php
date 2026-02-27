@@ -76,9 +76,13 @@ class ResumenEjecutivoController extends Controller
 
                 // 1. GASTOS (Egresos)
                 $gastosResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(solicitado), 0) AS TotalGastos
-                    FROM gastos
-                    WHERE activo = 1 AND cod_estatus = 2 AND f_solicitado BETWEEN :fechaDel AND :fechaAl
+                    SELECT COALESCE(SUM(gas.solicitado), 0) AS TotalGastos
+                    FROM gastos gas
+                    INNER JOIN movimientos mov ON gas.cod_movimiento = mov.cod_movimiento
+                    WHERE gas.activo = 1
+                      AND gas.cod_estatus = 2
+                      AND gas.f_solicitado >= :fechaDel
+                      AND gas.f_solicitado <= :fechaAl
                 ", [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
 
                 $b_egresos = (float)($gastosResult->TotalGastos ?? 0);
