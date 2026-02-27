@@ -13,7 +13,7 @@ class ResumenEjecutivoController extends Controller
     // Carga la vista base sin datos (renderizado rápido)
     public function index(Request $request)
     {
-        $fechaInicio = now()->subDays(30)->toDateString();
+        $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
         $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
 
@@ -23,10 +23,10 @@ class ResumenEjecutivoController extends Controller
     // Endpoint AJAX para obtener los datos
     public function data(Request $request)
     {
-        $fechaInicio = $request->input('fecha_inicio', now()->subDays(30)->toDateString());
+        $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString());
         $fechaFin = $request->input('fecha_fin', now()->toDateString());
         $fechaFinQuery = $fechaFin . ' 23:59:59';
-        
+
         $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
         $sucursalId = $request->input('sucursal_id');
 
