@@ -18,6 +18,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('/resumen-ejecutivo', [ResumenEjecutivoController::class, 'index'])->name('resumen-ejecutivo.index');
+    Route::get('/resumen-ejecutivo/data', [ResumenEjecutivoController::class, 'data'])->name('resumen-ejecutivo.data');
 });
 
 require __DIR__.'/auth.php';

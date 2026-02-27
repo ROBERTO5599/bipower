@@ -25,14 +25,34 @@
         .bg-light-warning { background-color: rgba(255, 193, 7, 0.1); }
         .bg-light-primary { background-color: rgba(13, 110, 253, 0.1); }
 
-        .table-responsive {
-            overflow-x: auto;
+        .table-responsive { overflow-x: auto; }
+
+        /* Spinner */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
+        .spinner-border { width: 3rem; height: 3rem; }
     </style>
 @endsection
 
 @section('content')
-<div class="container-fluid p-4">
+
+<!-- Loading Overlay -->
+<div id="loading-overlay">
+    <div class="spinner-border text-primary mb-3" role="status">
+        <span class="visually-hidden">Cargando...</span>
+    </div>
+    <h5 class="text-muted fw-bold">Calculando métricas globales...</h5>
+</div>
+
+<div class="container-fluid p-4" id="dashboard-content" style="display: none;">
     <div class="row mb-4">
         <div class="col-12">
             <h4 class="title fw-bold text-dark">Resumen Ejecutivo Global</h4>
@@ -43,13 +63,13 @@
     <!-- Filtros -->
     <div class="card shadow-sm border-0 mb-4 rounded-3">
         <div class="card-body p-4">
-            <form method="GET" action="{{ route('resumen-ejecutivo.index') }}" class="row g-3">
+            <form id="filter-form" class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Sucursal</label>
-                    <select name="sucursal_id" class="form-select">
+                    <select name="sucursal_id" id="sucursal_id" class="form-select">
                         <option value="">-- Todas las Sucursales --</option>
                         @foreach($sucursales ?? [] as $sucursal)
-                            <option value="{{ $sucursal->id_valora_mas }}" {{ $sucursalId == $sucursal->id_valora_mas ? 'selected' : '' }}>
+                            <option value="{{ $sucursal->id_valora_mas }}">
                                 {{ $sucursal->nombre }}
                             </option>
                         @endforeach
@@ -57,11 +77,11 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Fecha Desde</label>
-                    <input type="date" name="fecha_inicio" value="{{ $fechaInicio }}" class="form-control">
+                    <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ $fechaInicio }}" class="form-control">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Fecha Hasta</label>
-                    <input type="date" name="fecha_fin" value="{{ substr($fechaFin, 0, 10) }}" class="form-control">
+                    <input type="date" name="fecha_fin" id="fecha_fin" value="{{ substr($fechaFin, 0, 10) }}" class="form-control">
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100 fw-bold">
@@ -84,7 +104,7 @@
                             <i class="bi bi-wallet2"></i>
                         </div>
                     </div>
-                    <h2 class="display-6 fw-bold text-dark mb-0">$ {{ number_format($totalIngresos, 2) }}</h2>
+                    <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-ingresos">$ 0.00</h2>
                     <span class="text-muted small">Ventas + Intereses</span>
                 </div>
             </div>
@@ -100,7 +120,7 @@
                             <i class="bi bi-graph-down-arrow"></i>
                         </div>
                     </div>
-                    <h2 class="display-6 fw-bold text-dark mb-0">$ {{ number_format($totalGastosGlobal, 2) }}</h2>
+                    <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-gastos">$ 0.00</h2>
                     <span class="text-muted small">Total egresos registrados</span>
                 </div>
             </div>
@@ -116,12 +136,8 @@
                             <i class="bi bi-pie-chart-fill"></i>
                         </div>
                     </div>
-                    <h2 class="display-6 fw-bold {{ $utilidadNeta >= 0 ? 'text-dark' : 'text-danger' }} mb-0">
-                        $ {{ number_format($utilidadNeta, 2) }}
-                    </h2>
-                    <span class="badge {{ $utilidadNeta >= 0 ? 'bg-success' : 'bg-danger' }} mt-2">
-                        {{ $totalIngresos > 0 ? number_format(($utilidadNeta / $totalIngresos) * 100, 1) : 0 }}% Margen
-                    </span>
+                    <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-utilidad">$ 0.00</h2>
+                    <span class="badge bg-secondary mt-2" id="kpi-margen">0% Margen</span>
                 </div>
             </div>
         </div>
@@ -152,7 +168,7 @@
                         </div>
                         <div>
                             <h6 class="text-muted text-uppercase fw-bold ls-1 mb-1">Inventario (Piso)</h6>
-                            <h4 class="fw-bold text-dark mb-0">$ {{ number_format($inventarioPisoVentaTotal, 2) }}</h4>
+                            <h4 class="fw-bold text-dark mb-0" id="kpi-inventario">$ 0.00</h4>
                         </div>
                     </div>
                 </div>
@@ -167,8 +183,8 @@
                         </div>
                         <div>
                             <h6 class="text-muted text-uppercase fw-bold ls-1 mb-1">Empeños (Nuevos)</h6>
-                            <h4 class="fw-bold text-dark mb-0">$ {{ number_format($empenosData['prestamo'], 2) }}</h4>
-                            <small class="text-muted">{{ $empenosData['contratos'] }} Contratos</small>
+                            <h4 class="fw-bold text-dark mb-0" id="kpi-empeno">$ 0.00</h4>
+                            <small class="text-muted" id="kpi-empeno-contratos">0 Contratos</small>
                         </div>
                     </div>
                 </div>
@@ -185,8 +201,7 @@
     </div>
 
     <!-- Tabla Semáforo por Sucursal -->
-    @if(empty($sucursalId) && count($branchKPIs) > 0)
-    <div class="row">
+    <div class="row" id="branch-table-container" style="display: none;">
         <div class="col-12">
             <div class="card shadow-sm border-0 rounded-3">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
@@ -213,27 +228,8 @@
                                     <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">Inv. Total</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                @foreach($branchKPIs as $nombre => $kpi)
-                                <tr>
-                                    <td class="ps-4 fw-semibold text-dark">{{ $nombre }}</td>
-                                    <td class="text-end">$ {{ number_format($kpi['ingresos'], 2) }}</td>
-                                    <td class="text-end">$ {{ number_format($kpi['gastos'], 2) }}</td>
-                                    <td class="text-end fw-bold {{ $kpi['utilidad_neta'] >= 0 ? 'text-success' : 'text-danger' }}">
-                                        $ {{ number_format($kpi['utilidad_neta'], 2) }}
-                                    </td>
-                                    <td class="text-center">
-                                        @php
-                                            $margen = $kpi['margen_bruto_pct'];
-                                            $badgeClass = $margen > 30 ? 'bg-success' : ($margen > 15 ? 'bg-warning text-dark' : 'bg-danger');
-                                        @endphp
-                                        <span class="badge {{ $badgeClass }} rounded-pill">
-                                            {{ number_format($margen, 1) }}%
-                                        </span>
-                                    </td>
-                                    <td class="pe-4 text-end">$ {{ number_format($kpi['inventario_total'], 2) }}</td>
-                                </tr>
-                                @endforeach
+                            <tbody id="branch-table-body">
+                                <!-- Filas generadas por JS -->
                             </tbody>
                         </table>
                     </div>
@@ -241,7 +237,6 @@
             </div>
         </div>
     </div>
-    @endif
 </div>
 @endsection
 
@@ -250,20 +245,106 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
 
-        // --- Gráfico Financiero (Barras) ---
-        const ctxFin = document.getElementById('financialChart');
-        if (ctxFin) {
-            new Chart(ctxFin, {
+        // Chart instances
+        let finChart = null;
+        let invChart = null;
+        let branchChart = null;
+
+        // Formatter
+        const formatter = new Intl.NumberFormat('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+        });
+
+        // Elements
+        const overlay = document.getElementById('loading-overlay');
+        const dashboard = document.getElementById('dashboard-content');
+        const form = document.getElementById('filter-form');
+        const branchTableContainer = document.getElementById('branch-table-container');
+
+        // Load data initially
+        loadData();
+
+        // Handle form submit
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            loadData();
+        });
+
+        function loadData() {
+            // Show loader
+            overlay.style.display = 'flex';
+            dashboard.style.opacity = '0.5'; // Dim background
+
+            const urlParams = new URLSearchParams(new FormData(form)).toString();
+
+            fetch(`{{ route('resumen-ejecutivo.data') }}?${urlParams}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la red');
+                    return response.json();
+                })
+                .then(data => {
+                    updateDashboard(data);
+                })
+                .catch(error => {
+                    console.error("Error cargando datos:", error);
+                    alert("Ocurrió un error al cargar la información.");
+                })
+                .finally(() => {
+                    overlay.style.display = 'none';
+                    dashboard.style.display = 'block';
+                    dashboard.style.opacity = '1';
+                });
+        }
+
+        function updateDashboard(data) {
+            // 1. Update KPI Cards
+            document.getElementById('kpi-ingresos').innerText = formatter.format(data.totalIngresos);
+            document.getElementById('kpi-gastos').innerText = formatter.format(data.totalEgresos);
+
+            const utilEl = document.getElementById('kpi-utilidad');
+            utilEl.innerText = formatter.format(data.utilidadNeta);
+            utilEl.className = `display-6 fw-bold mb-0 ${data.utilidadNeta >= 0 ? 'text-dark' : 'text-danger'}`;
+
+            const margenEl = document.getElementById('kpi-margen');
+            const margenVal = data.totalIngresos > 0 ? ((data.utilidadNeta / data.totalIngresos) * 100).toFixed(1) : 0;
+            margenEl.innerText = `${margenVal}% Margen`;
+            margenEl.className = `badge mt-2 ${data.utilidadNeta >= 0 ? 'bg-success' : 'bg-danger'}`;
+
+            document.getElementById('kpi-inventario').innerText = formatter.format(data.inventarioPisoVentaTotal);
+            document.getElementById('kpi-empeno').innerText = formatter.format(data.empenosData.prestamo);
+            document.getElementById('kpi-empeno-contratos').innerText = `${data.empenosData.contratos} Contratos`;
+
+            // 2. Update Charts
+            updateFinancialChart(data.chartFinanciero);
+            updateInventoryChart(data.chartInventario);
+
+            // 3. Update Table and Branch Chart
+            const isSingleBranch = document.getElementById('sucursal_id').value !== "";
+            if (!isSingleBranch && Object.keys(data.branchKPIs).length > 0) {
+                branchTableContainer.style.display = 'flex';
+                updateBranchTable(data.branchKPIs);
+                updateBranchChart(data.chartSucursales);
+            } else {
+                branchTableContainer.style.display = 'none';
+            }
+        }
+
+        function updateFinancialChart(chartData) {
+            const ctx = document.getElementById('financialChart');
+            if (finChart) finChart.destroy();
+
+            finChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: {!! json_encode($chartFinanciero['labels']) !!},
+                    labels: chartData.labels,
                     datasets: [{
                         label: 'Monto (MXN)',
-                        data: {!! json_encode($chartFinanciero['data']) !!},
+                        data: chartData.data,
                         backgroundColor: [
-                            'rgba(25, 135, 84, 0.7)', // Success (Ingresos)
-                            'rgba(220, 53, 69, 0.7)', // Danger (Gastos)
-                            'rgba(13, 202, 240, 0.7)'  // Info (Utilidad)
+                            'rgba(25, 135, 84, 0.7)',
+                            'rgba(220, 53, 69, 0.7)',
+                            'rgba(13, 202, 240, 0.7)'
                         ],
                         borderColor: [
                             'rgba(25, 135, 84, 1)',
@@ -277,69 +358,80 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
+                    plugins: { legend: { display: false } },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { borderDash: [2, 4] }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                        x: { grid: { display: false } }
                     }
                 }
             });
         }
 
-        // --- Gráfico Inventario (Doughnut) ---
-        const ctxInv = document.getElementById('inventoryChart');
-        if (ctxInv) {
-            new Chart(ctxInv, {
+        function updateInventoryChart(chartData) {
+            const ctx = document.getElementById('inventoryChart');
+            if (invChart) invChart.destroy();
+
+            invChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: {!! json_encode($chartInventario['labels']) !!},
+                    labels: chartData.labels,
                     datasets: [{
-                        data: {!! json_encode($chartInventario['data']) !!},
-                        backgroundColor: [
-                            '#FFD700', // Oro
-                            '#C0C0C0', // Plata
-                            '#fd7e14', // Varios
-                            '#0dcaf0'  // Autos
-                        ],
+                        data: chartData.data,
+                        backgroundColor: ['#FFD700', '#C0C0C0', '#fd7e14', '#0dcaf0'],
                         borderWidth: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12 } }
-                    },
+                    plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } },
                     cutout: '70%'
                 }
             });
         }
 
-        // --- Gráfico Sucursales (Comparativo) ---
-        @if(!empty($chartSucursales))
-        const ctxBranches = document.getElementById('branchesChart');
-        if (ctxBranches) {
-            new Chart(ctxBranches, {
+        function updateBranchTable(branchKPIs) {
+            const tbody = document.getElementById('branch-table-body');
+            tbody.innerHTML = '';
+
+            for (const [nombre, kpi] of Object.entries(branchKPIs)) {
+                const utilClass = kpi.utilidad_neta >= 0 ? 'text-success' : 'text-danger';
+                const margen = kpi.margen_bruto_pct;
+                const badgeClass = margen > 30 ? 'bg-success' : (margen > 15 ? 'bg-warning text-dark' : 'bg-danger');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="ps-4 fw-semibold text-dark">${nombre}</td>
+                    <td class="text-end">${formatter.format(kpi.ingresos)}</td>
+                    <td class="text-end">${formatter.format(kpi.gastos)}</td>
+                    <td class="text-end fw-bold ${utilClass}">${formatter.format(kpi.utilidad_neta)}</td>
+                    <td class="text-center">
+                        <span class="badge ${badgeClass} rounded-pill">${margen.toFixed(1)}%</span>
+                    </td>
+                    <td class="pe-4 text-end">${formatter.format(kpi.inventario_total)}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        function updateBranchChart(chartData) {
+            const ctx = document.getElementById('branchesChart');
+            if (branchChart) branchChart.destroy();
+
+            branchChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: {!! json_encode($chartSucursales['labels']) !!},
+                    labels: chartData.labels,
                     datasets: [
                         {
                             label: 'Ingresos',
-                            data: {!! json_encode($chartSucursales['ingresos']) !!},
+                            data: chartData.ingresos,
                             backgroundColor: 'rgba(118, 75, 162, 0.6)',
                             borderRadius: 4
                         },
                         {
                             label: 'Utilidad Neta',
-                            data: {!! json_encode($chartSucursales['utilidades']) !!},
+                            data: chartData.utilidades,
                             backgroundColor: 'rgba(13, 202, 240, 0.6)',
                             borderRadius: 4
                         }
@@ -349,18 +441,13 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: '#f0f0f0' }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
+                        y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                        x: { grid: { display: false } }
                     }
                 }
             });
         }
-        @endif
+
     });
 </script>
 @endsection
