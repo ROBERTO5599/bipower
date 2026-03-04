@@ -20,7 +20,11 @@ class Sucursal extends Model
 
     /**
      * Get the database name suffix for this sucursal.
+<<<<<<< Updated upstream
      *
+=======
+     *
+>>>>>>> Stashed changes
      * @return int|null
      */
     public function getDatabaseSuffixAttribute()

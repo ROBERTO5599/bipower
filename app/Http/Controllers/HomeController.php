@@ -24,18 +24,30 @@ class HomeController extends Controller
         $sucursalesDetalleEmpeno = [];
         $sucursalesDetalleRefrendo = [];
         $sucursalesDetalleDesempeno = [];
+<<<<<<< Updated upstream
 
+=======
+
+>>>>>>> Stashed changes
         // Default to current month with precise time boundaries
         $fechaDel = Carbon::now()->startOfMonth()->format('Y-m-d H:i:s');
         $fechaAl = Carbon::now()->endOfMonth()->format('Y-m-d H:i:s');
 
         // Base connection configuration (using the default mysql connection as a template)
         $baseConfig = Config::get('database.connections.mysql');
+<<<<<<< Updated upstream
 
         if (!$baseConfig) {
             Log::error("MySQL connection 'mysql' is not configured.");
             return view('employees.home', [
                 'totalEmpeno' => 0,
+=======
+
+        if (!$baseConfig) {
+            Log::error("MySQL connection 'mysql' is not configured.");
+            return view('employees.home', [
+                'totalEmpeno' => 0,
+>>>>>>> Stashed changes
                 'totalRefrendo' => 0,
                 'totalDesempeno' => 0,
                 'error' => 'Database configuration missing',
@@ -60,6 +72,7 @@ class HomeController extends Controller
                 // Clone the base config and update the database name
                 $config = $baseConfig;
                 $config['database'] = $dbName;
+<<<<<<< Updated upstream
 
                 // Set the dynamic connection configuration
                 Config::set("database.connections.{$connectionName}", $config);
@@ -68,12 +81,26 @@ class HomeController extends Controller
                 DB::purge($connectionName);
 
                 // Updated Query:
+=======
+
+                // Set the dynamic connection configuration
+                Config::set("database.connections.{$connectionName}", $config);
+
+                // Purge the connection to ensure fresh connection with new config
+                DB::purge($connectionName);
+
+                // Updated Query:
+>>>>>>> Stashed changes
                 // - Movement types 1 (Empeno), 2 (Refrendo), 4 (Desempeno)
                 // - Using conditional aggregation to get all 3 sums in one query
                 // - Filter on mo.f_alta using precise DATETIME range using CAST AS DATE as requested
                 // - Embedding dates directly into query string for precise control/debugging
                 $query = "
+<<<<<<< Updated upstream
                     SELECT
+=======
+                    SELECT
+>>>>>>> Stashed changes
                         SUM(CASE WHEN mo.cod_tipo_movimiento = 1 THEN con.prestamo ELSE 0 END) as total_empeno,
                         SUM(CASE WHEN mo.cod_tipo_movimiento = 2 THEN con.prestamo ELSE 0 END) as total_refrendo,
                         SUM(CASE WHEN mo.cod_tipo_movimiento = 4 THEN con.prestamo ELSE 0 END) as total_desempeno

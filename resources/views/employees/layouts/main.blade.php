@@ -154,6 +154,9 @@
                 <a href="{{ url('/home') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-house-fill me-2"></i>Inicio
                 </a>
+                <a href="{{ route('resumen-ejecutivo.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bar-chart-line me-2"></i>Resumen Ejecutivo
+                </a>
                 <a class="list-group-item list-group-item-action" href="{{ route('logout') }}"
                    onclick="event.preventDefault();
                                  document.getElementById('logout-form').submit();">
