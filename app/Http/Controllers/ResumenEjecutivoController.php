@@ -78,6 +78,9 @@ class ResumenEjecutivoController extends Controller
         $apartadosLiquidadosGlobal = 0;
         $abonoApartadoGlobal = 0;
         $abonoCapitalGlobal = 0;
+        $engancheCreditoGlobal = 0;
+        $abonoCreditoGlobal = 0;
+        $certificadoConfianzaGlobal = 0;
         
         // Para calcular utilidad neta
         $ventasTotalesGlobal = 0;
@@ -120,6 +123,9 @@ class ResumenEjecutivoController extends Controller
             $b_apartadosLiquidados = 0;
             $b_abonoApartado = 0;
             $b_abonoCapital = 0;
+            $b_engancheCredito = 0;
+            $b_abonoCredito = 0;
+            $b_certificadoConfianza = 0;
             
             // Variables por sucursal
             $b_transaccionesVentas = 0;
@@ -308,6 +314,29 @@ class ResumenEjecutivoController extends Controller
                 
                 $b_abonoCapital = (float)($abonoCapitalResult->total_abonos_capital ?? 0);
 
+                $engancheCreditoResult = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(mo.monto10), 0) AS total_enganche
+                    FROM movimientos mo
+                    WHERE mo.cod_tipo_movimiento = 19
+                      AND mo.f_cancela IS NULL 
+                      AND CAST(mo.f_alta AS DATE) BETWEEN :fechaDel AND :fechaAl
+                ", [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
+                
+                $b_engancheCredito = (float)($engancheCreditoResult->total_enganche ?? 0);
+
+                $abonoCreditoResult = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(mo.monto10), 0) AS total_abono_credito
+                    FROM movimientos mo
+                    WHERE mo.cod_tipo_movimiento IN (20, 21)
+                      AND mo.f_cancela IS NULL 
+                      AND CAST(mo.f_alta AS DATE) BETWEEN :fechaDel AND :fechaAl
+                ", [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
+                
+                $b_abonoCredito = (float)($abonoCreditoResult->total_abono_credito ?? 0);
+
+                // Pendiente revisar si existe un tipo de movimiento o tabla para esto.
+                $b_certificadoConfianza = 0;
+
                 // 8. EMPEÑOS (Nuevos préstamos)
                 $empenosResult = DB::connection($connectionName)->selectOne("
                     SELECT
@@ -413,8 +442,8 @@ class ResumenEjecutivoController extends Controller
                 $b_ingresosVentasIntereses = $b_ventasTotales + $b_intereses;
 
                 // ===== INGRESOS TOTALES (fórmula completa) =====
-                // Alineado a "Detalle de Operaciones": Ingresos Reales = Utilidad Ventas + Intereses
-                $b_ingresos = $b_utilidadVenta + $b_intereses;
+                // Alineado a nueva fórmula: Utilidad de Ventas + Intereses + desempeño + venta + abono apartado + abono a capital + enganche de crédito + abono a crédito + certificado de confianza
+                $b_ingresos = $b_utilidadVenta + $b_intereses + $b_desempenos + $b_ventas + $b_abonoApartado + $b_abonoCapital + $b_engancheCredito + $b_abonoCredito + $b_certificadoConfianza;
 
                 // ===== UTILIDAD NETA =====
                 $b_utilidad = $b_ingresos - $b_egresos;
@@ -451,6 +480,9 @@ class ResumenEjecutivoController extends Controller
                 $apartadosLiquidadosGlobal += $b_apartadosLiquidados;
                 $abonoApartadoGlobal += $b_abonoApartado;
                 $abonoCapitalGlobal += $b_abonoCapital;
+                $engancheCreditoGlobal += $b_engancheCredito;
+                $abonoCreditoGlobal += $b_abonoCredito;
+                $certificadoConfianzaGlobal += $b_certificadoConfianza;
                 
                 $ventasTotalesGlobal += $b_ventasTotales;
                 $prestamoVentasGlobal += $b_prestamoVentas;
@@ -503,6 +535,9 @@ class ResumenEjecutivoController extends Controller
                         'apartados_liquidados' => $b_apartadosLiquidados,
                         'abono_apartado' => $b_abonoApartado,
                         'abono_capital' => $b_abonoCapital,
+                        'enganche_credito' => $b_engancheCredito,
+                        'abono_credito' => $b_abonoCredito,
+                        'certificado_confianza' => $b_certificadoConfianza,
                         'ventas_totales' => $b_ventasTotales,
                         'prestamo_ventas' => $b_prestamoVentas,
                         'costo_ventas' => $b_costoVentas,
@@ -618,6 +653,9 @@ class ResumenEjecutivoController extends Controller
                 'apartados_liquidados' => $apartadosLiquidadosGlobal,
                 'abono_apartado' => $abonoApartadoGlobal,
                 'abono_capital' => $abonoCapitalGlobal,
+                'enganche_credito' => $engancheCreditoGlobal,
+                'abono_credito' => $abonoCreditoGlobal,
+                'certificado_confianza' => $certificadoConfianzaGlobal,
             ],
             
             // Datos para utilidad neta

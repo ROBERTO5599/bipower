@@ -15,6 +15,7 @@
             height: 4rem;
             display: flex;
             align-items: center;
+            
             justify-content: center;
             font-size: 1.5rem;
             border-radius: 50%;
@@ -140,7 +141,7 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
-                            <span class="metric-tooltip" title="Suma de utilidad de ventas, intereses, desempeños, ventas, apartados liquidados, abonos a apartados y abonos a capital">Ingresos Totales <small class="text-lowercase">(ventas + intereses)</small></span>
+                            <span class="metric-tooltip" title="Utilidad de ventas, intereses, desempeño, venta, abono apartado, abono a capital, enganche de crédito, abono a crédito y certificado de confianza">Ingresos Totales</span>
                         </h6>
                         <div class="icon-shape bg-light-success text-success">
                             <i class="bi bi-wallet2"></i>
@@ -273,7 +274,6 @@
                             <h2 class="display-6 fw-bold text-dark mb-0" id="cartera-vigente">$ 0.00</h2>
                             <div class="mt-2 d-flex justify-content-between align-items-center">
                                 <span class="text-muted small">Monto correspondiente a préstamos al corriente</span>
-                                <span class="badge bg-light text-dark border"><i class="bi bi-file-earmark-text me-1"></i><span id="contratos-vigentes">0</span> Contratos</span>
                             </div>
                         </div>
                     </div>
@@ -288,8 +288,7 @@
                             </div>
                             <h2 class="display-6 fw-bold text-dark mb-0" id="cartera-vencida">$ 0.00</h2>
                             <div class="mt-2 d-flex justify-content-between align-items-center">
-                                <span class="text-muted small fw-semibold text-danger" id="tasa-mora">Tasa de mora: 0.0%</span>
-                                <span class="badge bg-light text-dark border"><i class="bi bi-file-earmark-x me-1"></i><span id="contratos-vencidos">0</span> Contratos</span>
+                                <span class="text-muted small fw-semibold text-danger" id="tasa-mora">Tasa de mora: 0.0%</span>                               
                             </div>
                         </div>
                     </div>

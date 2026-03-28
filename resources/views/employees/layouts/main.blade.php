@@ -157,6 +157,36 @@
                 <a href="{{ route('resumen-ejecutivo.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-bar-chart-line me-2"></i>Resumen Ejecutivo
                 </a>
+                <a href="{{ route('operaciones-cartera.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-briefcase-fill me-2"></i>Empeños y Cartera
+                </a>
+                <a href="{{ route('ventas.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-cart-check-fill me-2"></i>Ventas y Pagos
+                </a>
+                <a href="{{ route('inventario-piso.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-box-seam me-2"></i>Inventario en Piso
+                </a>
+                <a href="{{ route('clientes.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-people-fill me-2"></i>Clientes
+                </a>
+                <a href="{{ route('creditos.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-credit-card-2-front me-2"></i>Créditos
+                </a>
+                <a href="{{ route('certificados.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-shield-check me-2"></i>Certificados de Confianza
+                </a>
+                <a href="{{ route('gastos-finanzas.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-cash-stack me-2"></i>Gastos y Finanzas
+                </a>
+                <a href="{{ route('bancos.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bank2 me-2"></i>Bancos y Flujos
+                </a>
+                <a href="{{ route('colaboradores.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-people-fill me-2"></i>Productividad Personal
+                </a>
+                <a href="{{ route('metas-forecast.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bullseye me-2"></i>Metas y Forecast
+                </a>
                 <a class="list-group-item list-group-item-action" href="{{ route('logout') }}"
                    onclick="event.preventDefault();
                                  document.getElementById('logout-form').submit();">
