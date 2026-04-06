@@ -210,11 +210,11 @@
 
     <!-- Gráficos -->
     <div class="row mb-4">
-        <!-- Ventas por Familia -->
+        <!-- Ventas por Familia (Apilada Ventas vs Utilidad) -->
         <div class="col-md-8 mb-3">
             <div class="card shadow-sm border-0 h-100 rounded-3">
                 <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0">Ventas por Familia de Producto</h5>
+                    <h5 class="fw-bold mb-0">Ventas vs Utilidad por Familia</h5>
                 </div>
                 <div class="card-body p-4">
                     <canvas id="ventasFamiliaChart" height="250"></canvas>
@@ -237,10 +237,11 @@
 
     <!-- Tablas Top N Artículos -->
     <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0 rounded-3">
+        <!-- Top por Importe (Venta) -->
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
                 <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0">Top Artículos (Mayor Margen)</h5>
+                    <h5 class="fw-bold mb-0">Top 10 Artículos (Más Vendidos)</h5>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -248,14 +249,37 @@
                             <thead class="bg-light">
                                 <tr>
                                     <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Artículo</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Cantidad</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Ingreso (Venta)</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Margen Absoluto</th>
-                                    <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">Margen %</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Vendidos</th>
+                                    <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">Ingreso Bruto</th>
                                 </tr>
                             </thead>
-                            <tbody id="top-articulos-body">
-                                <tr><td colspan="5" class="text-center text-muted py-3">Cargando datos...</td></tr>
+                            <tbody id="top-articulos-importe">
+                                <tr><td colspan="3" class="text-center text-muted py-3">Cargando datos...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top por Margen -->
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0">Top 10 Artículos (Mayor Margen %)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Artículo</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Utilidad Neta</th>
+                                    <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">% Margen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="top-articulos-margen">
+                                <tr><td colspan="3" class="text-center text-muted py-3">Cargando datos...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -339,30 +363,42 @@
             updateElementText('kpi-porcentaje-tarjeta', `${(data.pagosTarjetaPorcentaje || 0).toFixed(1)}%`);
             
             // Simulación comisión 3.5% sobre la tarjeta
-            const comision = (data.pagosTarjeta || 0) * 0.035;
-            updateElementText('kpi-comision-tpv', formatter.format(comision));
+            updateElementText('kpi-comision-tpv', formatter.format(data.comisionTPVEst || 0));
 
-            // Tablas Top Artículos
-            const tbody = document.getElementById('top-articulos-body');
-            if (data.topArticulos && data.topArticulos.length > 0) {
+            // Tablas Top Artículos - Importe
+            const tbodyImporte = document.getElementById('top-articulos-importe');
+            if (data.topArticulosImporte && data.topArticulosImporte.length > 0) {
                 let tableHtml = '';
-                data.topArticulos.forEach(item => {
-                    let cantidad = item.ventas || 0;
-                    let importe = item.importe || 0;
-                    let utilidadVar = item.utilidad || 0; // Si luego se manda del backend
+                data.topArticulosImporte.forEach(item => {
                     tableHtml += `
                         <tr>
                             <td class="ps-4 py-3 fw-bold text-dark">${item.nombre}</td>
-                            <td class="py-3 text-end">${numberFormatter.format(cantidad)}</td>
-                            <td class="py-3 text-end fw-bold text-primary">${formatter.format(importe)}</td>
-                            <td class="py-3 text-end text-success">${formatter.format(utilidadVar)}</td>
-                            <td class="pe-4 py-3 text-end">${ importe > 0 ? ((utilidadVar/importe)*100).toFixed(1)+'%' : '0%' }</td>
+                            <td class="py-3 text-end">${numberFormatter.format(item.cantidad)}</td>
+                            <td class="pe-4 py-3 text-end fw-bold text-primary">${formatter.format(item.ventas)}</td>
                         </tr>
                     `;
                 });
-                tbody.innerHTML = tableHtml;
+                tbodyImporte.innerHTML = tableHtml;
             } else {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Aún no hay datos para mostrar</td></tr>';
+                tbodyImporte.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Sin datos</td></tr>';
+            }
+
+            // Tablas Top Artículos - Margen
+            const tbodyMargen = document.getElementById('top-articulos-margen');
+            if (data.topArticulosMargen && data.topArticulosMargen.length > 0) {
+                let tableHtml = '';
+                data.topArticulosMargen.forEach(item => {
+                    tableHtml += `
+                        <tr>
+                            <td class="ps-4 py-3 fw-bold text-dark">${item.nombre}</td>
+                            <td class="py-3 text-end text-success">${formatter.format(item.utilidad)}</td>
+                            <td class="pe-4 py-3 text-end fw-bold">${(item.margen_prc || 0).toFixed(1)}%</td>
+                        </tr>
+                    `;
+                });
+                tbodyMargen.innerHTML = tableHtml;
+            } else {
+                tbodyMargen.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Sin datos</td></tr>';
             }
 
             // Gráficos
@@ -382,19 +418,24 @@
                 type: 'bar',
                 data: {
                     labels: chartData.labels,
-                    datasets: [{
-                        label: 'Ventas Totales',
-                        data: chartData.data,
-                        backgroundColor: 'rgba(13, 110, 253, 0.7)',
-                        borderRadius: 4
-                    }]
+                    datasets: [
+                        {
+                            label: 'Ventas Brutas',
+                            data: chartData.ventas,
+                            backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Utilidad Generada',
+                            data: chartData.utilidades,
+                            backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                            borderRadius: 4
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
                     scales: {
                         y: {
                             beginAtZero: true,

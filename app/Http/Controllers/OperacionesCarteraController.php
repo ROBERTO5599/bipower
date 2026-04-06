@@ -79,7 +79,7 @@ class OperacionesCarteraController extends Controller
 
         foreach ($sucursalesSeleccionadas as $sucursal) {
             $dbName = 'sistema_prendario_' . $sucursal->id_valora_mas;
-            $connectionName = 'dynamic_kpi';
+            $connectionName = 'dynamic_kpi_' . $sucursal->id_valora_mas; // Nombre único por sucursal
 
             try {
                 if ($baseConfig) {
@@ -106,7 +106,7 @@ class OperacionesCarteraController extends Controller
                     WHERE mo.cod_tipo_movimiento = 1 
                       AND mo.f_cancela IS NULL
                       AND con.f_cancelacion IS NULL
-                      AND CAST(mo.f_alta AS DATETIME) BETWEEN :fIni AND :fFin
+                      AND mo.f_alta BETWEEN :fIni AND :fFin
                     GROUP BY con.cod_tipo_prenda
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
 
@@ -137,7 +137,7 @@ class OperacionesCarteraController extends Controller
                     FROM movimientos mo
                     WHERE mo.cod_tipo_movimiento IN (2, 3) 
                       AND mo.f_cancela IS NULL
-                      AND CAST(mo.f_alta AS DATETIME) BETWEEN :fIni AND :fFin
+                      AND mo.f_alta BETWEEN :fIni AND :fFin
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
                 
                 $data['refrendos']['total'] += (int)($refrendosRes->total ?? 0);
@@ -151,7 +151,7 @@ class OperacionesCarteraController extends Controller
                     FROM movimientos mo
                     WHERE mo.cod_tipo_movimiento = 4 
                       AND mo.f_cancela IS NULL
-                      AND CAST(mo.f_alta AS DATETIME) BETWEEN :fIni AND :fFin
+                      AND mo.f_alta BETWEEN :fIni AND :fFin
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
 
                 $data['desempenos']['total'] += (int)($desempenosRes->total ?? 0);
@@ -202,7 +202,7 @@ class OperacionesCarteraController extends Controller
                     WHERE mo.cod_tipo_movimiento IN (2,3,4) 
                       AND mo.f_cancela IS NULL 
                       AND con.f_cancelacion IS NULL
-                      AND CAST(mo.f_alta AS DATETIME) BETWEEN :fIni AND :fFin
+                      AND mo.f_alta BETWEEN :fIni AND :fFin
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
                 $data['intereses']['cobrados'] += (float)($interesesQ->total_intereses ?? 0);
 
@@ -218,6 +218,7 @@ class OperacionesCarteraController extends Controller
                         COALESCE(SUM(con.prestamo), 0) as monto
                     FROM contratos con
                     WHERE con.f_cancelacion IS NULL
+                    GROUP BY rango_mora
                 ");
                 foreach ($moraQ as $mora) {
                     if (isset($data['mora'][$mora->rango_mora])) {
@@ -234,36 +235,34 @@ class OperacionesCarteraController extends Controller
                     INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE mo.cod_tipo_movimiento = 4
                       AND mo.f_cancela IS NULL
-                      AND CAST(mo.f_alta AS DATETIME) BETWEEN :fIni AND :fFin
+                      AND mo.f_alta BETWEEN :fIni AND :fFin
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
                 $data['tiempos']['dias_empeno_desempeno'] += (int)$tiempoQ->sum_dias;
                 $data['tiempos']['total_desempenos_con_dias'] += (int)$tiempoQ->count_dias;
 
-                // 7. Rankings de Artículos Más Empeñados (UNION LIMITADO PARA MEMORIA, LUEGO SE ORDENA GLOBAL)
+                // 7. Rankings de Artículos Más Empeñados (VERSIÓN CORREGIDA)
                 $topEmpQ = DB::connection($connectionName)->select("
-                    SELECT pre.prenda as articulo, COUNT(mo.cod_movimiento) as total_movs, SUM(mo.monto10) as monto
+                    SELECT 
+                        COALESCE(pre.prenda, 'Sin clasificar') as articulo,
+                        COUNT(DISTINCT mo.cod_movimiento) as total_movs,
+                        SUM(mo.monto10) as monto
                     FROM movimientos mo
                     INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
-                    INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1
-                    WHERE mo.cod_tipo_movimiento = 1 AND mo.f_cancela IS NULL AND CAST(mo.f_alta AS DATE) BETWEEN :fIni AND :fFin
-                    GROUP BY pre.prenda
-                    UNION ALL
-                    SELECT pre.prenda as articulo, COUNT(mo.cod_movimiento) as total_movs, SUM(mo.monto10) as monto
-                    FROM movimientos mo
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
-                    INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
-                    WHERE mo.cod_tipo_movimiento = 1 AND mo.f_cancela IS NULL AND CAST(mo.f_alta AS DATE) BETWEEN :fIni AND :fFin
-                    GROUP BY pre.prenda
-                    UNION ALL
-                    SELECT pre.prenda as articulo, COUNT(mo.cod_movimiento) as total_movs, SUM(mo.monto10) as monto
-                    FROM movimientos mo
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
-                    INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda AND pre.cod_tipo_prenda = 3
-                    WHERE mo.cod_tipo_movimiento = 1 AND mo.f_cancela IS NULL AND CAST(mo.f_alta AS DATE) BETWEEN :fIni AND :fFin
-                    GROUP BY pre.prenda
+                    LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
+                    LEFT JOIN autos au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
+                    LEFT JOIN varios va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                    LEFT JOIN prendas pre ON (
+                        (con.cod_tipo_prenda = 1 AND pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1) OR
+                        (con.cod_tipo_prenda = 2 AND pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2) OR
+                        (con.cod_tipo_prenda = 3 AND pre.cod_prenda = va.cod_prenda AND pre.cod_tipo_prenda = 3)
+                    )
+                    WHERE mo.cod_tipo_movimiento = 1 
+                      AND mo.f_cancela IS NULL
+                      AND con.f_cancelacion IS NULL
+                      AND mo.f_alta BETWEEN :fIni AND :fFin
+                    GROUP BY articulo
+                    HAVING articulo IS NOT NULL
+                    ORDER BY total_movs DESC
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
 
                 foreach ($topEmpQ as $emp) {
@@ -275,31 +274,29 @@ class OperacionesCarteraController extends Controller
                     $rankingsEmpenados[$key]['monto'] += $emp->monto;
                 }
 
-                // 8. Rankings de Artículos Más Desempeñados
+                // 8. Rankings de Artículos Más Desempeñados (VERSIÓN CORREGIDA)
                 $topDesQ = DB::connection($connectionName)->select("
-                    SELECT pre.prenda as articulo, COUNT(mo.cod_movimiento) as total_movs, SUM(mo.monto10) as monto
+                    SELECT 
+                        COALESCE(pre.prenda, 'Sin clasificar') as articulo,
+                        COUNT(DISTINCT mo.cod_movimiento) as total_movs,
+                        SUM(mo.monto10) as monto
                     FROM movimientos mo
                     INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
-                    INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1
-                    WHERE mo.cod_tipo_movimiento = 4 AND mo.f_cancela IS NULL AND CAST(mo.f_alta AS DATE) BETWEEN :fIni AND :fFin
-                    GROUP BY pre.prenda
-                    UNION ALL
-                    SELECT pre.prenda as articulo, COUNT(mo.cod_movimiento) as total_movs, SUM(mo.monto10) as monto
-                    FROM movimientos mo
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
-                    INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
-                    WHERE mo.cod_tipo_movimiento = 4 AND mo.f_cancela IS NULL AND CAST(mo.f_alta AS DATE) BETWEEN :fIni AND :fFin
-                    GROUP BY pre.prenda
-                    UNION ALL
-                    SELECT pre.prenda as articulo, COUNT(mo.cod_movimiento) as total_movs, SUM(mo.monto10) as monto
-                    FROM movimientos mo
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
-                    INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda AND pre.cod_tipo_prenda = 3
-                    WHERE mo.cod_tipo_movimiento = 4 AND mo.f_cancela IS NULL AND CAST(mo.f_alta AS DATE) BETWEEN :fIni AND :fFin
-                    GROUP BY pre.prenda
+                    LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
+                    LEFT JOIN autos au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
+                    LEFT JOIN varios va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                    LEFT JOIN prendas pre ON (
+                        (con.cod_tipo_prenda = 1 AND pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1) OR
+                        (con.cod_tipo_prenda = 2 AND pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2) OR
+                        (con.cod_tipo_prenda = 3 AND pre.cod_prenda = va.cod_prenda AND pre.cod_tipo_prenda = 3)
+                    )
+                    WHERE mo.cod_tipo_movimiento = 4 
+                      AND mo.f_cancela IS NULL
+                      AND con.f_cancelacion IS NULL
+                      AND mo.f_alta BETWEEN :fIni AND :fFin
+                    GROUP BY articulo
+                    HAVING articulo IS NOT NULL
+                    ORDER BY total_movs DESC
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
 
                 foreach ($topDesQ as $des) {
@@ -320,6 +317,7 @@ class OperacionesCarteraController extends Controller
         // Ordenar y limitar rankings a los top 5
         usort($rankingsEmpenados, function($a, $b) { return $b['total'] <=> $a['total']; });
         usort($rankingsDesempenados, function($a, $b) { return $b['total'] <=> $a['total']; });
+        
         $data['rankings']['articulos_empenados'] = array_slice($rankingsEmpenados, 0, 5);
         $data['rankings']['articulos_desempenados'] = array_slice($rankingsDesempenados, 0, 5);
 
