@@ -4,27 +4,11 @@
 
 @section('styles')
     <style type="text/css">
-        .cursor-pointer { cursor: pointer; }
         .card-hover:hover {
             transform: translateY(-5px);
             box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.1) !important;
             transition: all 0.3s ease;
         }
-        .bg-light-success { background-color: rgba(25, 135, 84, 0.1); }
-        .bg-light-danger { background-color: rgba(220, 53, 69, 0.1); }
-        .bg-light-info { background-color: rgba(13, 202, 240, 0.1); }
-        .bg-light-warning { background-color: rgba(255, 193, 7, 0.1); }
-
-        .table-responsive { overflow-x: auto; }
-
-        /* Badge para metas manuales vs auto */
-        .badge-meta-type {
-            font-size: 0.75rem;
-            padding: 0.3em 0.6em;
-            border-radius: 50rem;
-        }
-
-        /* Spinner */
         #loading-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -36,6 +20,16 @@
             align-items: center;
         }
         .spinner-border { width: 3rem; height: 3rem; }
+        .text-verde { color: #198754; }
+        .text-amarillo { color: #ffc107; }
+        .text-rojo { color: #dc3545; }
+        .bg-verde { background-color: #198754; color: white; }
+        .bg-amarillo { background-color: #ffc107; color: black; }
+        .bg-rojo { background-color: #dc3545; color: white; }
+        .gauge-container {
+            width: 100%;
+            height: 200px;
+        }
     </style>
 @endsection
 
@@ -44,29 +38,27 @@
 <!-- Loading Overlay -->
 <div id="loading-overlay">
     <div class="spinner-border text-primary mb-3" role="status">
-        <span class="visually-hidden">Cargando...</span>
+        <span class="visually-hidden">Calculando Proyecciones...</span>
     </div>
-    <h5 class="text-muted fw-bold">Proyectando metas y estacionalidad...</h5>
+    <h5 class="text-muted fw-bold">Compilando e infiriendo modelos históricos...</h5>
 </div>
 
 <div class="container-fluid p-4" id="dashboard-content" style="display: none;">
     <div class="row mb-4">
-        <div class="col-12 d-flex justify-content-between align-items-center">
-            <div>
-                <h4 class="title fw-bold text-dark">Metas, Estacionalidad y Forecast (Proyecciones)</h4>
-                <p class="text-muted mb-0">Desempeño real vs. proyecciones ajustadas por estacionalidad histórica</p>
-            </div>
+        <div class="col-12">
+            <h4 class="title fw-bold text-dark">Metas Predictivas y Forecast Estacional</h4>
+            <p class="text-muted">Proyección científica combinando tendencia lineal y estacionalidad corporativa</p>
         </div>
     </div>
 
-    <!-- Filtros -->
-    <div class="card shadow-sm border-0 mb-4 rounded-3">
+    <!-- Filtros Inteligentes -->
+    <div class="card shadow-sm border-0 mb-4 rounded-3 bg-white">
         <div class="card-body p-4">
-            <form id="filter-form" class="row g-3">
-                <div class="col-md-4">
+            <form id="filter-form" class="row g-3 align-items-end">
+                <div class="col-md-3">
                     <label class="form-label fw-semibold">Sucursal</label>
                     <select name="sucursal_id" id="sucursal_id" class="form-select">
-                        <option value="">-- Consolidado (Todas) --</option>
+                        <option value="">-- Todas Consolidadas --</option>
                         @foreach($sucursales ?? [] as $sucursal)
                             <option value="{{ $sucursal->id_valora_mas }}">
                                 {{ $sucursal->nombre }}
@@ -75,83 +67,105 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Mes de Referencia</label>
-                    <!-- Solo mes porque las metas suelen ser mensuales -->
-                    <input type="month" name="mes_meta" id="mes_meta" value="{{ substr($fechaFin, 0, 7) }}" class="form-control">
+                    <label class="form-label fw-semibold">Profundidad Histórica</label>
+                    <select name="meses_historico" id="meses_historico" class="form-select">
+                        <option value="12" selected>Últimos 12 Meses</option>
+                        <option value="18">Últimos 18 Meses</option>
+                        <option value="24">Últimos 24 Meses</option>
+                    </select>
                 </div>
-                <div class="col-md-2 d-flex align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Crecimiento Objetivo (%)</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-graph-up-arrow"></i></span>
+                        <input type="number" step="0.1" name="crecimiento" id="crecimiento" value="{{ $crecimiento }}" class="form-control">
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
                     <button type="submit" class="btn btn-primary w-100 fw-bold">
-                        <i class="bi bi-bullseye me-2"></i> Evaluar Meta
+                        <i class="bi bi-calculator"></i> Refactorizar Metas
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- KPIs Dinámicos de Cumplimiento -->
-    <div class="row mb-4" id="kpi-container">
-        <!-- Renderizado vía JS -->
-    </div>
-
-    <!-- Gráficos -->
+    <!-- Indicadores Velocímetros Principales -->
     <div class="row mb-4">
-        <!-- Velocímetro General -->
-        <div class="col-md-4 mb-3">
-            <div class="card shadow-sm border-0 h-100 rounded-3">
-                <div class="card-header bg-white border-0 pt-4 px-4 text-center">
-                    <h5 class="fw-bold mb-0">Cumplimiento Global del Mes</h5>
-                </div>
-                <div class="card-body p-4 position-relative d-flex justify-content-center align-items-center flex-column">
-                    <div style="height: 180px; width: 100%;">
-                        <canvas id="gaugeChart"></canvas>
-                    </div>
-                    <!-- El porcentaje en el centro se dibuja mediante un plugin o texto sobrepuesto, por ahora texto -->
-                    <h2 class="fw-bold mt-2" id="kpi-cumplimiento-global">0%</h2>
-                    <span class="text-muted small">Promedio ponderado</span>
-                </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-0 h-100 rounded-3 text-center p-3">
+                <h6 class="text-muted fw-bold text-uppercase ls-1">Ventas Reales vs Meta</h6>
+                <div id="gaugeVentas" class="gauge-container mb-2"></div>
+                <h4 class="fw-bold mb-0" id="txtRevVentas">$ 0</h4>
+                <small class="text-muted">Meta: <span id="txtMetaVentas">$ 0</span></small>
             </div>
         </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-0 h-100 rounded-3 text-center p-3">
+                <h6 class="text-muted fw-bold text-uppercase ls-1">Empeños Reales vs Meta</h6>
+                <div id="gaugeEmpenos" class="gauge-container mb-2"></div>
+                <h4 class="fw-bold mb-0" id="txtRevEmpenos">$ 0</h4>
+                <small class="text-muted">Meta: <span id="txtMetaEmpenos">$ 0</span></small>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-0 h-100 rounded-3 text-center p-3">
+                <h6 class="text-muted fw-bold text-uppercase ls-1">Intereses Cobrados</h6>
+                <div id="gaugeIntereses" class="gauge-container mb-2"></div>
+                <h4 class="fw-bold mb-0" id="txtRevIntereses">$ 0</h4>
+                <small class="text-muted">Meta: <span id="txtMetaIntereses">$ 0</span></small>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-0 h-100 rounded-3 text-center p-3">
+                <h6 class="text-muted fw-bold text-uppercase ls-1">Utilidad Operativa</h6>
+                <div id="gaugeUtilidad" class="gauge-container mb-2"></div>
+                <h4 class="fw-bold mb-0" id="txtRevUtilidad">$ 0</h4>
+                <small class="text-muted">Meta: <span id="txtMetaUtilidad">$ 0</span></small>
+            </div>
+        </div>
+    </div>
 
-        <!-- Línea de Tiempo Histórica -->
-        <div class="col-md-8 mb-3">
+    <!-- Tendencia Histórica y Proyección -->
+    <div class="row mb-4">
+        <div class="col-12">
             <div class="card shadow-sm border-0 h-100 rounded-3">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0">Evolución Histórica General vs Meta</h5>
-                    <select class="form-select w-auto form-select-sm" id="indicadorEvolucionSelect">
-                        <option value="ventas">Ventas Totales</option>
-                        <option value="empenos">Empeños</option>
-                        <option value="utilidad">Utilidad Operativa</option>
-                    </select>
+                    <h5 class="fw-bold mb-0">Comportamiento Predictivo de Ventas Globales</h5>
+                    <span class="badge bg-light text-primary">Tendencia + Crecimiento.</span>
                 </div>
                 <div class="card-body p-4">
-                    <canvas id="evolucionMetasChart" height="250"></canvas>
+                    <canvas id="ventasTimelineChart" height="300"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabla Detalle Sucursales -->
+    <!-- Tabla Sucursales -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0 rounded-3">
                 <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0">Detalle de Cumplimiento por Sucursal</h5>
+                    <h5 class="fw-bold mb-0">Desglose de Objetivos por Sucursal</h5>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 text-center">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Sucursal</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-center">Indicador</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Real Alcanzado</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Meta Proyectada</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Diferencia</th>
-                                    <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-center">Semáforo</th>
+                                    <th class="ps-4 py-3 text-uppercase text-muted small fw-bold text-start">Sucursal</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">Cumpl. General</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">Ventas</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">Meta Venta</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">Empeños</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">Meta Empeño</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">Utilidad Op.</th>
+                                    <th class="pe-4 py-3 text-uppercase text-muted small fw-bold">Meta Utilidad</th>
                                 </tr>
                             </thead>
-                            <tbody id="detalle-metas-body">
-                                <tr><td colspan="6" class="text-center text-muted py-3">Cargando datos...</td></tr>
+                            <tbody id="tabla-sucursales-body">
+                                <tr><td colspan="8" class="text-center text-muted py-4">Cargando...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -165,19 +179,62 @@
 @endsection
 
 @section('scripts')
+<!-- ECharts para Gauges Profesionales -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         'use strict';
 
-        let gaugeChart = null;
-        let evolucionChart = null;
+        let ventasTimelineChart = null;
+        let gauges = {};
 
         const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
-
         const overlay = document.getElementById('loading-overlay');
         const dashboard = document.getElementById('dashboard-content');
         const form = document.getElementById('filter-form');
+
+        // Setup ECharts
+        const gaugeOptions = {
+            series: [{
+                type: 'gauge',
+                startAngle: 180,
+                endAngle: 0,
+                min: 0,
+                max: 100, // Dinámico
+                axisLine: {
+                    lineStyle: {
+                        width: 15,
+                        color: [
+                            [0.7, '#ffc107'], // 0-70% amarillo
+                            [0.9, '#fd7e14'], // 70-90% naranja/precaucion
+                            [1, '#198754']   // >90% verde
+                        ]
+                    }
+                },
+                pointer: { itemStyle: { color: 'auto' } },
+                axisTick: { distance: -15, length: 8, lineStyle: { color: '#fff', width: 2 } },
+                splitLine: { distance: -15, length: 15, lineStyle: { color: '#fff', width: 2 } },
+                axisLabel: { color: 'auto', distance: 20, fontSize: 10 },
+                detail: {
+                    valueAnimation: true,
+                    formatter: '{value}%',
+                    color: 'auto',
+                    fontSize: 20,
+                    offsetCenter: [0, '30%']
+                },
+                data: [{ value: 0 }]
+            }]
+        };
+
+        gauges['ventas'] = echarts.init(document.getElementById('gaugeVentas'));
+        gauges['empenos'] = echarts.init(document.getElementById('gaugeEmpenos'));
+        gauges['intereses'] = echarts.init(document.getElementById('gaugeIntereses'));
+        gauges['utilidad'] = echarts.init(document.getElementById('gaugeUtilidad'));
+
+        for (let g in gauges) {
+            gauges[g].setOption(gaugeOptions);
+        }
 
         loadData();
 
@@ -190,20 +247,12 @@
             overlay.style.display = 'flex';
             dashboard.style.opacity = '0.5';
 
-            const formData = new FormData(form);
-            const urlParams = new URLSearchParams(formData).toString();
-
-            fetch(`{{ route('metas-forecast.data') }}?${urlParams}`)
-                .then(response => {
-                    if (!response.ok) throw new Error('Network error');
-                    return response.json();
-                })
+            fetch(`{{ route('metas-forecast.data') }}?${new URLSearchParams(new FormData(form)).toString()}`)
+                .then(r => r.json())
                 .then(data => {
                     updateDashboard(data);
                 })
-                .catch(error => {
-                    console.error("Error:", error);
-                })
+                .catch(err => console.error(err))
                 .finally(() => {
                     overlay.style.display = 'none';
                     dashboard.style.display = 'block';
@@ -211,160 +260,121 @@
                 });
         }
 
+        function updateGauge(gaugeId, real, meta) {
+            let pct = meta > 0 ? (real / meta) * 100 : 0;
+            if (pct > 100) {
+                // Adaptar el maximo del gauge si pasamos el limite
+                gauges[gaugeId].setOption({ series: [{ max: Math.ceil(pct), data: [{ value: pct.toFixed(1) }] }] });
+            } else {
+                gauges[gaugeId].setOption({ series: [{ max: 100, data: [{ value: pct.toFixed(1) }] }] });
+            }
+        }
+
         function updateDashboard(data) {
-            renderKPIs(data.kpis);
-            
-            const cumplimiento = data.cumplimientoGlobal || 0;
-            document.getElementById('kpi-cumplimiento-global').innerText = cumplimiento.toFixed(1) + '%';
-            document.getElementById('kpi-cumplimiento-global').className = 'fw-bold mt-2 ' + getSemaforoText(cumplimiento);
+            // Textos Globales
+            document.getElementById('txtRevVentas').innerText = formatter.format(data.globals.ventas.real);
+            document.getElementById('txtMetaVentas').innerText = formatter.format(data.globals.ventas.meta);
+            updateGauge('ventas', data.globals.ventas.real, data.globals.ventas.meta);
 
-            updateGauge(cumplimiento);
-            updateEvolucionChart(data.chartEvolucionMetaVsReal);
+            document.getElementById('txtRevEmpenos').innerText = formatter.format(data.globals.empenos.real);
+            document.getElementById('txtMetaEmpenos').innerText = formatter.format(data.globals.empenos.meta);
+            updateGauge('empenos', data.globals.empenos.real, data.globals.empenos.meta);
 
-            const tbody = document.getElementById('detalle-metas-body');
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aún no hay datos detallados para mostrar</td></tr>';
+            document.getElementById('txtRevIntereses').innerText = formatter.format(data.globals.intereses.real);
+            document.getElementById('txtMetaIntereses').innerText = formatter.format(data.globals.intereses.meta);
+            updateGauge('intereses', data.globals.intereses.real, data.globals.intereses.meta);
+
+            document.getElementById('txtRevUtilidad').innerText = formatter.format(data.globals.utilidad.real);
+            document.getElementById('txtMetaUtilidad').innerText = formatter.format(data.globals.utilidad.meta);
+            updateGauge('utilidad', data.globals.utilidad.real, data.globals.utilidad.meta);
+
+            // Chart Timeline
+            updateTimelineChart(data.chartTimeline);
+
+            // Render Table
+            renderTable(data.branchKPIs);
         }
 
-        function renderKPIs(kpis) {
-            const container = document.getElementById('kpi-container');
-            container.innerHTML = '';
-
-            if (!kpis || kpis.length === 0) return;
-
-            kpis.forEach(k => {
-                const isManual = k.isManual;
-                const badgeType = isManual ? 'bg-warning text-dark' : 'bg-info text-white';
-                const badgeText = isManual ? 'Meta Manual' : 'Meta Auto (Tendencia/Estacionalidad)';
+        function renderTable(kpis) {
+            const tbody = document.getElementById('tabla-sucursales-body');
+            tbody.innerHTML = '';
+            
+            kpis.forEach(kpi => {
+                let colorClass = kpi.semaforo === 'verde' ? 'bg-verde' : (kpi.semaforo === 'amarillo' ? 'bg-amarillo' : 'bg-rojo');
                 
-                const percentColor = k.cumplimiento >= 100 ? 'text-success' : (k.cumplimiento >= 90 ? 'text-warning' : 'text-danger');
-                
-                const diffVal = k.diferencia;
-                const diffColor = diffVal >= 0 ? 'text-success' : 'text-danger';
-                const diffTxt = diffVal >= 0 ? `+${formatter.format(diffVal)}` : formatter.format(diffVal);
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="ps-4 py-3 fw-bold text-dark text-start">
+                            ${kpi.id} 
+                            ${kpi.is_manual ? '<i class="bi bi-person-fill ms-1 text-primary" title="Meta Manual"></i>' : '<i class="bi bi-robot ms-1 text-muted" title="Meta Automática"></i>'}
+                        </td>
+                        <td class="py-3">
+                            <span class="badge ${colorClass} px-3 py-2">${kpi.pct_ventas.toFixed(1)}%</span>
+                        </td>
+                        <td class="py-3 fw-bold text-primary">${formatter.format(kpi.real_ventas)}</td>
+                        <td class="py-3 text-muted border-end">${formatter.format(kpi.meta_ventas)}</td>
+                        
+                        <td class="py-3 fw-bold text-dark">${formatter.format(kpi.real_empenos)}</td>
+                        <td class="py-3 text-muted border-end">${formatter.format(kpi.meta_empenos)}</td>
 
-                const cardHtml = `
-                <div class="col-12 col-md-6 col-xl-3 mb-3">
-                    <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between mb-2">
-                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">${k.indicador}</h6>
-                                <span class="badge ${badgeType} badge-meta-type">${badgeText}</span>
-                            </div>
-                            
-                            <div class="d-flex align-items-end justify-content-between mb-2 mt-3">
-                                <div>
-                                    <small class="text-muted d-block">Real Alcanzado</small>
-                                    <h4 class="fw-bold mb-0">${formatter.format(k.real)}</h4>
-                                </div>
-                                <div class="text-end">
-                                    <small class="text-muted d-block">Meta Proyectada</small>
-                                    <h6 class="fw-bold text-muted mb-0">${formatter.format(k.meta)}</h6>
-                                </div>
-                            </div>
-                            
-                            <div class="progress mt-3" style="height: 10px;">
-                                <div class="progress-bar ${k.cumplimiento >= 100 ? 'bg-success' : (k.cumplimiento >= 90 ? 'bg-warning' : 'bg-danger')}" 
-                                     role="progressbar" style="width: ${Math.min(k.cumplimiento, 100)}%"></div>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between align-items-center mt-2">
-                                <span class="fw-bold fs-5 ${percentColor}">${k.cumplimiento.toFixed(1)}%</span>
-                                <small class="${diffColor} fw-bold">${diffTxt}</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-                
-                container.insertAdjacentHTML('beforeend', cardHtml);
+                        <td class="py-3 fw-bold text-success">${formatter.format(kpi.real_utilidad)}</td>
+                        <td class="pe-4 py-3 text-muted">${formatter.format(kpi.meta_utilidad)}</td>
+                    </tr>
+                `;
             });
+
+            if (kpis.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">Sin datos de sucursales</td></tr>';
+            }
         }
 
-        function getSemaforoText(pct) {
-            if (pct >= 100) return 'text-success';
-            if (pct >= 90) return 'text-warning';
-            return 'text-danger';
-        }
+        function updateTimelineChart(chartData) {
+            const ctx = document.getElementById('ventasTimelineChart');
+            if (ventasTimelineChart) ventasTimelineChart.destroy();
 
-        function updateGauge(value) {
-            const ctx = document.getElementById('gaugeChart');
-            if (!ctx) return;
-            
-            if (gaugeChart) gaugeChart.destroy();
-
-            // Un gauge falso usando un doughnut al que le quitamos la mitad inferior
-            gaugeChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Alcanzado', 'Faltante'],
-                    datasets: [{
-                        data: [Math.min(value, 100), Math.max(100 - value, 0)],
-                        backgroundColor: [
-                            value >= 100 ? '#198754' : (value >= 90 ? '#ffc107' : '#dc3545'),
-                            '#e9ecef'
-                        ],
-                        borderWidth: 0,
-                        circumference: 180,
-                        rotation: 270,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '80%',
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { enabled: false }
-                    }
-                }
-            });
-        }
-
-        function updateEvolucionChart(chartData) {
-            const ctx = document.getElementById('evolucionMetasChart');
-            if (!ctx) return;
-            
-            if (evolucionChart) evolucionChart.destroy();
-            if (!chartData) return;
-
-            evolucionChart = new Chart(ctx, {
+            ventasTimelineChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: chartData.labels,
                     datasets: [
                         {
-                            label: 'Desempeño Real',
+                            label: 'Ventas Reales',
                             data: chartData.real,
                             borderColor: '#0d6efd',
-                            backgroundColor: '#0d6efd',
-                            tension: 0.3,
-                            fill: false
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
                         },
                         {
-                            label: 'Meta Automática (Forecast)',
-                            data: chartData.meta,
-                            borderColor: '#198754', // Green
+                            label: 'Meta / Tendencia Ajustada',
+                            data: chartData.tendencia,
+                            borderColor: '#ffc107',
                             borderDash: [5, 5],
-                            pointStyle: 'rectRot',
-                            pointRadius: 5,
-                            tension: 0.1,
-                            fill: false
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
                         },
                         {
-                            label: 'Real Año Anterior',
-                            data: chartData.anoAnterior,
-                            borderColor: '#6c757d', // Gray
-                            tension: 0.3,
+                            label: 'Año Anterior',
+                            data: chartData.ly,
+                            borderColor: '#6c757d',
+                            borderWidth: 2,
+                            opacity: 0.5,
                             fill: false,
-                            hidden: true // Escondido por defecto, se puede activar al clicar en leyenda
+                            tension: 0.4
                         }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return context.dataset.label + ': ' + formatter.format(context.raw); }
+                            }
+                        }
                     },
                     scales: {
                         y: {
