@@ -52,7 +52,7 @@
     </div>
 
     <!-- Filtros Inteligentes -->
-    <div class="card shadow-sm border-0 mb-4 rounded-3 bg-white">
+    <div class="card shadow-sm border-0 mb-4 rounded-3 bg-white">     
         <div class="card-body p-4">
             <form id="filter-form" class="row g-3 align-items-end">
                 <div class="col-md-3">
