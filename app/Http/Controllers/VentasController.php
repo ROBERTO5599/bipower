@@ -21,9 +21,12 @@ class VentasController extends Controller
 
     public function data(Request $request)
     {
-        $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString());
-        // Incluimos explícitamente horas para asegurar las búsquedas entre fecha_venta y f_alta
-        $fechaFinQuery = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
+        $fechaInicioRaw = $request->input('fecha_inicio', now()->startOfMonth()->toDateString());
+        $fechaFinRaw = $request->input('fecha_fin', now()->toDateString());
+
+        // Estandarizar al formato compatible para MySQL sin importar cómo llegue del front
+        $fechaInicio = \Carbon\Carbon::parse($fechaInicioRaw)->startOfDay()->toDateTimeString();
+        $fechaFinQuery = \Carbon\Carbon::parse($fechaFinRaw)->endOfDay()->toDateTimeString();
         $sucursalId = $request->input('sucursal_id');
 
         $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
@@ -38,6 +41,7 @@ class VentasController extends Controller
         $ventasTotales = 0;
         $totalTickets = 0;
         $utilidadBruta = 0;
+        $totalRegistrosProcesados = 0;
         
         $descuentoTotal = 0;
         $precioListaSuma = 0; // Para calcular correctamente el total descontado vs real
@@ -81,64 +85,89 @@ class VentasController extends Controller
                 Config::set("database.connections.{$connectionName}", $config);
                 DB::purge($connectionName);
 
-                // 1. Obtener Ventas, Utilidad, Descuentos cruzando con ticket para top items
-                // Nota: Volvemos a ve.f_venta como en ResumenEjecutivo para no perder transacciones desconectadas
+                // 1. Obtener Ventas, Utilidad, Descuentos, Efectivo y Tarjeta usando UNION ALL optimizado
                 $rows = DB::connection($connectionName)->select("
-                    SELECT 
-                        ve.cod_venta,
-                        ve.cod_tipo_prenda,
-                        COALESCE(pre.prenda, 'Item no registrado') as prenda,
-                        COALESCE(dv.precio, dv.venta10 + dv.descuento) as precio_lista,
-                        dv.venta10 as venta_final,
-                        dv.descuento,
-                        CASE 
-                            WHEN ve.cod_tipo_prenda = 1 THEN COALESCE(al.prestamo, 0)
-                            WHEN ve.cod_tipo_prenda = 2 THEN COALESCE(au.prestamo, 0)
-                            WHEN ve.cod_tipo_prenda = 3 THEN COALESCE(va.prestamo, 0)
-                            ELSE 0
-                        END as prestamo_base
-                    FROM detalle_venta dv
+                    SELECT ve.cod_tipo_prenda, pre.prenda, al.prestamo, dv.descuento, dv.venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta
+                    FROM detalle_venta dv 
                     INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
-                    LEFT JOIN alhajas al ON ve.cod_tipo_prenda = 1 AND al.cod_alhaja = dv.cod_prenda
-                    LEFT JOIN autos au ON ve.cod_tipo_prenda = 2 AND au.cod_auto = dv.cod_prenda
-                    LEFT JOIN varios va ON ve.cod_tipo_prenda = 3 AND va.cod_varios = dv.cod_prenda
-                    LEFT JOIN prendas pre ON pre.cod_prenda = 
-                        CASE 
-                            WHEN ve.cod_tipo_prenda = 1 THEN al.cod_prenda
-                            WHEN ve.cod_tipo_prenda = 2 THEN au.cod_prenda
-                            WHEN ve.cod_tipo_prenda = 3 THEN va.cod_prenda
-                        END
-                    WHERE ve.f_cancela IS NULL
-                    AND ve.f_venta BETWEEN ? AND ?
-                ", [$fechaInicio, $fechaFinQuery]);
+                    INNER JOIN alhajas al ON al.cod_alhaja = dv.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
+                    WHERE ve.f_cancela IS NULL AND ve.cod_tipo_prenda = 1 AND ve.f_venta BETWEEN ? AND ?
+                    UNION ALL
+                    SELECT ve.cod_tipo_prenda, pre.prenda, va.prestamo, dv.descuento, dv.venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta
+                    FROM detalle_venta dv 
+                    INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
+                    INNER JOIN varios va ON va.cod_varios = dv.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
+                    WHERE ve.f_cancela IS NULL AND ve.cod_tipo_prenda = 3 AND ve.f_venta BETWEEN ? AND ?
+                    UNION ALL
+                    SELECT ve.cod_tipo_prenda, pre.prenda, au.prestamo, dv.descuento, dv.venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta
+                    FROM detalle_venta dv 
+                    INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
+                    INNER JOIN autos au ON au.cod_auto = dv.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
+                    WHERE ve.f_cancela IS NULL AND ve.cod_tipo_prenda = 2 AND ve.f_venta BETWEEN ? AND ?
+                    UNION ALL   
+                    SELECT ap.cod_tipo_prenda, pre.prenda, al.prestamo, da.descuento, al.precio as venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta
+                    FROM apartado_pagos apg 
+                    INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado 
+                    INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                    INNER JOIN alhajas al ON al.cod_alhaja = da.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
+                    WHERE mo.cod_tipo_movimiento=12 AND apg.f_cancela IS NULL AND ap.cod_tipo_prenda = 1 AND apg.f_pago BETWEEN ? AND ?
+                    UNION ALL
+                    SELECT ap.cod_tipo_prenda, pre.prenda, au.prestamo, da.descuento, au.precio as venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta
+                    FROM apartado_pagos apg 
+                    INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado 
+                    INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                    INNER JOIN autos au ON au.cod_auto = da.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
+                    WHERE mo.cod_tipo_movimiento=12 AND apg.f_cancela IS NULL AND ap.cod_tipo_prenda = 2 AND apg.f_pago BETWEEN ? AND ?
+                    UNION ALL
+                    SELECT ap.cod_tipo_prenda, pre.prenda, va.prestamo, da.descuento, va.precio as venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta
+                    FROM apartado_pagos apg 
+                    INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado
+                    INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                    INNER JOIN varios va ON va.cod_varios = da.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
+                    WHERE mo.cod_tipo_movimiento=12 AND apg.f_cancela IS NULL AND ap.cod_tipo_prenda = 3 AND apg.f_pago BETWEEN ? AND ?
+                ", [
+                    $fechaInicio, $fechaFinQuery, $fechaInicio, $fechaFinQuery,
+                    $fechaInicio, $fechaFinQuery, $fechaInicio, $fechaFinQuery,
+                    $fechaInicio, $fechaFinQuery, $fechaInicio, $fechaFinQuery
+                ]);
 
-                $ticketsProcesados = []; // Para no contar tickets dobles
-                $sucursalTicketsConDescuento = []; 
+                $totalRegistrosProcesados += count($rows);
 
                 foreach ($rows as $r) {
                     
-                    $vtaReal = (float) $r->venta_final;
-                    $pLista = (float) $r->precio_lista;
+                    $vtaReal = (float) $r->venta10;
                     $descuento = (float) $r->descuento;
-                    $prestamo = (float) $r->prestamo_base;
+                    $prestamo = (float) $r->prestamo;
                     $utilidadItem = $vtaReal - $prestamo;
-                    $margenPrc = $vtaReal > 0 ? ($utilidadItem / $vtaReal) * 100 : 0;
-
+                    $efectivoItem = (float) $r->monto_efectivo;
+                    $tarjetaItem = (float) $r->monto_tarjeta;
+                    
                     $ventasTotales += $vtaReal;
                     $utilidadBruta += $utilidadItem;
                     
                     $descuentoTotal += $descuento;
-                    $precioListaSuma += $pLista;
+                    $precioListaSuma += ($vtaReal + $descuento);
 
-                    if (!isset($ticketsProcesados[$r->cod_venta])) {
-                        $ticketsProcesados[$r->cod_venta] = true;
-                        $totalTickets++;
-                    }
-
-                    if ($descuento > 0 && !isset($sucursalTicketsConDescuento[$r->cod_venta])) {
-                        $sucursalTicketsConDescuento[$r->cod_venta] = true;
-                        $ticketsConDescuento++;
-                    }
+                    $totalEfectivo += $efectivoItem;
+                    $totalTarjeta += $tarjetaItem;
 
                     // Clasificación de familias
                     $familiaStr = 'Varios';
@@ -151,7 +180,7 @@ class VentasController extends Controller
                     $ventasFamilia[$familiaStr]['descuento'] += $descuento;
 
                     // Acumular para Top Artículos
-                    $nombrePrenda = $r->prenda;
+                    $nombrePrenda = $r->prenda ? $r->prenda : 'Item no registrado';
                     if (!isset($articulosData[$nombrePrenda])) {
                         $articulosData[$nombrePrenda] = [
                             'nombre' => $nombrePrenda,
@@ -166,21 +195,6 @@ class VentasController extends Controller
                     $articulosData[$nombrePrenda]['utilidad'] += $utilidadItem;
                     $articulosData[$nombrePrenda]['descuento'] += $descuento;
                 }
-
-                // 2. Obtener Métodos de Pago a través de movimientos
-                // Aquí solo consultaremos lo pagado en el rango de fechas indicado vinculado a ventas.
-                $pagosQuery = DB::connection($connectionName)->selectOne("
-                    SELECT 
-                        COALESCE(SUM(mo.monto_efectivo), 0) as efectivo,
-                        COALESCE(SUM(mo.monto_tarjeta), 0) as tarjeta
-                    FROM ventas ve
-                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento
-                    WHERE ve.f_cancela IS NULL AND mo.f_cancela IS NULL 
-                      AND ve.f_venta BETWEEN ? AND ?
-                ", [$fechaInicio, $fechaFinQuery]);
-
-                $totalEfectivo += (float) $pagosQuery->efectivo;
-                $totalTarjeta += (float) $pagosQuery->tarjeta;
 
                 // Información consolidada para la sucursal actual
                 $sucLabels[] = $sucursal->nombre;
@@ -224,7 +238,8 @@ class VentasController extends Controller
         return response()->json([
             // KPIs Principales
             'ventasTotales' => $ventasTotales,
-            'totalTickets' => $totalTickets,
+            'totalRegistrosProcesados' => $totalRegistrosProcesados,
+            'totalTickets' => $totalRegistrosProcesados,
             'ticketPromedio' => $ticketPromedio,
             'utilidadBruta' => $utilidadBruta,
             'margenVentaPorcentaje' => $margenVenta,
