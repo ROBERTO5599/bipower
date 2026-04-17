@@ -77,6 +77,11 @@ class ResumenEjecutivoController extends Controller
         $rd_abono_apartado_total = 0;
         $rd_garantias_total = 0;
 
+        // Variables globales para utilidad bruta (intereses)
+        $global_intereses_refrendo = 0;
+        $global_intereses_desempeno = 0;
+        $global_intereses_abono_capital = 0;
+
         // Inventario Detallado (para tabla consolidada)
         $rd_inv = [
             'piso' => ['Oro' => ['cant' => 0, 'monto' => 0], 'Plata' => ['cant' => 0, 'monto' => 0], 'Varios' => ['cant' => 0, 'monto' => 0], 'Auto' => ['cant' => 0, 'monto' => 0], 'total_cant' => 0, 'total_monto' => 0],
@@ -91,6 +96,7 @@ class ResumenEjecutivoController extends Controller
 
         // Variables para cada tipo de ingreso
         $utilidadVentaGlobal = 0;
+        $utilidadCreditoGlobal = 0; 
         $interesesGlobal = 0;
         $desempenosGlobal = 0;
         $ventasGlobal = 0;
@@ -147,6 +153,7 @@ class ResumenEjecutivoController extends Controller
             $b_certificadoConfianza = 0;
             $b_intereses_refrendo = 0;
             $b_intereses_desempeno = 0;
+            $b_intereses_abono_capital = 0;
 
             // Variables por sucursal
             $b_transaccionesVentas = 0;
@@ -187,29 +194,37 @@ class ResumenEjecutivoController extends Controller
 
                 $b_egresos = (float) ($gastosResult->TotalGastos ?? 0);
 
-                // 2. VENTAS (5,6) - CORREGIDO: usa mo.monto10 directamente
+                // 2. VENTAS (5,6) - Incluyendo Costo (Préstamo)
                 $ventasResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(mo.monto10), 0) AS total_ventas
+                    SELECT 
+                        COALESCE(SUM(mo.monto10), 0) AS total_ventas,
+                        COALESCE(SUM(con.prestamo), 0) AS costo_ventas
                     FROM movimientos mo
+                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE mo.cod_tipo_movimiento IN (5, 6) 
                       AND mo.f_cancela IS NULL 
                       AND mo.f_alta BETWEEN :fechaDel AND :fechaAl
                 ", [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
-
+                
                 $b_ventas = (float) ($ventasResult->total_ventas ?? 0);
-                $b_transaccionesVentas = 0; // Ya no calculamos transacciones aquí
+                $b_costoVentasDetalle = (float) ($ventasResult->costo_ventas ?? 0);
+                $b_transaccionesVentas = 0;
 
-                // 3. APARTADOS LIQUIDADOS (12) - CORREGIDO: usa mo.monto10 directamente
+                // 3. APARTADOS LIQUIDADOS (12) - Incluyendo Costo (Préstamo)
                 $apartadosLiquidadosResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(mo.monto10), 0) AS total_apartados_precio
+                    SELECT 
+                        COALESCE(SUM(mo.monto10), 0) AS total_precio,
+                        COALESCE(SUM(con.prestamo), 0) AS costo_apartado
                     FROM movimientos mo
+                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE mo.cod_tipo_movimiento = 12 
                       AND mo.f_cancela IS NULL 
                       AND mo.f_alta BETWEEN :fechaDel AND :fechaAl
                 ", [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
 
-                $b_apartadosLiquidados = (float) ($apartadosLiquidadosResult->total_apartados_precio ?? 0);
-                $b_contratosApartados = 0; // Ya no calculamos contratos aquí
+                $b_apartadosLiquidados = (float) ($apartadosLiquidadosResult->total_precio ?? 0);
+                $b_costoApartados = (float) ($apartadosLiquidadosResult->costo_apartado ?? 0);
+                $b_contratosApartados = 0;
                 $b_apartadosLiquidados_prestamo = 0;
 
                 // 4. ABONOS A APARTADOS (7,8)
@@ -223,7 +238,7 @@ class ResumenEjecutivoController extends Controller
 
                 $b_abonoApartado = (float) ($abonoApartadoResult->total_abono_apartado ?? 0);
 
-                // 5. INTERESES - REFRENDO (tipo 2)
+                // 5. INTERESES - REFRENDO (tipo 2) - TOTAL COMPLETO
                 $interesesRefrendoRes = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(mo.monto10), 0) AS total
                     FROM movimientos mo
@@ -232,7 +247,7 @@ class ResumenEjecutivoController extends Controller
                 ", [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
                 $b_intereses_refrendo = (float) ($interesesRefrendoRes->total ?? 0);
 
-                // 6. INTERESES DESEMPEÑO (tipo 4 - solo interés)
+                // 6. INTERESES DESEMPEÑO (tipo 4 - solo interés cobrado)
                 $interesesDesempenoRes = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(mo.monto10 - con.prestamo), 0) AS total
                     FROM movimientos mo
@@ -243,7 +258,7 @@ class ResumenEjecutivoController extends Controller
                 ", [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
                 $b_intereses_desempeno = (float) ($interesesDesempenoRes->total ?? 0);
 
-                // 7. ABONO CAPITAL (tipo 3 - CAPITAL e INTERÉS)
+                // 7. ABONO CAPITAL (tipo 3 - solo interés cobrado)
                 $abonoCapitalResult = DB::connection($connectionName)->selectOne("
                     SELECT 
                         COALESCE(SUM(mo.abono_c), 0) AS capital_abonado,
@@ -281,16 +296,24 @@ class ResumenEjecutivoController extends Controller
 
                 $b_engancheCredito = (float) ($engancheCreditoResult->total_enganche ?? 0);
 
-                // 10. ABONO CRÉDITO (tipos 20 y 21)
+                // 10. CRÉDITOS: ABONOS (20) y LIQUIDACIONES (21)
                 $abonoCreditoResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(mo.monto10), 0) AS total_abono_credito
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN mo.cod_tipo_movimiento = 20 THEN mo.monto10 ELSE 0 END), 0) AS abonos_total,
+                        COALESCE(SUM(CASE WHEN mo.cod_tipo_movimiento = 20 THEN mo.abono_c ELSE 0 END), 0) AS abonos_capital,
+                        COALESCE(SUM(CASE WHEN mo.cod_tipo_movimiento = 21 THEN mo.monto10 ELSE 0 END), 0) AS liquidaciones_total,
+                        COALESCE(SUM(CASE WHEN mo.cod_tipo_movimiento = 21 THEN con.prestamo ELSE 0 END), 0) AS liquidaciones_costo
                     FROM movimientos mo
+                    LEFT JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE mo.cod_tipo_movimiento IN (20, 21)
                       AND mo.f_cancela IS NULL 
                       AND mo.f_alta BETWEEN :fechaDel AND :fechaAl
                 ", [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
 
-                $b_abonoCredito = (float) ($abonoCreditoResult->total_abono_credito ?? 0);
+                $b_abonoCredito = (float) ($abonoCreditoResult->abonos_total ?? 0) + (float) ($abonoCreditoResult->liquidaciones_total ?? 0);
+                $b_intereses_abono_credito = (float) ($abonoCreditoResult->abonos_total ?? 0) - (float) ($abonoCreditoResult->abonos_capital ?? 0);
+                $b_utilidad_liquidacion_credito = (float) ($abonoCreditoResult->liquidaciones_total ?? 0) - (float) ($abonoCreditoResult->liquidaciones_costo ?? 0);
+                $b_utilidadCredito = $b_intereses_abono_credito + $b_utilidad_liquidacion_credito;
 
                 // 11. CERTIFICADO DE CONFIANZA (Tabla garantias)
                 $certificadoResult = DB::connection($connectionName)->selectOne("
@@ -314,7 +337,7 @@ class ResumenEjecutivoController extends Controller
                       AND mo.f_alta BETWEEN :fechaDel AND :fechaAl
                 ", [':fechaDel' => $fechaInicio, ':fechaAl' => $fechaFinQuery]);
 
-                // 13. VENTAS por categoría (para gráficos - opcional, puede venir de otra fuente)
+                // 13. VENTAS por categoría
                 $ventasCategoriaResult = DB::connection($connectionName)->select("
                     SELECT
                         ve.cod_tipo_prenda,
@@ -346,20 +369,20 @@ class ResumenEjecutivoController extends Controller
 
                 // 14. INVENTARIO y CARTERA
                 $inventarioResult = DB::connection($connectionName)->select("
-                    SELECT
-                        'Alhaja' AS Tipo,
-                        CASE 
-                            WHEN kilataje BETWEEN 500 AND 999 THEN 'Plata' 
-                            WHEN kilataje BETWEEN 8 AND 26 THEN 'Oro' 
-                            ELSE 'Varios' 
-                        END AS CategoriaMetal,
-                        cod_estatus_prenda,
-                        COALESCE(SUM(prestamo), 0) as total_prestamo
-                    FROM alhajas 
-                    WHERE cod_estatus_prenda IN (1,9) 
-                    GROUP BY CategoriaMetal, cod_estatus_prenda
-                    
-                    UNION ALL
+                        SELECT
+                            'Alhaja' AS Tipo,
+                            CASE 
+                                WHEN kilataje BETWEEN 500 AND 999 THEN 'Plata' 
+                                WHEN kilataje BETWEEN 8 AND 26 THEN 'Oro' 
+                                ELSE 'Varios' 
+                            END AS CategoriaMetal,
+                            cod_estatus_prenda,
+                            COALESCE(SUM(prestamo), 0) as total_prestamo
+                        FROM alhajas 
+                        WHERE cod_estatus_prenda IN (1,9) 
+                        GROUP BY CategoriaMetal, cod_estatus_prenda
+                        
+                        UNION ALL
                     
                     SELECT 
                         'Varios' AS Tipo, 
@@ -393,7 +416,7 @@ class ResumenEjecutivoController extends Controller
                     $loc = ($status == 9) ? 'piso' : 'depositaria';
                     if (isset($rd_inv[$loc][$cat])) {
                         $rd_inv[$loc][$cat]['monto'] += $monto;
-                        $rd_inv[$loc][$cat]['cant'] += 1; // Estimado 1 prenda por registro si no hay count
+                        $rd_inv[$loc][$cat]['cant'] += 1;
                     }
                     $rd_inv[$loc]['total_monto'] += $monto;
                     $rd_inv[$loc]['total_cant'] += 1;
@@ -439,27 +462,30 @@ class ResumenEjecutivoController extends Controller
                 $balanceGeneral['pasivo_total'] += (float) ($balanceResult->pasivo_total ?? 0);
                 $balanceGeneral['capital_total'] = $balanceGeneral['activo_total'] - $balanceGeneral['pasivo_total'];
 
-                // ===== INGRESOS TOTALES (Fórmula corregida) =====
-                $b_ingresos = $b_ventas                           // tipo 5,6
-                            + $b_apartadosLiquidados              // tipo 12
-                            + $b_abonoApartado                    // tipo 7,8
-                            + $b_abonoCapital                     // tipo 3 (solo capital)
-                            + $b_intereses_abono_capital          // tipo 3 (solo interés)
-                            + $b_intereses_refrendo               // tipo 2 (interés completo)
-                            + $b_intereses_desempeno              // tipo 4 (solo interés)
-                            + $b_desempenos                       // tipo 4 (solo préstamo)
-                            + $b_engancheCredito                  // tipo 19
-                            + $b_abonoCredito                     // tipo 20,21
-                            + $b_certificadoConfianza;            // garantias
+                // ===== INGRESOS TOTALES =====
+                $b_ingresos = $b_ventas
+                            + $b_apartadosLiquidados
+                            + $b_abonoApartado
+                            + $b_abonoCapital
+                            + $b_intereses_abono_capital
+                            + $b_intereses_refrendo
+                            + $b_intereses_desempeno
+                            + $b_desempenos
+                            + $b_engancheCredito
+                            + $b_abonoCredito
+                            + $b_certificadoConfianza;
 
-                // Calcular intereses totales para otras métricas
-                $b_intereses = $b_intereses_refrendo + $b_intereses_desempeno + $b_intereses_abono_capital;
+                // ===== UTILIDAD BRUTA = INTERESES (EMPEÑO) + UTILIDAD VENTA + UTILIDAD CRÉDITO + CERTIFICADOS =====
+                $b_intereses_empeno = $b_intereses_refrendo + $b_intereses_desempeno + $b_intereses_abono_capital;
+                $b_utilidadVenta = ($b_ventas - $b_costoVentasDetalle) + ($b_apartadosLiquidados - $b_costoApartados);
+                $b_utilidad_bruta = $b_intereses_empeno + $b_utilidadVenta + $b_utilidadCredito + $b_certificadoConfianza;
+
+                // Intereses totales para otras métricas
+                $b_intereses = $b_intereses_empeno;
 
                 // Variables adicionales para consistencia
                 $b_ventasTotales = $b_ventas + $b_apartadosLiquidados;
-                $b_prestamoVentas = 0;
-                $b_utilidadVenta = $b_ventasTotales;
-                $b_costoVentas = 0;
+                $b_costoVentas = $b_costoVentasDetalle + $b_costoApartados;
 
                 // Flujo de efectivo
                 $balanceGeneral['efectivo_inicial'] += 100000;
@@ -474,6 +500,11 @@ class ResumenEjecutivoController extends Controller
                 $totalIngresosVentasIntereses += $b_ingresosVentasIntereses;
                 $totalEgresos += $b_egresos;
                 $totalGastosOperativos += $b_egresos;
+
+                // Acumular intereses para utilidad bruta global
+                $global_intereses_refrendo += $b_intereses_refrendo;
+                $global_intereses_desempeno += $b_intereses_desempeno;
+                $global_intereses_abono_capital += $b_intereses_abono_capital;
 
                 $empenosData['contratos'] += (int) ($empenosResult->contratos ?? 0);
                 $empenosData['prestamo'] += (float) ($empenosResult->prestamo ?? 0);
@@ -491,6 +522,7 @@ class ResumenEjecutivoController extends Controller
                 $totalContratosApartados += $b_contratosApartados;
 
                 $utilidadVentaGlobal += $b_utilidadVenta;
+                $utilidadCreditoGlobal += $b_utilidadCredito;
                 $interesesGlobal += $b_intereses;
                 $desempenosGlobal += $b_desempenos;
                 $ventasGlobal += $b_ventas;
@@ -535,13 +567,14 @@ class ResumenEjecutivoController extends Controller
                     $semaforo = 'rojo';
                 }
 
-                $margenBruto = $b_ingresos > 0 ? ($b_utilidad / $b_ingresos) * 100 : 0;
+                $margenBruto = $b_ingresos > 0 ? ($b_utilidad_bruta / $b_ingresos) * 100 : 0;
 
                 $branchKPIs[$sucursal->nombre] = [
                     'id' => $sucursal->id_valora_mas,
                     'ingresos' => $b_ingresos,
                     'ingresos_ventas_intereses' => $b_ingresosVentasIntereses,
                     'gastos' => $b_egresos,
+                    'utilidad_bruta' => $b_utilidad_bruta,
                     'utilidad_neta' => $b_utilidad,
                     'margen_bruto_pct' => round($margenBruto, 2),
                     'inventario_total' => $b_invTotal,
@@ -557,7 +590,11 @@ class ResumenEjecutivoController extends Controller
                     'meta_ingresos' => $meta['meta_ingresos'],
                     'detalle' => [
                         'utilidad_venta' => $b_utilidadVenta,
+                        'utilidad_bruta' => $b_utilidad_bruta,
                         'intereses' => $b_intereses,
+                        'intereses_refrendo' => $b_intereses_refrendo,
+                        'intereses_desempeno' => $b_intereses_desempeno,
+                        'intereses_abono_capital' => $b_intereses_abono_capital,
                         'desempenos' => $b_desempenos,
                         'ventas' => $b_ventas,
                         'apartados_liquidados' => $b_apartadosLiquidados,
@@ -575,18 +612,11 @@ class ResumenEjecutivoController extends Controller
                 ];
 
                 // Log para depuración
-                \Log::info("INGRESOS SUCURSAL {$sucursal->nombre}", [
-                    'ventas' => $b_ventas,
-                    'apartados_liquidados' => $b_apartadosLiquidados,
-                    'abono_apartado' => $b_abonoApartado,
-                    'abono_capital' => $b_abonoCapital,
+                \Log::info("UTILIDAD BRUTA SUCURSAL {$sucursal->nombre}", [
                     'intereses_refrendo' => $b_intereses_refrendo,
                     'intereses_desempeno' => $b_intereses_desempeno,
-                    'desempenos' => $b_desempenos,
-                    'enganche_credito' => $b_engancheCredito,
-                    'abono_credito' => $b_abonoCredito,
-                    'certificado_confianza' => $b_certificadoConfianza,
-                    'TOTAL' => $b_ingresos
+                    'intereses_abono_capital' => $b_intereses_abono_capital,
+                    'UTILIDAD_BRUTA' => $b_utilidad_bruta
                 ]);
 
             } catch (\Exception $e) {
@@ -596,7 +626,7 @@ class ResumenEjecutivoController extends Controller
         }
 
         // Calcular métricas globales
-        $utilidadBruta = $totalIngresos - $costoVentasGlobal;
+        $utilidadBruta = $global_intereses_refrendo + $global_intereses_desempeno + $global_intereses_abono_capital + $utilidadVentaGlobal + $utilidadCreditoGlobal + $certificadoConfianzaGlobal;
         $margenBrutoPorcentaje = $totalIngresos > 0 ? round(($utilidadBruta / $totalIngresos) * 100, 2) : 0;
         $utilidadOperativa = $utilidadBruta - $totalGastosOperativos;
         $utilidadNetaConsolidada = $totalIngresos - $totalEgresos;
@@ -641,8 +671,8 @@ class ResumenEjecutivoController extends Controller
             'utilidadBruta' => $utilidadBruta,
             'margenBrutoPorcentaje' => $margenBrutoPorcentaje,
             'utilidadOperativa' => $utilidadOperativa,
-            'utilidadNetaConsolidada' => $utilidadNetaConsolidada,
-            'margenNetoConsolidado' => $margenNetoConsolidado,
+            'utilidadNeta' => $utilidadNetaConsolidada,
+            'margenNeto' => $margenNetoConsolidado,
             'costoVentas' => $costoVentasGlobal,
             'carteraVigente' => $carteraVigente,
             'carteraVencida' => $carteraVencida,
@@ -672,7 +702,11 @@ class ResumenEjecutivoController extends Controller
             'contratosApartados' => $totalContratosApartados,
             'detalleIngresos' => [
                 'utilidad_venta' => $utilidadVentaGlobal,
+                'utilidad_bruta' => $utilidadBruta,
                 'intereses' => $interesesGlobal,
+                'intereses_refrendo' => $global_intereses_refrendo,
+                'intereses_desempeno' => $global_intereses_desempeno,
+                'intereses_abono_capital' => $global_intereses_abono_capital,
                 'desempenos' => $desempenosGlobal,
                 'ventas' => $ventasGlobal,
                 'apartados_liquidados' => $apartadosLiquidadosGlobal,
@@ -691,7 +725,7 @@ class ResumenEjecutivoController extends Controller
             'chartCartera' => $chartCartera,
             'chartSucursales' => $chartSucursales,
 
-            // Reporte Detallado consolidado para los 9 bloques y tabla de inventario
+            // Reporte Detallado consolidado
             'reporteDetallado' => [
                 'bloques' => [
                     'empenos' => ['contratos' => $rd_empenos_contratos, 'prestamo' => $rd_empenos_prestamo],

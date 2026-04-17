@@ -199,7 +199,7 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
-                            <span class="metric-tooltip" title="Ventas - Costo de ventas (préstamo de prendas vendidas)">Utilidad Bruta</span>
+                            <span class="metric-tooltip" title="Intereses + Utilidad Venta + Utilidad Crédito + Certificados">Utilidad Bruta</span>
                         </h6>
                         <div class="icon-shape bg-light-primary text-primary">
                             <i class="bi bi-graph-up-arrow"></i>
@@ -510,7 +510,6 @@
                 </div>
             </div>
         </div>
-    </div>
 </div>
 @endsection
 
@@ -837,6 +836,7 @@
                     branchTableContainer.style.display = 'none';
                 }
 
+
                 console.log('Dashboard actualizado correctamente');
 
             } catch (error) {
@@ -1152,6 +1152,7 @@
                 tbody.appendChild(tr);
             }
         }
+
 
         /**
          * Actualiza el gráfico de tendencia (timeline)
