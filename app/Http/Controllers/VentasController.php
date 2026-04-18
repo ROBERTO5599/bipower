@@ -164,6 +164,9 @@ class VentasController extends Controller
                     $utilidadBruta += $utilidadItem;
                     
                     $descuentoTotal += $descuento;
+                    if ($descuento > 0) {
+                        $ticketsConDescuento++;
+                    }
                     $precioListaSuma += ($vtaReal + $descuento);
 
                     $totalEfectivo += $efectivoItem;
@@ -218,6 +221,7 @@ class VentasController extends Controller
         
         $ventasPagosTotales = $totalEfectivo + $totalTarjeta;
         $porcentajeTarjeta = $ventasPagosTotales > 0 ? ($totalTarjeta / $ventasPagosTotales) * 100 : 0;
+        $porcentajeEfectivo = $ventasPagosTotales > 0 ? ($totalEfectivo / $ventasPagosTotales) * 100 : 0;
         $montoComisionTPV = $totalTarjeta * $comisionTPV;
 
         // Limpiar ranking para calcular margenes
@@ -246,11 +250,13 @@ class VentasController extends Controller
 
             // Descuentos
             'montoDescuentoTotal' => $descuentoTotal,
+            'ticketsConDescuento' => $ticketsConDescuento,
             'porcentajeDescuentoTotal' => $porcentajeDescuentoTotal,
             'ticketsConDescuentoPorcentaje' => $ticketsConDescuentoPrc,
 
             // Pagos
             'pagosEfectivo' => $totalEfectivo,
+            'pagosEfectivoPorcentaje' => $porcentajeEfectivo,
             'pagosTarjeta' => $totalTarjeta,
             'pagosTarjetaPorcentaje' => $porcentajeTarjeta,
             'comisionTPVEst' => $montoComisionTPV,
