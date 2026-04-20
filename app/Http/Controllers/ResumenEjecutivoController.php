@@ -12,7 +12,7 @@ class ResumenEjecutivoController extends Controller
 {
     public function index(Request $request)
     {
-        // 🔥 MODIFICACIÓN: Filtrar solo sucursales que existen
+        //  MODIFICACIÓN: Filtrar solo sucursales que existen
         $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
         $sucursales = Sucursal::whereNotNull('id_valora_mas')
             ->whereIn('id_valora_mas', $idsQueFuncionan)
@@ -32,10 +32,10 @@ class ResumenEjecutivoController extends Controller
 
         $fechaFinSiguiente = date('Y-m-d', strtotime($fechaFin . ' +1 day'));
 
-        // 🔥 MODIFICACIÓN: IDs de sucursales que existen
+        // MODIFICACIÓN: IDs de sucursales que existen
         $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
         
-        // 🔥 MODIFICACIÓN: Filtrar directamente en la consulta
+        // MODIFICACIÓN: Filtrar directamente en la consulta
         $sucursales = Sucursal::whereNotNull('id_valora_mas')
             ->whereIn('id_valora_mas', $idsQueFuncionan)
             ->get();
@@ -190,16 +190,14 @@ class ResumenEjecutivoController extends Controller
                 // 2. VENTAS (movimientos 5 y 6)
                 // ============================================
                 $ventasResult = DB::connection($connectionName)->selectOne("
-                    SELECT 
-                        COALESCE(SUM(dv.venta10), 0) AS total_ventas,
-                        COUNT(DISTINCT ve.cod_venta) AS total_transacciones
-                    FROM detalle_venta dv 
-                    INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
-                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento
-                    WHERE ve.f_cancela IS NULL 
-                      AND mo.cod_tipo_movimiento IN (5,6)
-                      AND ve.f_venta >= :fechaDel 
-                      AND ve.f_venta < :fechaAlSig
+                   SELECT 
+                        COALESCE(SUM(mo.monto10), 0) AS total_ventas, 
+                        COUNT(DISTINCT mo.cod_movimiento) AS total_transacciones
+                    FROM movimientos mo
+                    INNER JOIN ventas ve ON ve.cod_movimiento = mo.cod_movimiento  
+                    WHERE mo.cod_estatus = 2 
+                    AND mo.cod_tipo_movimiento IN (5, 6)
+                    AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_ventas = (float) ($ventasResult->total_ventas ?? 0);
@@ -252,7 +250,7 @@ class ResumenEjecutivoController extends Controller
                 $b_abonoApartado = (float) ($abonoApartadoResult->total_abono_apartado ?? 0);
 
                 // ============================================
-                // 5. ABONO A CAPITAL
+                // 5. ABONO A CAPITAL PENDIENTE
                 // ============================================
                 $abonoCapitalResult = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(COALESCE(ca.abono, 0)), 0) AS total_abono_capital
