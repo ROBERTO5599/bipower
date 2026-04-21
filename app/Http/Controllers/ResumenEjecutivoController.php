@@ -267,7 +267,7 @@ class ResumenEjecutivoController extends Controller
                 $b_abonoCapital = (float) ($abonoCapitalResult->total_abono_capital ?? 0);
 
                 // ============================================
-                // 6. INTERESES
+                // 6. INTERESES (CÁLCULO CORREGIDO)
                 // ============================================
                 $interesesResult = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(
@@ -293,14 +293,45 @@ class ResumenEjecutivoController extends Controller
                 // 7. DESEMPEÑO
                 // ============================================
                 $desempenosResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(con.prestamo), 0) AS total_desempenos
-                    FROM movimientos mo 
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    WHERE mo.cod_tipo_movimiento = 4
-                      AND mo.f_cancela IS NULL
-                      AND con.f_cancelacion IS NULL
-                      AND mo.f_alta >= :fechaDel 
-                      AND mo.f_alta < :fechaAlSig
+                    SELECT 
+                        COUNT(*) AS total_registros,
+                        SUM(prestamo) AS suma_prestamos
+                    FROM (
+                        SELECT al.prestamo
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
+                        INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1
+                        INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario
+                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 1 
+                        AND mo.f_alta BETWEEN @f1 AND @f2
+                        AND mo.cod_tipo_movimiento IN (4)
+
+                        UNION ALL 
+
+                        SELECT au.prestamo
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
+                        INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
+                        INNER JOIN marcas ma ON ma.cod_marca = au.cod_marca AND ma.cod_tipo_prenda = 2
+                        INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario 
+                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 2 
+                        AND mo.f_alta BETWEEN @f1 AND @f2
+                        AND mo.cod_tipo_movimiento IN (4)
+                        UNION ALL
+                        SELECT va.prestamo
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
+                        INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda AND pre.cod_tipo_prenda = 3
+                        INNER JOIN marcas ma ON ma.cod_marca = va.cod_marca AND ma.cod_tipo_prenda = 3
+                        INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario
+                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 3 
+                        AND mo.f_alta BETWEEN @f1 AND @f2
+                        AND mo.cod_tipo_movimiento IN (4)
+
+                    ) AS reporte_general;
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_desempenos = (float) ($desempenosResult->total_desempenos ?? 0);
@@ -326,7 +357,7 @@ class ResumenEjecutivoController extends Controller
                 $abonoCreditoResult = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(mo.monto10), 0) AS total_abono_credito
                     FROM movimientos mo
-                    WHERE mo.cod_tipo_movimiento IN (20,21)
+                    WHERE mo.cod_tipo_movimiento IN (20)
                       AND mo.f_cancela IS NULL
                       AND mo.cod_estatus IN (1, 2)
                       AND mo.f_alta >= :fechaDel 
@@ -341,7 +372,7 @@ class ResumenEjecutivoController extends Controller
                 $liquidacionCreditoResult = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(mo.monto10), 0) AS total_liquidacion_credito
                     FROM movimientos mo
-                    WHERE mo.cod_tipo_movimiento = 23
+                    WHERE mo.cod_tipo_movimiento = 21
                       AND mo.f_cancela IS NULL
                       AND mo.cod_estatus IN (1, 2)
                       AND mo.f_alta >= :fechaDel 
@@ -470,13 +501,39 @@ class ResumenEjecutivoController extends Controller
                         $invAutos += $monto;
                 }
 
-                // Estimaciones
+                // ============================================
+                // 14.5 VENTAS DE PISO DE VENTA (Remates)
+                // ============================================
+                $ventasPisoVentaResult = DB::connection($connectionName)->selectOne("
+                    SELECT 
+                        COALESCE(SUM(dv.venta10), 0) AS total_ventas_piso,
+                        COALESCE(SUM(
+                            CASE
+                                WHEN dv.cod_tipo_prenda = 1 THEN COALESCE((SELECT prestamo FROM alhajas WHERE cod_alhaja = dv.cod_prenda), 0)
+                                WHEN dv.cod_tipo_prenda = 2 THEN COALESCE((SELECT prestamo FROM autos WHERE cod_auto = dv.cod_prenda), 0)
+                                WHEN dv.cod_tipo_prenda = 3 THEN COALESCE((SELECT prestamo FROM varios WHERE cod_varios = dv.cod_prenda), 0)
+                                ELSE 0
+                            END
+                        ), 0) AS total_prestamo_piso
+                    FROM detalle_venta dv
+                    INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
+                    WHERE ve.f_cancela IS NULL 
+                      AND ve.f_venta >= :fechaDel 
+                      AND ve.f_venta < :fechaAlSig
+                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
+
+                $b_ventasPiso = (float) ($ventasPisoVentaResult->total_ventas_piso ?? 0);
+                $b_prestamoPiso = (float) ($ventasPisoVentaResult->total_prestamo_piso ?? 0);
+
+                // Estimaciones (después de tener ventas reales)
                 $b_ventasPlata = $b_ventasOro * 0.3;
-                $b_ventasRemate = $b_invTotal * 0.1;
+                $b_ventasRemate = $b_ventasPiso; // Ventas de piso de venta son remates
 
                 // ============================================
-                // 15. CÁLCULO DE UTILIDAD DE VENTA
+                // 15. CÁLCULO DE UTILIDAD DE VENTA (CORREGIDO)
                 // ============================================
+                
+                // 15.1 Préstamo de ventas directas (sin duplicar)
                 $prestamoVentasResult = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(
                         CASE
@@ -495,6 +552,7 @@ class ResumenEjecutivoController extends Controller
 
                 $b_prestamoVentas = (float) ($prestamoVentasResult->prestamo_ventas ?? 0);
                 
+                // 15.2 Préstamo de apartados liquidados
                 $prestamoApartadosResult = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(
                         CASE
@@ -516,13 +574,18 @@ class ResumenEjecutivoController extends Controller
 
                 $b_prestamoApartados = (float) ($prestamoApartadosResult->prestamo_apartados ?? 0);
 
-                $b_prestamoVentasTotal = $b_prestamoVentas + $b_prestamoApartados;
-                $b_ventasTotales = $b_ventas + $b_apartadosLiquidados;
+                // 15.3 TOTALES CORREGIDOS (evitando duplicación)
+                // NOTA: b_ventas y b_apartadosLiquidados ya suman ventas únicas
+                // b_ventasPiso son ventas adicionales de piso de venta
+                $b_prestamoVentasTotal = $b_prestamoVentas + $b_prestamoApartados + $b_prestamoPiso;
+                $b_ventasTotales = $b_ventas + $b_apartadosLiquidados + $b_ventasPiso;
+                
+                // Utilidad de venta = Precio de venta - Costo (préstamo original)
                 $b_utilidadVenta = $b_ventasTotales - $b_prestamoVentasTotal;
                 $b_costoVentas = $b_prestamoVentasTotal;
 
                 // ============================================
-                // 15.1 UTILIDAD DE CRÉDITO
+                // 15.2 UTILIDAD DE CRÉDITO (CORREGIDO)
                 // ============================================
                 $utilidadCreditosResult = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(mo.monto10 - COALESCE(cap.prestamo, 0)), 0) AS total_utilidad_creditos
@@ -539,17 +602,33 @@ class ResumenEjecutivoController extends Controller
                 $b_utilidadCreditos = (float) ($utilidadCreditosResult->total_utilidad_creditos ?? 0);
 
                 // ============================================
-                // 16. INGRESOS TOTALES
+                // 16. INGRESOS TOTALES (CORREGIDO)
                 // ============================================
                 $b_ingresos = $b_ventas + $b_apartadosLiquidados + $b_abonoApartado + $b_abonoCapital + 
-                              $b_intereses + $b_desempenos + $b_engancheCredito + $b_abonoCredito + $b_liquidacionCredito;
+                              $b_intereses + $b_desempenos + $b_engancheCredito + $b_abonoCredito + 
+                              $b_liquidacionCredito + $b_ventasPiso;
 
                 $b_ingresosVentasIntereses = $b_ventasTotales + $b_intereses;
 
                 // ============================================
-                // 17. UTILIDAD BRUTA
+                // 17. UTILIDAD BRUTA (FÓRMULA CORRECTA)
                 // ============================================
+                // Fórmula correcta: Utilidad Bruta = Ingresos - Costo de Ventas
+                // Pero en negocio de empeño: Utilidad Bruta = Intereses + Utilidad de Venta + Utilidad de Créditos
                 $b_utilidadBruta = $b_intereses + $b_utilidadVenta + $b_utilidadCreditos + $b_certificadoConfianza;
+                
+                // VALIDACIÓN: Si la utilidad bruta es negativa con ingresos positivos, hay error
+                if ($b_utilidadBruta < 0 && $b_ingresos > 0) {
+                    Log::warning("UTILIDAD BRUTA NEGATIVA DETECTADA en {$sucursal->nombre}", [
+                        'ingresos' => $b_ingresos,
+                        'utilidad_bruta' => $b_utilidadBruta,
+                        'intereses' => $b_intereses,
+                        'utilidad_venta' => $b_utilidadVenta,
+                        'ventas_totales' => $b_ventasTotales,
+                        'prestamo_ventas_total' => $b_prestamoVentasTotal,
+                        'costo_ventas' => $b_costoVentas
+                    ]);
+                }
 
                 // ============================================
                 // 18. UTILIDAD NETA
@@ -666,6 +745,7 @@ class ResumenEjecutivoController extends Controller
                         'intereses' => $b_intereses,
                         'desempenos' => $b_desempenos,
                         'ventas' => $b_ventas,
+                        'ventas_piso' => $b_ventasPiso,
                         'apartados_liquidados' => $b_apartadosLiquidados,
                         'abono_apartado' => $b_abonoApartado,
                         'abono_capital' => $b_abonoCapital,
@@ -681,6 +761,28 @@ class ResumenEjecutivoController extends Controller
                         'contratos_apartados' => $b_contratosApartados,
                     ]
                 ];
+
+                // ============================================
+                // 22.5 LOG DE DEPURACIÓN (Eliminar en producción)
+                // ============================================
+                Log::info("=== SUCURSAL {$sucursal->nombre} ===");
+                Log::info(" INGRESOS TOTALES: " . number_format($b_ingresos, 2));
+                Log::info(" VENTAS: " . number_format($b_ventas, 2));
+                Log::info(" APARTADOS LIQUIDADOS: " . number_format($b_apartadosLiquidados, 2));
+                Log::info(" VENTAS PISO: " . number_format($b_ventasPiso, 2));
+                Log::info(" VENTAS TOTALES: " . number_format($b_ventasTotales, 2));
+                Log::info(" PRÉSTAMO VENTAS: " . number_format($b_prestamoVentas, 2));
+                Log::info(" PRÉSTAMO APARTADOS: " . number_format($b_prestamoApartados, 2));
+                Log::info(" PRÉSTAMO PISO: " . number_format($b_prestamoPiso, 2));
+                Log::info(" PRÉSTAMO VENTAS TOTAL: " . number_format($b_prestamoVentasTotal, 2));
+                Log::info(" UTILIDAD VENTA: " . number_format($b_utilidadVenta, 2));
+                Log::info(" INTERESES: " . number_format($b_intereses, 2));
+                Log::info(" UTILIDAD CRÉDITOS: " . number_format($b_utilidadCreditos, 2));
+                Log::info(" UTILIDAD BRUTA FINAL: " . number_format($b_utilidadBruta, 2));
+                Log::info(" MARGEN BRUTO: " . round($margenBruto, 2) . "%");
+                Log::info(" EGRESOS: " . number_format($b_egresos, 2));
+                Log::info(" UTILIDAD NETA: " . number_format($b_utilidadNeta, 2));
+                Log::info("=====================================");
 
             } catch (\Exception $e) {
                 Log::error("Error procesando sucursal {$sucursal->nombre} ({$dbName}): " . $e->getMessage());
@@ -818,7 +920,7 @@ class ResumenEjecutivoController extends Controller
 
     private function getMetasSucursales()
     {
-        // 🔥 MODIFICACIÓN: Metas solo para sucursales que existen
+        // MODIFICACIÓN: Metas solo para sucursales que existen
         return [
             2 => ['meta_ingresos' => 1500000, 'meta_ventas' => 1200000, 'meta_utilidad' => 300000],
             4 => ['meta_ingresos' => 1000000, 'meta_ventas' => 800000, 'meta_utilidad' => 200000],
