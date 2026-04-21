@@ -304,7 +304,7 @@ class ResumenEjecutivoController extends Controller
                         INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1
                         INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario
                         WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 1 
-                        AND mo.f_alta BETWEEN @f1 AND @f2
+                        AND mo.f_alta >= :fechaDel1 AND mo.f_alta < :fechaAlSig1
                         AND mo.cod_tipo_movimiento IN (4)
 
                         UNION ALL 
@@ -317,7 +317,7 @@ class ResumenEjecutivoController extends Controller
                         INNER JOIN marcas ma ON ma.cod_marca = au.cod_marca AND ma.cod_tipo_prenda = 2
                         INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario 
                         WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 2 
-                        AND mo.f_alta BETWEEN @f1 AND @f2
+                        AND mo.f_alta >= :fechaDel2 AND mo.f_alta < :fechaAlSig2
                         AND mo.cod_tipo_movimiento IN (4)
                         UNION ALL
                         SELECT va.prestamo
@@ -328,11 +328,15 @@ class ResumenEjecutivoController extends Controller
                         INNER JOIN marcas ma ON ma.cod_marca = va.cod_marca AND ma.cod_tipo_prenda = 3
                         INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario
                         WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 3 
-                        AND mo.f_alta BETWEEN @f1 AND @f2
+                        AND mo.f_alta >= :fechaDel3 AND mo.f_alta < :fechaAlSig3
                         AND mo.cod_tipo_movimiento IN (4)
 
                     ) AS reporte_general;
-                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
+                ", [
+                    ':fechaDel1' => $fechaInicio, ':fechaAlSig1' => $fechaFinSiguiente,
+                    ':fechaDel2' => $fechaInicio, ':fechaAlSig2' => $fechaFinSiguiente,
+                    ':fechaDel3' => $fechaInicio, ':fechaAlSig3' => $fechaFinSiguiente
+                ]);
 
                 $b_desempenos = (float) ($desempenosResult->total_desempenos ?? 0);
 
@@ -509,9 +513,9 @@ class ResumenEjecutivoController extends Controller
                         COALESCE(SUM(dv.venta10), 0) AS total_ventas_piso,
                         COALESCE(SUM(
                             CASE
-                                WHEN dv.cod_tipo_prenda = 1 THEN COALESCE((SELECT prestamo FROM alhajas WHERE cod_alhaja = dv.cod_prenda), 0)
-                                WHEN dv.cod_tipo_prenda = 2 THEN COALESCE((SELECT prestamo FROM autos WHERE cod_auto = dv.cod_prenda), 0)
-                                WHEN dv.cod_tipo_prenda = 3 THEN COALESCE((SELECT prestamo FROM varios WHERE cod_varios = dv.cod_prenda), 0)
+                                WHEN ve.cod_tipo_prenda = 1 THEN COALESCE((SELECT prestamo FROM alhajas WHERE cod_alhaja = dv.cod_prenda), 0)
+                                WHEN ve.cod_tipo_prenda = 2 THEN COALESCE((SELECT prestamo FROM autos WHERE cod_auto = dv.cod_prenda), 0)
+                                WHEN ve.cod_tipo_prenda = 3 THEN COALESCE((SELECT prestamo FROM varios WHERE cod_varios = dv.cod_prenda), 0)
                                 ELSE 0
                             END
                         ), 0) AS total_prestamo_piso

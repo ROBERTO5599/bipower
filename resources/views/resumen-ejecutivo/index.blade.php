@@ -656,8 +656,8 @@
                 const utilidadBruta = data.utilidadBruta || 0;
                 const margenBruto = data.margenBrutoPorcentaje || 0;
                 const utilidadOperativa = data.utilidadOperativa || 0;
-                const utilidadNeta = data.utilidadNeta || 0;
-                const margenNeto = data.margenNeto || 0;
+                const utilidadNeta = data.utilidadNetaConsolidada || 0;
+                const margenNeto = data.margenNetoConsolidado || 0;
                 const costoVentas = data.costoVentas || 0;
                 const gastosOperativos = data.gastosOperativos || 0;
                 
