@@ -27,10 +27,10 @@ class ResumenEjecutivoController extends Controller
    
     public function data(Request $request)
     {
-        $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString());
-        $fechaFin = $request->input('fecha_fin', now()->toDateString());
+        $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
+        $fechaFin = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
 
-        $fechaFinSiguiente = date('Y-m-d', strtotime($fechaFin . ' +1 day'));
+        $fechaFinSiguiente = $fechaFin;
 
         // MODIFICACIÓN: IDs de sucursales que existen
         $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
@@ -180,8 +180,7 @@ class ResumenEjecutivoController extends Controller
                     FROM gastos gas
                     INNER JOIN movimientos mov ON gas.cod_movimiento = mov.cod_movimiento
                     WHERE gas.activo = 1
-                    AND gas.f_solicitado >= :fechaDel 
-                    AND gas.f_solicitado < :fechaAlSig
+                    AND gas.f_solicitado BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_egresos = (float) ($gastosResult->TotalGastos ?? 0);
@@ -213,8 +212,7 @@ class ResumenEjecutivoController extends Controller
                     INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento
                     WHERE apg.f_cancela IS NULL 
                       AND mo.cod_tipo_movimiento = 12
-                      AND apg.f_pago >= :fechaDel 
-                      AND apg.f_pago < :fechaAlSig
+                      AND apg.f_pago BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_apartadosLiquidados = (float) ($apartadosLiquidadosResult->total_apartados_liquidados ?? 0);
@@ -227,8 +225,7 @@ class ResumenEjecutivoController extends Controller
                     INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento
                     WHERE apg.f_cancela IS NULL 
                       AND mo.cod_tipo_movimiento = 12 
-                      AND apg.f_pago >= :fechaDel 
-                      AND apg.f_pago < :fechaAlSig
+                      AND apg.f_pago BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_contratosApartados = (int) ($contratosApartadosResult->total_contratos ?? 0);
@@ -243,8 +240,7 @@ class ResumenEjecutivoController extends Controller
                     INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento
                     WHERE apg.f_cancela IS NULL 
                       AND mo.cod_tipo_movimiento = 8
-                      AND apg.f_pago >= :fechaDel 
-                      AND apg.f_pago < :fechaAlSig
+                      AND apg.f_pago BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_abonoApartado = (float) ($abonoApartadoResult->total_abono_apartado ?? 0);
@@ -260,8 +256,7 @@ class ResumenEjecutivoController extends Controller
                     WHERE mo.cod_tipo_movimiento IN (2,3)
                       AND mo.f_cancela IS NULL
                       AND con.f_cancelacion IS NULL
-                      AND mo.f_alta >= :fechaDel 
-                      AND mo.f_alta < :fechaAlSig
+                      AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_abonoCapital = (float) ($abonoCapitalResult->total_abono_capital ?? 0);
@@ -270,22 +265,62 @@ class ResumenEjecutivoController extends Controller
                 // 6. INTERESES (CÁLCULO CORREGIDO)
                 // ============================================
                 $interesesResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(
-                        CASE 
-                            WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
-                            WHEN mo.cod_tipo_movimiento IN (2,3) THEN mo.monto10 - COALESCE(ca.abono, 0)
-                            ELSE 0
-                        END
-                    ), 0) AS total_intereses
-                    FROM movimientos mo 
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
-                    WHERE mo.cod_tipo_movimiento IN (2,3,4)
-                      AND mo.f_cancela IS NULL
-                      AND con.f_cancelacion IS NULL
-                      AND mo.f_alta >= :fechaDel 
-                      AND mo.f_alta < :fechaAlSig
-                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
+                    SELECT COALESCE(SUM(total_intereses), 0) AS total_intereses
+                    FROM (
+                        /* --- ALHAJAS --- */
+                        SELECT 
+                            (CASE 
+                                WHEN mo.cod_tipo_movimiento = 2 THEN (SELECT IF(mo.monto10 < 20, (20.0 / (SELECT COUNT(*) FROM alhajas WHERE cod_contrato = con.cod_seguimiento)), (mo.monto10 / (SELECT COUNT(*) FROM alhajas WHERE cod_contrato = con.cod_seguimiento))))
+                                WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
+                                WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - (SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior)
+                                ELSE 0 
+                             END) AS total_intereses
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 1 
+                        AND mo.f_alta BETWEEN :fechaDel1 AND :fechaAlSig1
+                        AND mo.cod_tipo_movimiento IN (2, 3, 4)
+
+                        UNION ALL 
+
+                        /* --- AUTOS --- */
+                        SELECT 
+                            (CASE 
+                                WHEN mo.cod_tipo_movimiento = 2 THEN (SELECT IF(mo.monto10 < 20, (20.0 / (SELECT COUNT(*) FROM autos WHERE cod_contrato = con.cod_seguimiento)), (mo.monto10 / (SELECT COUNT(*) FROM autos WHERE cod_contrato = con.cod_seguimiento))))
+                                WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
+                                WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - (SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior)
+                                ELSE 0 
+                             END) AS total_intereses
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 2 
+                        AND mo.f_alta BETWEEN :fechaDel2 AND :fechaAlSig2
+                        AND mo.cod_tipo_movimiento IN (2, 3, 4)
+
+                        UNION ALL
+
+                        /* --- VARIOS --- */
+                        SELECT 
+                            (CASE 
+                                WHEN mo.cod_tipo_movimiento = 2 THEN (SELECT IF(mo.monto10 < 20, (20.0 / (SELECT COUNT(*) FROM varios WHERE cod_contrato = con.cod_seguimiento)), (mo.monto10 / (SELECT COUNT(*) FROM varios WHERE cod_contrato = con.cod_seguimiento))))
+                                WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
+                                WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - (SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior)
+                                ELSE 0 
+                             END) AS total_intereses
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 3 
+                        AND mo.f_alta BETWEEN :fechaDel3 AND :fechaAlSig3
+                        AND mo.cod_tipo_movimiento IN (2, 3, 4)
+                    ) AS SubconsultaDetalle
+                ", [
+                    ':fechaDel1' => $fechaInicio, ':fechaAlSig1' => $fechaFinSiguiente,
+                    ':fechaDel2' => $fechaInicio, ':fechaAlSig2' => $fechaFinSiguiente,
+                    ':fechaDel3' => $fechaInicio, ':fechaAlSig3' => $fechaFinSiguiente
+                ]);
 
                 $b_intereses = (float) ($interesesResult->total_intereses ?? 0);
 
@@ -304,7 +339,7 @@ class ResumenEjecutivoController extends Controller
                         INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1
                         INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario
                         WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 1 
-                        AND mo.f_alta >= :fechaDel1 AND mo.f_alta < :fechaAlSig1
+                        AND mo.f_alta BETWEEN :fechaDel1 AND :fechaAlSig1
                         AND mo.cod_tipo_movimiento IN (4)
 
                         UNION ALL 
@@ -317,7 +352,7 @@ class ResumenEjecutivoController extends Controller
                         INNER JOIN marcas ma ON ma.cod_marca = au.cod_marca AND ma.cod_tipo_prenda = 2
                         INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario 
                         WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 2 
-                        AND mo.f_alta >= :fechaDel2 AND mo.f_alta < :fechaAlSig2
+                        AND mo.f_alta BETWEEN :fechaDel2 AND :fechaAlSig2
                         AND mo.cod_tipo_movimiento IN (4)
                         UNION ALL
                         SELECT va.prestamo
@@ -328,7 +363,7 @@ class ResumenEjecutivoController extends Controller
                         INNER JOIN marcas ma ON ma.cod_marca = va.cod_marca AND ma.cod_tipo_prenda = 3
                         INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario
                         WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 3 
-                        AND mo.f_alta >= :fechaDel3 AND mo.f_alta < :fechaAlSig3
+                        AND mo.f_alta BETWEEN :fechaDel3 AND :fechaAlSig3
                         AND mo.cod_tipo_movimiento IN (4)
 
                     ) AS reporte_general;
@@ -338,7 +373,7 @@ class ResumenEjecutivoController extends Controller
                     ':fechaDel3' => $fechaInicio, ':fechaAlSig3' => $fechaFinSiguiente
                 ]);
 
-                $b_desempenos = (float) ($desempenosResult->total_desempenos ?? 0);
+                $b_desempenos = (float) ($desempenosResult->suma_prestamos ?? 0);
 
                 // ============================================
                 // 8. ENGANCHE CREDITO
@@ -349,8 +384,7 @@ class ResumenEjecutivoController extends Controller
                     WHERE mo.cod_tipo_movimiento = 19
                       AND mo.f_cancela IS NULL
                       AND mo.cod_estatus IN (1, 2)
-                      AND mo.f_alta >= :fechaDel 
-                      AND mo.f_alta < :fechaAlSig
+                      AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_engancheCredito = (float) ($engancheCreditoResult->total_enganche_credito ?? 0);
@@ -364,8 +398,7 @@ class ResumenEjecutivoController extends Controller
                     WHERE mo.cod_tipo_movimiento IN (20)
                       AND mo.f_cancela IS NULL
                       AND mo.cod_estatus IN (1, 2)
-                      AND mo.f_alta >= :fechaDel 
-                      AND mo.f_alta < :fechaAlSig
+                      AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_abonoCredito = (float) ($abonoCreditoResult->total_abono_credito ?? 0);
@@ -379,8 +412,7 @@ class ResumenEjecutivoController extends Controller
                     WHERE mo.cod_tipo_movimiento = 21
                       AND mo.f_cancela IS NULL
                       AND mo.cod_estatus IN (1, 2)
-                      AND mo.f_alta >= :fechaDel 
-                      AND mo.f_alta < :fechaAlSig
+                      AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_liquidacionCredito = (float) ($liquidacionCreditoResult->total_liquidacion_credito ?? 0);
@@ -402,8 +434,7 @@ class ResumenEjecutivoController extends Controller
                     WHERE mo.cod_tipo_movimiento = 1 
                       AND mo.f_cancela IS NULL 
                       AND con.f_cancelacion IS NULL
-                      AND mo.f_alta >= :fechaDel 
-                      AND mo.f_alta < :fechaAlSig
+                      AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 // ============================================
@@ -417,8 +448,7 @@ class ResumenEjecutivoController extends Controller
                     FROM detalle_venta dv
                     INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
                     WHERE ve.f_cancela IS NULL 
-                      AND ve.f_venta >= :fechaDel 
-                      AND ve.f_venta < :fechaAlSig
+                      AND ve.f_venta BETWEEN :fechaDel AND :fechaAlSig
                     GROUP BY ve.cod_tipo_prenda
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
@@ -505,33 +535,9 @@ class ResumenEjecutivoController extends Controller
                         $invAutos += $monto;
                 }
 
-                // ============================================
-                // 14.5 VENTAS DE PISO DE VENTA (Remates)
-                // ============================================
-                $ventasPisoVentaResult = DB::connection($connectionName)->selectOne("
-                    SELECT 
-                        COALESCE(SUM(dv.venta10), 0) AS total_ventas_piso,
-                        COALESCE(SUM(
-                            CASE
-                                WHEN ve.cod_tipo_prenda = 1 THEN COALESCE((SELECT prestamo FROM alhajas WHERE cod_alhaja = dv.cod_prenda), 0)
-                                WHEN ve.cod_tipo_prenda = 2 THEN COALESCE((SELECT prestamo FROM autos WHERE cod_auto = dv.cod_prenda), 0)
-                                WHEN ve.cod_tipo_prenda = 3 THEN COALESCE((SELECT prestamo FROM varios WHERE cod_varios = dv.cod_prenda), 0)
-                                ELSE 0
-                            END
-                        ), 0) AS total_prestamo_piso
-                    FROM detalle_venta dv
-                    INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
-                    WHERE ve.f_cancela IS NULL 
-                      AND ve.f_venta >= :fechaDel 
-                      AND ve.f_venta < :fechaAlSig
-                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
-
-                $b_ventasPiso = (float) ($ventasPisoVentaResult->total_ventas_piso ?? 0);
-                $b_prestamoPiso = (float) ($ventasPisoVentaResult->total_prestamo_piso ?? 0);
-
                 // Estimaciones (después de tener ventas reales)
                 $b_ventasPlata = $b_ventasOro * 0.3;
-                $b_ventasRemate = $b_ventasPiso; // Ventas de piso de venta son remates
+                $b_ventasRemate = $b_ventas; // Ventas de piso de venta son remates, usando el valor real de ventas
 
                 // ============================================
                 // 15. CÁLCULO DE UTILIDAD DE VENTA (CORREGIDO)
@@ -550,8 +556,7 @@ class ResumenEjecutivoController extends Controller
                     FROM detalle_venta dv
                     INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
                     WHERE ve.f_cancela IS NULL 
-                      AND ve.f_venta >= :fechaDel 
-                      AND ve.f_venta < :fechaAlSig
+                      AND ve.f_venta BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_prestamoVentas = (float) ($prestamoVentasResult->prestamo_ventas ?? 0);
@@ -572,17 +577,15 @@ class ResumenEjecutivoController extends Controller
                     INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento
                     WHERE apg.f_cancela IS NULL 
                       AND mo.cod_tipo_movimiento = 12 
-                      AND apg.f_pago >= :fechaDel 
-                      AND apg.f_pago < :fechaAlSig
+                      AND apg.f_pago BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
 
                 $b_prestamoApartados = (float) ($prestamoApartadosResult->prestamo_apartados ?? 0);
 
                 // 15.3 TOTALES CORREGIDOS (evitando duplicación)
                 // NOTA: b_ventas y b_apartadosLiquidados ya suman ventas únicas
-                // b_ventasPiso son ventas adicionales de piso de venta
-                $b_prestamoVentasTotal = $b_prestamoVentas + $b_prestamoApartados + $b_prestamoPiso;
-                $b_ventasTotales = $b_ventas + $b_apartadosLiquidados + $b_ventasPiso;
+                $b_prestamoVentasTotal = $b_prestamoVentas + $b_prestamoApartados;
+                $b_ventasTotales = $b_ventas + $b_apartadosLiquidados;
                 
                 // Utilidad de venta = Precio de venta - Costo (préstamo original)
                 $b_utilidadVenta = $b_ventasTotales - $b_prestamoVentasTotal;
@@ -599,8 +602,7 @@ class ResumenEjecutivoController extends Controller
                     WHERE mo.cod_tipo_movimiento IN (19, 20, 21, 23)
                       AND mo.f_cancela IS NULL
                       AND mo.cod_estatus IN (1, 2)
-                      AND mo.f_alta >= :fechaDel 
-                      AND mo.f_alta < :fechaAlSig
+                      AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
                 ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
                 
                 $b_utilidadCreditos = (float) ($utilidadCreditosResult->total_utilidad_creditos ?? 0);
@@ -610,7 +612,7 @@ class ResumenEjecutivoController extends Controller
                 // ============================================
                 $b_ingresos = $b_ventas + $b_apartadosLiquidados + $b_abonoApartado + $b_abonoCapital + 
                               $b_intereses + $b_desempenos + $b_engancheCredito + $b_abonoCredito + 
-                              $b_liquidacionCredito + $b_ventasPiso;
+                              $b_liquidacionCredito;
 
                 $b_ingresosVentasIntereses = $b_ventasTotales + $b_intereses;
 
@@ -749,7 +751,6 @@ class ResumenEjecutivoController extends Controller
                         'intereses' => $b_intereses,
                         'desempenos' => $b_desempenos,
                         'ventas' => $b_ventas,
-                        'ventas_piso' => $b_ventasPiso,
                         'apartados_liquidados' => $b_apartadosLiquidados,
                         'abono_apartado' => $b_abonoApartado,
                         'abono_capital' => $b_abonoCapital,
@@ -773,11 +774,9 @@ class ResumenEjecutivoController extends Controller
                 Log::info(" INGRESOS TOTALES: " . number_format($b_ingresos, 2));
                 Log::info(" VENTAS: " . number_format($b_ventas, 2));
                 Log::info(" APARTADOS LIQUIDADOS: " . number_format($b_apartadosLiquidados, 2));
-                Log::info(" VENTAS PISO: " . number_format($b_ventasPiso, 2));
                 Log::info(" VENTAS TOTALES: " . number_format($b_ventasTotales, 2));
                 Log::info(" PRÉSTAMO VENTAS: " . number_format($b_prestamoVentas, 2));
                 Log::info(" PRÉSTAMO APARTADOS: " . number_format($b_prestamoApartados, 2));
-                Log::info(" PRÉSTAMO PISO: " . number_format($b_prestamoPiso, 2));
                 Log::info(" PRÉSTAMO VENTAS TOTAL: " . number_format($b_prestamoVentasTotal, 2));
                 Log::info(" UTILIDAD VENTA: " . number_format($b_utilidadVenta, 2));
                 Log::info(" INTERESES: " . number_format($b_intereses, 2));

@@ -141,7 +141,7 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
-                            <span class="metric-tooltip" title="Utilidad de ventas, intereses, desempeño, venta, abono apartado, abono a capital, enganche de crédito, abono a crédito y certificado de confianza">Ingresos Totales</span>
+                            <span class="metric-tooltip" id="tooltip-ingresos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de ingresos...">Ingresos Totales</span>
                         </h6>
                         <div class="icon-shape bg-light-success text-success">
                             <i class="bi bi-wallet2"></i>
@@ -681,6 +681,33 @@
                 updateElementText('kpi-gastos', formatter.format(gastosOperativos));
                 updateElementText('kpi-empeno', formatter.format(data.empenosData?.prestamo || 0));
                 updateElementText('kpi-empeno-contratos', `${numberFormatter.format(data.empenosData?.contratos || 0)} Contratos`);
+
+                // Construir tooltip de Ingresos
+                const detalle = data.detalleIngresos;
+                const tooltipEl = document.getElementById('tooltip-ingresos');
+                if(detalle && tooltipEl) {
+                    let tooltipHtml = `
+                        <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                            <strong class="d-block mb-1 border-bottom pb-1">Desglose de Ingresos:</strong>
+                            <div class="d-flex justify-content-between"><span>Ventas Contado:</span> <span class="fw-bold">${formatter.format(detalle.ventas || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Apartados Liquidados:</span> <span class="fw-bold">${formatter.format(detalle.apartados_liquidados || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Abono a Apartados:</span> <span class="fw-bold">${formatter.format(detalle.abono_apartado || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Intereses:</span> <span class="fw-bold">${formatter.format(detalle.intereses || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Desempeños:</span> <span class="fw-bold">${formatter.format(detalle.desempenos || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Abono a Capital:</span> <span class="fw-bold">${formatter.format(detalle.abono_capital || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Enganche Crédito:</span> <span class="fw-bold">${formatter.format(detalle.enganche_credito || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Abonos de Crédito:</span> <span class="fw-bold">${formatter.format(detalle.abono_credito || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Liquidación Crédito:</span> <span class="fw-bold">${formatter.format(detalle.liquidacion_credito || 0)}</span></div>
+                        </div>
+                    `;
+                    // Limpiar tooltip viejo si existe
+                    const existingTooltip = bootstrap.Tooltip.getInstance(tooltipEl);
+                    if (existingTooltip) { existingTooltip.dispose(); }
+                    
+                    tooltipEl.setAttribute('data-bs-original-title', tooltipHtml);
+                    tooltipEl.setAttribute('title', tooltipHtml);
+                    new bootstrap.Tooltip(tooltipEl, { html: true, placement: 'top' });
+                }
 
                 // Utilidad Neta (simple)
                 const utilidadCalculada = (data.totalIngresos || 0) - (data.totalEgresos || 0);
