@@ -265,61 +265,21 @@ class ResumenEjecutivoController extends Controller
                 // 6. INTERESES (CÁLCULO CORREGIDO)
                 // ============================================
                 $interesesResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(total_intereses), 0) AS total_intereses
-                    FROM (
-                        /* --- ALHAJAS --- */
-                        SELECT 
-                            (CASE 
-                                WHEN mo.cod_tipo_movimiento = 2 THEN (SELECT IF(mo.monto10 < 20, (20.0 / (SELECT COUNT(*) FROM alhajas WHERE cod_contrato = con.cod_seguimiento)), (mo.monto10 / (SELECT COUNT(*) FROM alhajas WHERE cod_contrato = con.cod_seguimiento))))
-                                WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
-                                WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - (SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior)
-                                ELSE 0 
-                             END) AS total_intereses
-                        FROM movimientos mo 
-                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
-                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 1 
-                        AND mo.f_alta BETWEEN :fechaDel1 AND :fechaAlSig1
-                        AND mo.cod_tipo_movimiento IN (2, 3, 4)
-
-                        UNION ALL 
-
-                        /* --- AUTOS --- */
-                        SELECT 
-                            (CASE 
-                                WHEN mo.cod_tipo_movimiento = 2 THEN (SELECT IF(mo.monto10 < 20, (20.0 / (SELECT COUNT(*) FROM autos WHERE cod_contrato = con.cod_seguimiento)), (mo.monto10 / (SELECT COUNT(*) FROM autos WHERE cod_contrato = con.cod_seguimiento))))
-                                WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
-                                WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - (SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior)
-                                ELSE 0 
-                             END) AS total_intereses
-                        FROM movimientos mo 
-                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
-                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 2 
-                        AND mo.f_alta BETWEEN :fechaDel2 AND :fechaAlSig2
-                        AND mo.cod_tipo_movimiento IN (2, 3, 4)
-
-                        UNION ALL
-
-                        /* --- VARIOS --- */
-                        SELECT 
-                            (CASE 
-                                WHEN mo.cod_tipo_movimiento = 2 THEN (SELECT IF(mo.monto10 < 20, (20.0 / (SELECT COUNT(*) FROM varios WHERE cod_contrato = con.cod_seguimiento)), (mo.monto10 / (SELECT COUNT(*) FROM varios WHERE cod_contrato = con.cod_seguimiento))))
-                                WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
-                                WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - (SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior)
-                                ELSE 0 
-                             END) AS total_intereses
-                        FROM movimientos mo 
-                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
-                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 3 
-                        AND mo.f_alta BETWEEN :fechaDel3 AND :fechaAlSig3
-                        AND mo.cod_tipo_movimiento IN (2, 3, 4)
-                    ) AS SubconsultaDetalle
+                    SELECT COALESCE(SUM(
+                        CASE 
+                            WHEN mo.cod_tipo_movimiento = 2 THEN IF(mo.monto10 < 20, 20.0, mo.monto10)
+                            WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
+                            WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - COALESCE((SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior), 0)
+                            ELSE 0 
+                        END
+                    ), 0) AS total_intereses
+                    FROM movimientos mo 
+                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                    WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda IN (1, 2, 3)
+                    AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
+                    AND mo.cod_tipo_movimiento IN (2, 3, 4)
                 ", [
-                    ':fechaDel1' => $fechaInicio, ':fechaAlSig1' => $fechaFinSiguiente,
-                    ':fechaDel2' => $fechaInicio, ':fechaAlSig2' => $fechaFinSiguiente,
-                    ':fechaDel3' => $fechaInicio, ':fechaAlSig3' => $fechaFinSiguiente
+                    ':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente
                 ]);
 
                 $b_intereses = (float) ($interesesResult->total_intereses ?? 0);

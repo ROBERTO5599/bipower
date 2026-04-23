@@ -156,14 +156,14 @@
                 <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Contratos de ventas y apartados
-                                liquidados</h6>
+                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Contratos de ventas, apartados y
+                                creditos liquidados</h6>
                             <div class="icon-shape bg-light-info text-info">
                                 <i class="bi bi-receipt"></i>
                             </div>
                         </div>
                         <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-total-tickets">0 Contratos</h2>
-                        <span class="text-muted small" id="kpi-ticket-promedio">Monto promedio: $ 0.00</span>
+                        <span class="text-muted small" id="kpi-ticket-promedio">Monto prestamo: $ 0.00</span>
                     </div>
                 </div>
             </div>
@@ -230,10 +230,14 @@
                             <div class="col-6">
                                 <small class="text-muted d-block">% Ventas en Efectivo</small>
                                 <span class="fw-bold text-success" id="kpi-porcentaje-efectivo">0%</span>
+                                <small class="text-muted d-block mt-2">Contratos Efectivo</small>
+                                <span class="fw-bold" id="kpi-contratos-efectivo">0</span>
                             </div>
                             <div class="col-6 border-start">
                                 <small class="text-muted d-block">% Ventas con Tarjeta</small>
                                 <span class="fw-bold text-primary" id="kpi-porcentaje-tarjeta">0%</span>
+                                <small class="text-muted d-block mt-2">Contratos Tarjeta</small>
+                                <span class="fw-bold" id="kpi-contratos-tarjeta">0</span>
                             </div>
                         </div>
                     </div>
@@ -386,7 +390,7 @@
             function updateDashboard(data) {
                 // KPIs Principales
                 updateElementText('kpi-ventas-totales', formatter.format(data.ventasTotales || 0));
-                updateElementText('kpi-ticket-promedio', `Monto promedio: ${formatter.format(data.ticketPromedio || 0)}`);
+                updateElementText('kpi-ticket-promedio', `Monto prestamo: ${formatter.format(data.montoPrestamo || 0)}`);
                 updateElementText('kpi-total-tickets', `${numberFormatter.format(data.totalTickets || 0)} Contratos`);
 
                 updateElementText('kpi-utilidad-bruta', formatter.format(data.utilidadBruta || 0));
@@ -400,6 +404,9 @@
                 updateElementText('kpi-pagos-tarjeta', formatter.format(data.pagosTarjeta || 0));
                 updateElementText('kpi-porcentaje-efectivo', `${(data.pagosEfectivoPorcentaje || 0).toFixed(1)}%`);
                 updateElementText('kpi-porcentaje-tarjeta', `${(data.pagosTarjetaPorcentaje || 0).toFixed(1)}%`);
+                
+                updateElementText('kpi-contratos-efectivo', numberFormatter.format(data.contratosEfectivo || 0));
+                updateElementText('kpi-contratos-tarjeta', numberFormatter.format(data.contratosTarjeta || 0));
 
                 // Tablas Top Artículos - Importe
                 const tbodyImporte = document.getElementById('top-articulos-importe');
@@ -407,12 +414,12 @@
                     let tableHtml = '';
                     data.topArticulosImporte.forEach(item => {
                         tableHtml += `
-                                        <tr>
-                                            <td class="ps-4 py-3 fw-bold text-dark">${item.nombre}</td>
-                                            <td class="py-3 text-end">${numberFormatter.format(item.cantidad)}</td>
-                                            <td class="pe-4 py-3 text-end fw-bold text-primary">${formatter.format(item.ventas)}</td>
-                                        </tr>
-                                    `;
+                                                <tr>
+                                                    <td class="ps-4 py-3 fw-bold text-dark">${item.nombre}</td>
+                                                    <td class="py-3 text-end">${numberFormatter.format(item.cantidad)}</td>
+                                                    <td class="pe-4 py-3 text-end fw-bold text-primary">${formatter.format(item.ventas)}</td>
+                                                </tr>
+                                            `;
                     });
                     tbodyImporte.innerHTML = tableHtml;
                 } else {
@@ -425,12 +432,12 @@
                     let tableHtml = '';
                     data.topArticulosMargen.forEach(item => {
                         tableHtml += `
-                                        <tr>
-                                            <td class="ps-4 py-3 fw-bold text-dark">${item.nombre}</td>
-                                            <td class="py-3 text-end text-success">${formatter.format(item.utilidad)}</td>
-                                            <td class="pe-4 py-3 text-end fw-bold">${(item.margen_prc || 0).toFixed(1)}%</td>
-                                        </tr>
-                                    `;
+                                                <tr>
+                                                    <td class="ps-4 py-3 fw-bold text-dark">${item.nombre}</td>
+                                                    <td class="py-3 text-end text-success">${formatter.format(item.utilidad)}</td>
+                                                    <td class="pe-4 py-3 text-end fw-bold">${(item.margen_prc || 0).toFixed(1)}%</td>
+                                                </tr>
+                                            `;
                     });
                     tbodyMargen.innerHTML = tableHtml;
                 } else {

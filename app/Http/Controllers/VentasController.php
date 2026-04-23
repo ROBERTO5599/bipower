@@ -49,6 +49,9 @@ class VentasController extends Controller
         
         $totalEfectivo = 0;
         $totalTarjeta = 0;
+        $montoPrestamo = 0;
+        $contratosEfectivo = 0;
+        $contratosTarjeta = 0;
         
         // Comision estimada TPV
         $comisionTPV = 0.035; // 3.5%
@@ -143,10 +146,19 @@ class VentasController extends Controller
                     INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda
                     INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
                     WHERE mo.cod_tipo_movimiento=12 AND apg.f_cancela IS NULL AND ap.cod_tipo_prenda = 3 AND apg.f_pago BETWEEN ? AND ?
+                    UNION ALL
+                    SELECT mo.cod_tipo_prenda, pre.prenda, art.prestamo, 0 as descuento, op.monto_total as venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta
+                    FROM movimientos mo
+                    INNER JOIN creditos op ON op.cod_credito = mo.cod_contrato
+                    INNER JOIN varios art ON art.cod_varios = op.cod_varios
+                    INNER JOIN prendas pre ON pre.cod_prenda = art.cod_prenda
+                    WHERE mo.cod_estatus IN (1,2) AND mo.cod_tipo_movimiento = 21 AND mo.f_alta BETWEEN ? AND ?
                 ", [
                     $fechaInicio, $fechaFinQuery, $fechaInicio, $fechaFinQuery,
                     $fechaInicio, $fechaFinQuery, $fechaInicio, $fechaFinQuery,
-                    $fechaInicio, $fechaFinQuery, $fechaInicio, $fechaFinQuery
+                    $fechaInicio, $fechaFinQuery, $fechaInicio, $fechaFinQuery,
+                    $fechaInicio, $fechaFinQuery
                 ]);
 
                 $totalRegistrosProcesados += count($rows);
@@ -171,6 +183,14 @@ class VentasController extends Controller
 
                     $totalEfectivo += $efectivoItem;
                     $totalTarjeta += $tarjetaItem;
+                    $montoPrestamo += $prestamo;
+
+                    if ($efectivoItem > 0) {
+                        $contratosEfectivo++;
+                    }
+                    if ($tarjetaItem > 0) {
+                        $contratosTarjeta++;
+                    }
 
                     // Clasificación de familias
                     $familiaStr = 'Varios';
@@ -244,6 +264,7 @@ class VentasController extends Controller
             'ventasTotales' => $ventasTotales,
             'totalRegistrosProcesados' => $totalRegistrosProcesados,
             'totalTickets' => $totalRegistrosProcesados,
+            'montoPrestamo' => $montoPrestamo,
             'ticketPromedio' => $ticketPromedio,
             'utilidadBruta' => $utilidadBruta,
             'margenVentaPorcentaje' => $margenVenta,
@@ -257,8 +278,10 @@ class VentasController extends Controller
             // Pagos
             'pagosEfectivo' => $totalEfectivo,
             'pagosEfectivoPorcentaje' => $porcentajeEfectivo,
+            'contratosEfectivo' => $contratosEfectivo,
             'pagosTarjeta' => $totalTarjeta,
             'pagosTarjetaPorcentaje' => $porcentajeTarjeta,
+            'contratosTarjeta' => $contratosTarjeta,
             'comisionTPVEst' => $montoComisionTPV,
 
             // Tablas / Rankings
