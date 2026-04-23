@@ -199,7 +199,7 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
-                            <span class="metric-tooltip" title="Intereses + Utilidad Venta + Utilidad Crédito + Certificados">Utilidad Bruta</span>
+                            <span class="metric-tooltip" title="Utilidad de Ventas + Intereses + Utilidad de Crédito Liquidado + Ventas de Certificados">Utilidad Bruta</span>
                         </h6>
                         <div class="icon-shape bg-light-primary text-primary">
                             <i class="bi bi-graph-up-arrow"></i>
@@ -698,6 +698,7 @@
                             <div class="d-flex justify-content-between"><span>Enganche Crédito:</span> <span class="fw-bold">${formatter.format(detalle.enganche_credito || 0)}</span></div>
                             <div class="d-flex justify-content-between"><span>Abonos de Crédito:</span> <span class="fw-bold">${formatter.format(detalle.abono_credito || 0)}</span></div>
                             <div class="d-flex justify-content-between"><span>Liquidación Crédito:</span> <span class="fw-bold">${formatter.format(detalle.liquidacion_credito || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Certificados de Confianza:</span> <span class="fw-bold">${formatter.format(detalle.certificado_confianza || 0)}</span></div>
                         </div>
                     `;
                     // Limpiar tooltip viejo si existe

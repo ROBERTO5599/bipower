@@ -420,7 +420,15 @@ class ResumenEjecutivoController extends Controller
                 // ============================================
                 // 11. CERTIFICADO CONFIANZA
                 // ============================================
-                $b_certificadoConfianza = 0;
+                $certificadoConfianzaResult = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(ga.monto_garantia), 0) AS total_monto
+                    FROM garantias ga
+                    WHERE ga.f_alta BETWEEN :fechaDel AND :fechaAlSig
+                      AND ga.f_cancelacion IS NULL
+                      AND ga.cod_estatus <> 3
+                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
+
+                $b_certificadoConfianza = (float) ($certificadoConfianzaResult->total_monto ?? 0);
 
                 // ============================================
                 // 12. EMPEÑOS
@@ -599,7 +607,7 @@ class ResumenEjecutivoController extends Controller
                     FROM movimientos mo
                     LEFT JOIN creditos cre ON cre.cod_credito = mo.cod_contrato
                     LEFT JOIN varios cap ON cap.cod_varios = cre.cod_varios
-                    WHERE mo.cod_tipo_movimiento IN (19, 20, 21, 23)
+                    WHERE mo.cod_tipo_movimiento = 21
                       AND mo.f_cancela IS NULL
                       AND mo.cod_estatus IN (1, 2)
                       AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
@@ -612,16 +620,15 @@ class ResumenEjecutivoController extends Controller
                 // ============================================
                 $b_ingresos = $b_ventas + $b_apartadosLiquidados + $b_abonoApartado + $b_abonoCapital + 
                               $b_intereses + $b_desempenos + $b_engancheCredito + $b_abonoCredito + 
-                              $b_liquidacionCredito;
+                              $b_liquidacionCredito + $b_certificadoConfianza;
 
                 $b_ingresosVentasIntereses = $b_ventasTotales + $b_intereses;
 
                 // ============================================
-                // 17. UTILIDAD BRUTA (FÓRMULA CORRECTA)
+                // 17. UTILIDAD BRUTA (FÓRMULA ACTUALIZADA)
                 // ============================================
-                // Fórmula correcta: Utilidad Bruta = Ingresos - Costo de Ventas
-                // Pero en negocio de empeño: Utilidad Bruta = Intereses + Utilidad de Venta + Utilidad de Créditos
-                $b_utilidadBruta = $b_intereses + $b_utilidadVenta + $b_utilidadCreditos + $b_certificadoConfianza;
+                // Fórmula: Utilidad de Ventas + Intereses + Utilidad de Crédito Liquidado + Ventas de Certificados
+                $b_utilidadBruta = $b_utilidadVenta + $b_intereses + $b_utilidadCreditos + $b_certificadoConfianza;
                 
                 // VALIDACIÓN: Si la utilidad bruta es negativa con ingresos positivos, hay error
                 if ($b_utilidadBruta < 0 && $b_ingresos > 0) {
@@ -767,25 +774,6 @@ class ResumenEjecutivoController extends Controller
                     ]
                 ];
 
-                // ============================================
-                // 22.5 LOG DE DEPURACIÓN (Eliminar en producción)
-                // ============================================
-                Log::info("=== SUCURSAL {$sucursal->nombre} ===");
-                Log::info(" INGRESOS TOTALES: " . number_format($b_ingresos, 2));
-                Log::info(" VENTAS: " . number_format($b_ventas, 2));
-                Log::info(" APARTADOS LIQUIDADOS: " . number_format($b_apartadosLiquidados, 2));
-                Log::info(" VENTAS TOTALES: " . number_format($b_ventasTotales, 2));
-                Log::info(" PRÉSTAMO VENTAS: " . number_format($b_prestamoVentas, 2));
-                Log::info(" PRÉSTAMO APARTADOS: " . number_format($b_prestamoApartados, 2));
-                Log::info(" PRÉSTAMO VENTAS TOTAL: " . number_format($b_prestamoVentasTotal, 2));
-                Log::info(" UTILIDAD VENTA: " . number_format($b_utilidadVenta, 2));
-                Log::info(" INTERESES: " . number_format($b_intereses, 2));
-                Log::info(" UTILIDAD CRÉDITOS: " . number_format($b_utilidadCreditos, 2));
-                Log::info(" UTILIDAD BRUTA FINAL: " . number_format($b_utilidadBruta, 2));
-                Log::info(" MARGEN BRUTO: " . round($margenBruto, 2) . "%");
-                Log::info(" EGRESOS: " . number_format($b_egresos, 2));
-                Log::info(" UTILIDAD NETA: " . number_format($b_utilidadNeta, 2));
-                Log::info("=====================================");
 
             } catch (\Exception $e) {
                 Log::error("Error procesando sucursal {$sucursal->nombre} ({$dbName}): " . $e->getMessage());
@@ -796,7 +784,7 @@ class ResumenEjecutivoController extends Controller
         // ============================================
         // 23. CÁLCULOS FINALES
         // ============================================
-        $utilidadBruta = $interesesGlobal + $utilidadVentaGlobal + $utilidadCreditosGlobal + $certificadoConfianzaGlobal;
+        $utilidadBruta = $utilidadVentaGlobal + $interesesGlobal + $utilidadCreditosGlobal + $certificadoConfianzaGlobal;
         $margenBrutoPorcentaje = $totalIngresos > 0 ? round(($utilidadBruta / $totalIngresos) * 100, 2) : 0;
         $utilidadOperativa = $utilidadBruta - $totalGastosOperativos;
         $utilidadNetaConsolidada = $totalIngresos - $totalEgresos;

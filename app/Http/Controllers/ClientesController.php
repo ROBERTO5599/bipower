@@ -42,11 +42,11 @@ class ClientesController extends Controller
 
                 $config = $baseConfig;
                 $config['database'] = $dbName;
-                \Illuminate\Support\Facades\Config::set("database.connections.$connectionName", $config);
-                \Illuminate\Support\Facades\DB::purge($connectionName);
+                Config::set("database.connections.$connectionName", $config);
+                DB::purge($connectionName);
 
                 // 1. Obtener empeños y prendas en el periodo
-                $empenos = \Illuminate\Support\Facades\DB::connection($connectionName)->select("
+                $empenos = DB::connection($connectionName)->select("
                     SELECT 
                         UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
                         MIN(c.f_alta) as f_alta,
@@ -61,7 +61,7 @@ class ClientesController extends Controller
                 ", [$fechaInicio, $fechaFin]);
 
                 // 2. Obtener intereses pagados en el periodo
-                $intereses = \Illuminate\Support\Facades\DB::connection($connectionName)->select("
+                $intereses = DB::connection($connectionName)->select("
                     SELECT 
                         UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
                         SUM(CASE 
@@ -82,6 +82,62 @@ class ClientesController extends Controller
                     $interesesMap[$int->nombre_completo] = (float) $int->interes_pagado;
                 }
 
+                // 3. Obtener ventas (compras en piso) en el periodo
+                $ventas = DB::connection($connectionName)->select("
+                    SELECT 
+                        UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
+                        SUM(dv.venta10) as total_ventas
+                    FROM ventas ve
+                    INNER JOIN detalle_venta dv ON dv.cod_venta = ve.cod_venta
+                    INNER JOIN clientes c ON c.cod_cliente = ve.cod_cliente
+                    WHERE ve.f_cancela IS NULL
+                      AND ve.f_venta BETWEEN ? AND ?
+                    GROUP BY c.nombre, c.a_paterno, c.a_materno
+                ", [$fechaInicio, $fechaFin]);
+
+                $ventasMap = [];
+                foreach ($ventas as $v) {
+                    $ventasMap[$v->nombre_completo] = (float) $v->total_ventas;
+                }
+
+                // 4. Obtener certificados de confianza en el periodo
+                $certificados = DB::connection($connectionName)->select("
+                    SELECT 
+                        UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
+                        SUM(ga.monto_garantia) as total_certificados
+                    FROM garantias ga
+                    INNER JOIN clientes c ON ga.cod_cliente = c.cod_cliente
+                    WHERE ga.f_cancelacion IS NULL
+                      AND ga.cod_estatus <> 3
+                      AND ga.f_alta BETWEEN ? AND ?
+                    GROUP BY c.nombre, c.a_paterno, c.a_materno
+                ", [$fechaInicio, $fechaFin]);
+
+                $certificadosMap = [];
+                foreach ($certificados as $cert) {
+                    $certificadosMap[$cert->nombre_completo] = (float) $cert->total_certificados;
+                }
+
+                // 5. Obtener liquidaciones de crédito en el periodo
+                $liquidaciones = DB::connection($connectionName)->select("
+                    SELECT 
+                        UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
+                        SUM(mo.monto10) as total_liquidacion
+                    FROM movimientos mo
+                    INNER JOIN creditos cre ON cre.cod_credito = mo.cod_contrato
+                    INNER JOIN clientes c ON c.cod_cliente = cre.cod_cliente
+                    WHERE mo.cod_tipo_movimiento = 21
+                      AND mo.f_cancela IS NULL
+                      AND mo.cod_estatus IN (1, 2)
+                      AND mo.f_alta BETWEEN ? AND ?
+                    GROUP BY c.nombre, c.a_paterno, c.a_materno
+                ", [$fechaInicio, $fechaFin]);
+
+                $liquidacionesMap = [];
+                foreach ($liquidaciones as $liq) {
+                    $liquidacionesMap[$liq->nombre_completo] = (float) $liq->total_liquidacion;
+                }
+
                 // Consolidar
                 foreach ($empenos as $emp) {
                     $nombre = $emp->nombre_completo;
@@ -94,6 +150,9 @@ class ClientesController extends Controller
                             'desempenadas' => 0,
                             'perdidas' => 0,
                             'interes_pagado' => 0,
+                            'compras_piso' => 0,
+                            'certificados' => 0,
+                            'liquidaciones' => 0,
                             'sucursales' => []
                         ];
                     }
@@ -107,13 +166,25 @@ class ClientesController extends Controller
                         $clientesUnicos[$nombre]['interes_pagado'] += $interesesMap[$nombre];
                     }
 
+                    if (isset($ventasMap[$nombre])) {
+                        $clientesUnicos[$nombre]['compras_piso'] += $ventasMap[$nombre];
+                    }
+
+                    if (isset($certificadosMap[$nombre])) {
+                        $clientesUnicos[$nombre]['certificados'] += $certificadosMap[$nombre];
+                    }
+
+                    if (isset($liquidacionesMap[$nombre])) {
+                        $clientesUnicos[$nombre]['liquidaciones'] += $liquidacionesMap[$nombre];
+                    }
+
                     if (!in_array($sucursal->nombre, $clientesUnicos[$nombre]['sucursales'])) {
                         $clientesUnicos[$nombre]['sucursales'][] = $sucursal->nombre;
                     }
                 }
 
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Error clientes {$sucursal->nombre}: " . $e->getMessage());
+                Log::error("Error clientes {$sucursal->nombre}: " . $e->getMessage());
             }
         }
 
@@ -125,6 +196,9 @@ class ClientesController extends Controller
         $totalEmpenos = 0;
         $montoTotalPrestado = 0;
         $interesesTotalesPagados = 0;
+        $comprasPisoTotal = 0;
+        $certificadosTotal = 0;
+        $liquidacionesTotal = 0;
         $totalDesempenos = 0;
         $totalPerdidas = 0;
         $totalSucursalesVisitadas = 0;
@@ -146,6 +220,9 @@ class ClientesController extends Controller
             $totalEmpenos += $cliente['num_empenos'];
             $montoTotalPrestado += $cliente['prestamo'];
             $interesesTotalesPagados += $cliente['interes_pagado'];
+            $comprasPisoTotal += ($cliente['compras_piso'] ?? 0);
+            $certificadosTotal += ($cliente['certificados'] ?? 0);
+            $liquidacionesTotal += ($cliente['liquidaciones'] ?? 0);
             $totalDesempenos += $cliente['desempenadas'];
             $totalPerdidas += $cliente['perdidas'];
             
@@ -161,13 +238,16 @@ class ClientesController extends Controller
                 $freqFrecuentes++;
             }
 
-            // LTV (Para este caso LTV = Prestamo + Interes Pagado + (Ventas futuras aquí))
-            $ltv = $cliente['prestamo'] + $cliente['interes_pagado'];
+            // LTV (Fórmula: Intereses + Compras + Certificados + Liquidaciones)
+            $ltv = $cliente['interes_pagado'] + ($cliente['compras_piso'] ?? 0) + ($cliente['certificados'] ?? 0) + ($cliente['liquidaciones'] ?? 0);
             
             $topClientes[] = [
                 'nombre' => $cliente['nombre'],
                 'saldo' => $cliente['prestamo'],
                 'intereses' => $cliente['interes_pagado'],
+                'compras_piso' => ($cliente['compras_piso'] ?? 0),
+                'certificados' => ($cliente['certificados'] ?? 0),
+                'liquidaciones' => ($cliente['liquidaciones'] ?? 0),
                 'ltv' => $ltv,
                 'sucursales' => $numSucursales
             ];
@@ -177,7 +257,7 @@ class ClientesController extends Controller
         $recurrentesPorcentaje = $totalClientes > 0 ? ($recurrentes / $totalClientes) * 100 : 0;
         
         $frecuenciaPromedio = $totalClientes > 0 ? $totalEmpenos / $totalClientes : 0;
-        $ltvPromedio = $totalClientes > 0 ? ($montoTotalPrestado + $interesesTotalesPagados) / $totalClientes : 0;
+        $ltvPromedio = $totalClientes > 0 ? ($interesesTotalesPagados + $comprasPisoTotal + $certificadosTotal + $liquidacionesTotal) / $totalClientes : 0;
         
         $totalPrendasResueltas = $totalDesempenos + $totalPerdidas;
         $porcentajePerdidas = $totalPrendasResueltas > 0 ? ($totalPerdidas / $totalPrendasResueltas) * 100 : 0;

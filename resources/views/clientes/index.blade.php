@@ -149,7 +149,7 @@
                     </div>
                     <h2 class="display-6 fw-bold mb-0 text-dark" id="kpi-ltv-promedio">$ 0.00</h2>
                     <div class="mt-2 text-muted small">
-                        Intereses + Compras + Certificados
+                        Intereses + Compras + Certificados + Liquidaciones
                     </div>
                 </div>
             </div>
@@ -256,6 +256,8 @@
                                     <th class="py-3 text-uppercase text-muted small fw-bold text-end">Saldo Actual</th>
                                     <th class="py-3 text-uppercase text-muted small fw-bold text-end">Intereses Históricos</th>
                                     <th class="py-3 text-uppercase text-muted small fw-bold text-end">Compras en Piso</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Certificados</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Liquidaciones</th>
                                     <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">LTV Estimado</th>
                                 </tr>
                             </thead>
@@ -357,14 +359,16 @@
                             <td class="py-3 text-center"><span class="badge bg-secondary rounded-pill px-3 py-2">${item.sucursales}</span></td>
                             <td class="py-3 text-end">${formatter.format(item.saldo)}</td>
                             <td class="py-3 text-end text-success fw-bold">${formatter.format(item.intereses)}</td>
-                            <td class="py-3 text-end text-muted">$ 0.00</td>
+                            <td class="py-3 text-end">${formatter.format(item.compras_piso || 0)}</td>
+                            <td class="py-3 text-end">${formatter.format(item.certificados || 0)}</td>
+                            <td class="py-3 text-end">${formatter.format(item.liquidaciones || 0)}</td>
                             <td class="pe-4 py-3 text-end fw-bold text-primary">${formatter.format(item.ltv)}</td>
                         </tr>
                     `;
                 });
                 tbody.innerHTML = tableHtml;
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Aún no hay datos para mostrar</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aún no hay datos para mostrar</td></tr>';
             }
 
             // Gráficos
