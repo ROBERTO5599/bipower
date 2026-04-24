@@ -185,6 +185,7 @@
                     </div>
                     <h2 class="display-6 fw-bold mb-0" id="kpi-utilidad">$ 0.00</h2>
                     <span class="badge mt-2" id="kpi-margen">0% Margen</span>
+                    <span class="text-muted small">Ingresos totales - Gastos operativos</span>
                 </div>
             </div>
         </div>
@@ -210,6 +211,7 @@
                         <span class="badge bg-primary me-2" id="kpi-margen-bruto">0%</span>
                         <small class="text-muted">Margen Bruto</small>
                     </div>
+                        <span class="text-muted small">Intereses + Utilidad de venta + Utilidad de certificado + Certificados</span>
                     <small class="text-muted d-block mt-1"></small>
                 </div>
             </div>
