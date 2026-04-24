@@ -435,10 +435,7 @@
                                 <span class="metric-tooltip" title="Ventas de contado + ventas de apartados">Ventas Totales</span>
                             </h6>
                             <h4 class="fw-bold text-dark mb-0" id="kpi-ventas">$ 0.00</h4>
-                            <small class="text-muted d-block mt-1">
-                                Oro: <span id="kpi-ventas-oro" class="fw-semibold">$ 0.00</span> | Varios: <span id="kpi-ventas-varios" class="fw-semibold">$ 0.00</span> <br> 
-                                Remate: <span id="kpi-ventas-remate" class="fw-semibold">$ 0.00</span>
-                            </small>
+                            <span class="text-muted small">Oro, Varios</span>
                         </div>
                     </div>
                 </div>

@@ -293,13 +293,18 @@
             const params = new URLSearchParams(formData).toString();
 
             fetch(`{{ route('operaciones-cartera.data') }}?${params}`)
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) {
+                        return r.text().then(text => { throw new Error("Error del servidor: " + r.status); });
+                    }
+                    return r.json();
+                })
                 .then(data => {
                     updateDashboard(data);
                 })
                 .catch(err => {
                     console.error("Error:", err);
-                    alert("Error cargando la información");
+                    // alert("Error cargando la información: " + err.message);
                 })
                 .finally(() => {
                     overlay.style.display = 'none';

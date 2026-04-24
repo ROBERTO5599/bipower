@@ -505,59 +505,115 @@ class ResumenEjecutivoController extends Controller
 
                 // Estimaciones (después de tener ventas reales)
                 $b_ventasPlata = $b_ventasOro * 0.3;
-                $b_ventasRemate = $b_ventas; // Ventas de piso de venta son remates, usando el valor real de ventas
+                $b_ventasRemate = $b_ventas;
 
                 // ============================================
-                // 15. CÁLCULO DE UTILIDAD DE VENTA (CORREGIDO)
+                // 15. CÁLCULO DE VENTAS TOTALES (UNION ALL - REPLICANDO VENTASCONTROLLER)
                 // ============================================
-                
-                // 15.1 Préstamo de ventas directas (sin duplicar)
-                $prestamoVentasResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(
-                        CASE
-                            WHEN ve.cod_tipo_prenda = 1 THEN COALESCE((SELECT prestamo FROM alhajas WHERE cod_alhaja = dv.cod_prenda), 0)
-                            WHEN ve.cod_tipo_prenda = 2 THEN COALESCE((SELECT prestamo FROM autos WHERE cod_auto = dv.cod_prenda), 0)
-                            WHEN ve.cod_tipo_prenda = 3 THEN COALESCE((SELECT prestamo FROM varios WHERE cod_varios = dv.cod_prenda), 0)
-                            ELSE 0
-                        END
-                    ), 0) as prestamo_ventas
-                    FROM detalle_venta dv
+                $ventasDetalleQuery = "
+                    SELECT ve.cod_tipo_prenda, pre.prenda, al.prestamo, dv.descuento, dv.venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta, 'venta_directa' as origen
+                    FROM detalle_venta dv 
                     INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
-                    WHERE ve.f_cancela IS NULL 
-                      AND ve.f_venta BETWEEN :fechaDel AND :fechaAlSig
-                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
-
-                $b_prestamoVentas = (float) ($prestamoVentasResult->prestamo_ventas ?? 0);
-                
-                // 15.2 Préstamo de apartados liquidados
-                $prestamoApartadosResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(
-                        CASE
-                            WHEN ap.cod_tipo_prenda = 1 THEN COALESCE((SELECT prestamo FROM alhajas WHERE cod_alhaja = da.cod_prenda), 0)
-                            WHEN ap.cod_tipo_prenda = 2 THEN COALESCE((SELECT prestamo FROM autos WHERE cod_auto = da.cod_prenda), 0)
-                            WHEN ap.cod_tipo_prenda = 3 THEN COALESCE((SELECT prestamo FROM varios WHERE cod_varios = da.cod_prenda), 0)
-                            ELSE 0
-                        END
-                    ), 0) AS prestamo_apartados
-                    FROM apartado_pagos apg
+                    INNER JOIN alhajas al ON al.cod_alhaja = dv.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
+                    WHERE ve.f_cancela IS NULL AND ve.cod_tipo_prenda = 1 AND ve.f_venta BETWEEN ? AND ?
+                    
+                    UNION ALL
+                    
+                    SELECT ve.cod_tipo_prenda, pre.prenda, va.prestamo, dv.descuento, dv.venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta, 'venta_directa' as origen
+                    FROM detalle_venta dv 
+                    INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
+                    INNER JOIN varios va ON va.cod_varios = dv.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
+                    WHERE ve.f_cancela IS NULL AND ve.cod_tipo_prenda = 3 AND ve.f_venta BETWEEN ? AND ?
+                    
+                    UNION ALL
+                    
+                    SELECT ve.cod_tipo_prenda, pre.prenda, au.prestamo, dv.descuento, dv.venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta, 'venta_directa' as origen
+                    FROM detalle_venta dv 
+                    INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
+                    INNER JOIN autos au ON au.cod_auto = dv.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
+                    WHERE ve.f_cancela IS NULL AND ve.cod_tipo_prenda = 2 AND ve.f_venta BETWEEN ? AND ?
+                    
+                    UNION ALL   
+                    
+                    SELECT ap.cod_tipo_prenda, pre.prenda, al.prestamo, da.descuento, al.precio as venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta, 'apartado_liquidado' as origen
+                    FROM apartado_pagos apg 
+                    INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado 
+                    INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                    INNER JOIN alhajas al ON al.cod_alhaja = da.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
+                    WHERE mo.cod_tipo_movimiento = 12 AND apg.f_cancela IS NULL AND ap.cod_tipo_prenda = 1 AND apg.f_pago BETWEEN ? AND ?
+                    
+                    UNION ALL
+                    
+                    SELECT ap.cod_tipo_prenda, pre.prenda, au.prestamo, da.descuento, au.precio as venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta, 'apartado_liquidado' as origen
+                    FROM apartado_pagos apg 
+                    INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado 
+                    INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                    INNER JOIN autos au ON au.cod_auto = da.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
+                    WHERE mo.cod_tipo_movimiento = 12 AND apg.f_cancela IS NULL AND ap.cod_tipo_prenda = 2 AND apg.f_pago BETWEEN ? AND ?
+                    
+                    UNION ALL
+                    
+                    SELECT ap.cod_tipo_prenda, pre.prenda, va.prestamo, da.descuento, va.precio as venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta, 'apartado_liquidado' as origen
+                    FROM apartado_pagos apg 
                     INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado
                     INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
-                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento
-                    WHERE apg.f_cancela IS NULL 
-                      AND mo.cod_tipo_movimiento = 12 
-                      AND apg.f_pago BETWEEN :fechaDel AND :fechaAlSig
-                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
+                    INNER JOIN varios va ON va.cod_varios = da.cod_prenda
+                    INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
+                    WHERE mo.cod_tipo_movimiento = 12 AND apg.f_cancela IS NULL AND ap.cod_tipo_prenda = 3 AND apg.f_pago BETWEEN ? AND ?
+                    
+                    UNION ALL
+                    
+                    SELECT mo.cod_tipo_prenda, pre.prenda, art.prestamo, 0 as descuento, op.monto_total as venta10, 
+                           mo.monto_efectivo, mo.monto_tarjeta, 'credito_liquidado' as origen
+                    FROM movimientos mo
+                    INNER JOIN creditos op ON op.cod_credito = mo.cod_contrato
+                    INNER JOIN varios art ON art.cod_varios = op.cod_varios
+                    INNER JOIN prendas pre ON pre.cod_prenda = art.cod_prenda
+                    WHERE mo.cod_estatus IN (1,2) AND mo.cod_tipo_movimiento = 21 AND mo.f_alta BETWEEN ? AND ?
+                ";
 
-                $b_prestamoApartados = (float) ($prestamoApartadosResult->prestamo_apartados ?? 0);
+                $ventasRegistros = DB::connection($connectionName)->select($ventasDetalleQuery, [
+                    $fechaInicio, $fechaFinSiguiente,
+                    $fechaInicio, $fechaFinSiguiente,
+                    $fechaInicio, $fechaFinSiguiente,
+                    $fechaInicio, $fechaFinSiguiente,
+                    $fechaInicio, $fechaFinSiguiente,
+                    $fechaInicio, $fechaFinSiguiente,
+                    $fechaInicio, $fechaFinSiguiente
+                ]);
 
-                // 15.3 TOTALES CORREGIDOS (evitando duplicación)
-                // NOTA: b_ventas y b_apartadosLiquidados ya suman ventas únicas
-                $b_prestamoVentasTotal = $b_prestamoVentas + $b_prestamoApartados;
-                $b_ventasTotales = $b_ventas + $b_apartadosLiquidados;
-                
-                // Utilidad de venta = Precio de venta - Costo (préstamo original)
-                $b_utilidadVenta = $b_ventasTotales - $b_prestamoVentasTotal;
-                $b_costoVentas = $b_prestamoVentasTotal;
+                $b_ventasTotales = 0;
+                $b_prestamoVentasTotal = 0;
+                $b_utilidadVenta = 0;
+                $b_costoVentasCalc = 0;
+
+                foreach ($ventasRegistros as $registro) {
+                    $vtaReal = (float) $registro->venta10;
+                    $prestamo = (float) $registro->prestamo;
+                    $utilidadItem = $vtaReal - $prestamo;
+                    
+                    $b_ventasTotales += $vtaReal;
+                    $b_prestamoVentasTotal += $prestamo;
+                    $b_utilidadVenta += $utilidadItem;
+                    $b_costoVentasCalc += $prestamo;
+                }
 
                 // ============================================
                 // 15.2 UTILIDAD DE CRÉDITO (CORREGIDO)
@@ -587,10 +643,8 @@ class ResumenEjecutivoController extends Controller
                 // ============================================
                 // 17. UTILIDAD BRUTA (FÓRMULA ACTUALIZADA)
                 // ============================================
-                // Fórmula: Utilidad de Ventas + Intereses + Utilidad de Crédito Liquidado + Ventas de Certificados
                 $b_utilidadBruta = $b_utilidadVenta + $b_intereses + $b_utilidadCreditos + $b_certificadoConfianza;
                 
-                // VALIDACIÓN: Si la utilidad bruta es negativa con ingresos positivos, hay error
                 if ($b_utilidadBruta < 0 && $b_ingresos > 0) {
                     Log::warning("UTILIDAD BRUTA NEGATIVA DETECTADA en {$sucursal->nombre}", [
                         'ingresos' => $b_ingresos,
@@ -599,7 +653,7 @@ class ResumenEjecutivoController extends Controller
                         'utilidad_venta' => $b_utilidadVenta,
                         'ventas_totales' => $b_ventasTotales,
                         'prestamo_ventas_total' => $b_prestamoVentasTotal,
-                        'costo_ventas' => $b_costoVentas
+                        'costo_ventas' => $b_costoVentasCalc
                     ]);
                 }
 
@@ -625,7 +679,6 @@ class ResumenEjecutivoController extends Controller
                 $balanceGeneral['pasivo_total'] += (float) ($balanceResult->pasivo_total ?? 0);
                 $balanceGeneral['capital_total'] = $balanceGeneral['activo_total'] - $balanceGeneral['pasivo_total'];
 
-                // Flujo de efectivo
                 $balanceGeneral['efectivo_inicial'] += 100000;
                 $balanceGeneral['efectivo_final'] = $balanceGeneral['efectivo_inicial'] + $b_ingresos - $b_egresos;
                 $balanceGeneral['flujo_neto'] = $b_ingresos - $b_egresos;
@@ -668,7 +721,7 @@ class ResumenEjecutivoController extends Controller
 
                 $ventasTotalesGlobal += $b_ventasTotales;
                 $prestamoVentasGlobal += $b_prestamoVentasTotal;
-                $costoVentasGlobal += $b_costoVentas;
+                $costoVentasGlobal += $b_costoVentasCalc;
 
                 // ============================================
                 // 21. METAS Y SEMÁFORO
@@ -728,7 +781,7 @@ class ResumenEjecutivoController extends Controller
                         'utilidad_creditos' => $b_utilidadCreditos,
                         'ventas_totales' => $b_ventasTotales,
                         'prestamo_ventas' => $b_prestamoVentasTotal,
-                        'costo_ventas' => $b_costoVentas,
+                        'costo_ventas' => $b_costoVentasCalc,
                         'transacciones_ventas' => $b_transaccionesVentas,
                         'contratos_apartados' => $b_contratosApartados,
                     ]
@@ -810,7 +863,7 @@ class ResumenEjecutivoController extends Controller
             'ventasRemate' => $ventasRemate,
             'ventasPlata' => $ventasPlata,
             'ventasAutos' => $ventasAutos,
-            'ventasTotales' => $ventasTotalesGlobal,
+            'ventasTotales' => $ventasTotalesGlobal,  // AHORA USA LA MISMA LÓGICA QUE VENTASCONTROLLER
             'balanceGeneral' => $balanceGeneral,
             'liquidez' => $balanceGeneral['pasivo_total'] > 0 ? round($balanceGeneral['activo_total'] / $balanceGeneral['pasivo_total'], 2) : 0,
             'rentabilidad' => $totalIngresos > 0 ? round(($utilidadNetaConsolidada / $totalIngresos) * 100, 2) : 0,
@@ -871,7 +924,6 @@ class ResumenEjecutivoController extends Controller
 
     private function getMetasSucursales()
     {
-        // MODIFICACIÓN: Metas solo para sucursales que existen
         return [
             2 => ['meta_ingresos' => 1500000, 'meta_ventas' => 1200000, 'meta_utilidad' => 300000],
             4 => ['meta_ingresos' => 1000000, 'meta_ventas' => 800000, 'meta_utilidad' => 200000],
