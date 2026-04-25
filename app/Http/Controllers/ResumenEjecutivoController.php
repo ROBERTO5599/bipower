@@ -395,15 +395,17 @@ class ResumenEjecutivoController extends Controller
                 // ============================================
                 $empenosResult = DB::connection($connectionName)->selectOne("
                     SELECT
-                        COUNT(DISTINCT con.contrato) as contratos,
-                        COALESCE(SUM(mo.monto10), 0) as prestamo
+                        COUNT(DISTINCT con.contrato) AS contratos,
+                        COALESCE(SUM(mo.monto10), 0) AS prestamo
                     FROM movimientos mo
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    WHERE mo.cod_tipo_movimiento = 1 
-                      AND mo.f_cancela IS NULL 
-                      AND con.f_cancelacion IS NULL
-                      AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
-                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
+                    INNER JOIN contratos con 
+                        ON con.cod_contrato = mo.cod_contrato
+                    WHERE mo.cod_tipo_movimiento = 1
+                    AND mo.f_cancela IS NULL
+                    AND con.f_cancelacion IS NULL
+                    AND mo.f_alta >= :fechaDel
+                    AND mo.f_alta < :fechaAlSig
+                ", [    'fechaDel'   => $fechaInicio, 'fechaAlSig' => $fechaFinSiguiente]);
 
                 // ============================================
                 // 13. VENTAS POR CATEGORÍA
