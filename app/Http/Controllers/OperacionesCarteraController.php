@@ -12,9 +12,14 @@ class OperacionesCarteraController extends Controller
 {
     public function index(Request $request)
     {
+        // MODIFICACIÓN: Filtrar solo sucursales que existen (misma lógica que resumen ejecutivo)
+        $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
+        $sucursales = Sucursal::whereNotNull('id_valora_mas')
+            ->whereIn('id_valora_mas', $idsQueFuncionan)
+            ->get();
+        
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
 
         return view('operaciones-cartera.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
     }
@@ -22,13 +27,19 @@ class OperacionesCarteraController extends Controller
     public function data(Request $request)
     {
         ini_set('max_execution_time', 120);
+        
         $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
         $fechaFinQuery = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
         
         $sucursalId = $request->input('sucursal_id');
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        
+        // MODIFICACIÓN: Filtrar solo sucursales que existen
+        $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
+        $sucursales = Sucursal::whereNotNull('id_valora_mas')
+            ->whereIn('id_valora_mas', $idsQueFuncionan)
+            ->get();
 
-        if ($sucursalId) {
+        if ($sucursalId && in_array((int)$sucursalId, $idsQueFuncionan)) {
             $sucursalesSeleccionadas = $sucursales->where('id_valora_mas', $sucursalId);
         } else {
             $sucursalesSeleccionadas = $sucursales;
@@ -80,7 +91,7 @@ class OperacionesCarteraController extends Controller
 
         foreach ($sucursalesSeleccionadas as $sucursal) {
             $dbName = 'sistema_prendario_' . $sucursal->id_valora_mas;
-            $connectionName = 'dynamic_kpi_' . $sucursal->id_valora_mas; // Nombre único por sucursal
+            $connectionName = 'dynamic_kpi_' . $sucursal->id_valora_mas;
 
             try {
                 if ($baseConfig) {
@@ -88,17 +99,48 @@ class OperacionesCarteraController extends Controller
                     $config['database'] = $dbName;
                     Config::set("database.connections.{$connectionName}", $config);
                     DB::purge($connectionName);
+                } else {
+                    throw new \Exception("Base MySQL configuration not found.");
                 }
 
-                // 1. Empeños por tipo (Movimiento 1)
+                // ============================================
+                // 1. EMPEÑOS - VERSIÓN MEJORADA (DESDE RESÚMEN EJECUTIVO)
+                // ============================================
+                // Primero obtener el total general de empeños
+                $empenosTotal = DB::connection($connectionName)->selectOne("
+                    SELECT
+                        COUNT(DISTINCT con.cod_contrato) AS contratos,
+                        COALESCE(SUM(mo.monto10), 0) AS prestamo
+                    FROM movimientos mo
+                    INNER JOIN contratos con 
+                        ON con.cod_contrato = mo.cod_contrato
+                    WHERE mo.cod_tipo_movimiento = 1
+                    AND mo.f_cancela IS NULL
+                    AND con.f_cancelacion IS NULL
+                    AND con.cod_tipo_prenda IN (1, 2, 3)
+                    AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
+                ", [
+                    ':fechaDel' => $fechaInicio, 
+                    ':fechaAlSig' => $fechaFinQuery
+                ]);
+                
+                $data['empenos']['total_contratos'] += (int)($empenosTotal->contratos ?? 0);
+                $data['empenos']['monto_total'] += (float)($empenosTotal->prestamo ?? 0);
+                
+                // Ahora obtener el desglose por tipo de prenda con avalúo
                 $empenosQ = DB::connection($connectionName)->select("
                     SELECT 
                         con.cod_tipo_prenda,
                         COUNT(DISTINCT mo.cod_movimiento) as total,
                         COALESCE(SUM(mo.monto10), 0) as prestamo,
-                        COALESCE(SUM(al.precio), 0) as avaluo_alhajas,
-                        COALESCE(SUM(au.precio), 0) as avaluo_autos,
-                        COALESCE(SUM(va.precio), 0) as avaluo_varios
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN con.cod_tipo_prenda = 1 THEN al.precio
+                                WHEN con.cod_tipo_prenda = 2 THEN au.precio
+                                WHEN con.cod_tipo_prenda = 3 THEN va.precio
+                                ELSE 0
+                            END
+                        ), 0) as avaluo_total
                     FROM movimientos mo
                     INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
@@ -107,107 +149,150 @@ class OperacionesCarteraController extends Controller
                     WHERE mo.cod_tipo_movimiento = 1 
                       AND mo.f_cancela IS NULL
                       AND con.f_cancelacion IS NULL
+                      AND con.cod_tipo_prenda IN (1, 2, 3)
                       AND mo.f_alta BETWEEN :fIni AND :fFin
                     GROUP BY con.cod_tipo_prenda
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
 
                 foreach ($empenosQ as $row) {
-                    $data['empenos']['total_contratos'] += $row->total;
-                    $data['empenos']['monto_total'] += $row->prestamo;
-                    
                     if ($row->cod_tipo_prenda == 1) { // Oro/Alhajas
                         $data['empenos']['oro']['contratos'] += $row->total;
                         $data['empenos']['oro']['monto'] += $row->prestamo;
-                        $data['empenos']['avaluo_total'] += $row->avaluo_alhajas;
+                        $data['empenos']['avaluo_total'] += $row->avaluo_total;
                     } elseif ($row->cod_tipo_prenda == 2) { // Auto
                         $data['empenos']['auto']['contratos'] += $row->total;
                         $data['empenos']['auto']['monto'] += $row->prestamo;
-                        $data['empenos']['avaluo_total'] += $row->avaluo_autos;
+                        $data['empenos']['avaluo_total'] += $row->avaluo_total;
                     } elseif ($row->cod_tipo_prenda == 3) { // Varios
                         $data['empenos']['varios']['contratos'] += $row->total;
                         $data['empenos']['varios']['monto'] += $row->prestamo;
-                        $data['empenos']['avaluo_total'] += $row->avaluo_varios;
+                        $data['empenos']['avaluo_total'] += $row->avaluo_total;
                     }
                 }
 
-                // 2. Refrendos (Movimientos 2 y 3)
+                // ============================================
+                // 2. REFRENDOS (Movimientos 2 y 3) - MEJORADO
+                // ============================================
                 $refrendosRes = DB::connection($connectionName)->selectOne("
                     SELECT 
                         COUNT(DISTINCT mo.cod_movimiento) as total,
                         COALESCE(SUM(mo.monto10), 0) as monto
                     FROM movimientos mo
+                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE mo.cod_tipo_movimiento IN (2, 3) 
                       AND mo.f_cancela IS NULL
+                      AND con.f_cancelacion IS NULL
                       AND mo.f_alta BETWEEN :fIni AND :fFin
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
                 
                 $data['refrendos']['total'] += (int)($refrendosRes->total ?? 0);
                 $data['refrendos']['monto'] += (float)($refrendosRes->monto ?? 0);
 
-                // 3. Desempeños (Movimiento 4)
+                // ============================================
+                // 3. DESEMPEÑOS (Movimiento 4) - MEJORADO
+                // ============================================
                 $desempenosRes = DB::connection($connectionName)->selectOne("
                     SELECT 
                         COUNT(DISTINCT mo.cod_movimiento) as total,
                         COALESCE(SUM(mo.monto10), 0) as monto
                     FROM movimientos mo
+                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE mo.cod_tipo_movimiento = 4 
                       AND mo.f_cancela IS NULL
+                      AND con.f_cancelacion IS NULL
                       AND mo.f_alta BETWEEN :fIni AND :fFin
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
 
                 $data['desempenos']['total'] += (int)($desempenosRes->total ?? 0);
                 $data['desempenos']['monto'] += (float)($desempenosRes->monto ?? 0);
 
-                // 4. Inventario y Cartera Vigente/Vencida
+                // ============================================
+                // 4. CARTERA VIGENTE/VENCIDA - MEJORADA
+                // ============================================
                 $inventarioResult = DB::connection($connectionName)->select("
                     SELECT
                         'Alhaja' AS Tipo,
+                        CASE 
+                            WHEN kilataje BETWEEN 500 AND 999 THEN 'Plata' 
+                            WHEN kilataje BETWEEN 8 AND 26 THEN 'Oro' 
+                            ELSE 'Varios' 
+                        END AS CategoriaMetal,
                         cod_estatus_prenda,
                         COALESCE(SUM(prestamo), 0) as total_prestamo
-                    FROM alhajas WHERE cod_estatus_prenda IN (1,9) GROUP BY cod_estatus_prenda
+                    FROM alhajas 
+                    WHERE cod_estatus_prenda IN (1,9) 
+                    GROUP BY CategoriaMetal, cod_estatus_prenda
+                    
                     UNION ALL
+                    
                     SELECT 
-                        'Varios' AS Tipo, cod_estatus_prenda, COALESCE(SUM(prestamo), 0) as total_prestamo
-                    FROM varios WHERE cod_estatus_prenda IN (1,9) GROUP BY cod_estatus_prenda
+                        'Varios' AS Tipo, 
+                        'Varios' AS CategoriaMetal, 
+                        cod_estatus_prenda, 
+                        COALESCE(SUM(prestamo), 0) as total_prestamo
+                    FROM varios 
+                    WHERE cod_estatus_prenda IN (1,9) 
+                    GROUP BY cod_estatus_prenda
+                    
                     UNION ALL
+                    
                     SELECT 
-                        'Auto' AS Tipo, cod_estatus_prenda, COALESCE(SUM(prestamo), 0) as total_prestamo
-                    FROM autos WHERE cod_estatus_prenda IN (1,9) GROUP BY cod_estatus_prenda
+                        'Auto' AS Tipo, 
+                        'Auto' AS CategoriaMetal, 
+                        cod_estatus_prenda, 
+                        COALESCE(SUM(prestamo), 0) as total_prestamo
+                    FROM autos 
+                    WHERE cod_estatus_prenda IN (1,9) 
+                    GROUP BY cod_estatus_prenda
                 ");
 
                 foreach ($inventarioResult as $inv) {
                     $monto = (float)$inv->total_prestamo;
+                    
                     if ($inv->cod_estatus_prenda == 1) { // Vigente
                         $data['cartera']['vigente'] += $monto;
                     } elseif ($inv->cod_estatus_prenda == 9) { // Vencida/Piso de venta
                         $data['cartera']['vencida'] += $monto;
                     }
 
-                    if ($inv->Tipo == 'Alhaja') $data['cartera']['oro'] += $monto;
-                    if ($inv->Tipo == 'Varios') $data['cartera']['varios'] += $monto;
-                    if ($inv->Tipo == 'Auto') $data['cartera']['auto'] += $monto;
+                    // Clasificación por tipo
+                    if ($inv->Tipo == 'Alhaja') {
+                        $data['cartera']['oro'] += $monto;
+                    } elseif ($inv->Tipo == 'Varios') {
+                        $data['cartera']['varios'] += $monto;
+                    } elseif ($inv->Tipo == 'Auto') {
+                        $data['cartera']['auto'] += $monto;
+                    }
                 }
 
-                // 5. Intereses Cobrados
+                // ============================================
+                // 5. INTERESES COBRADOS - VERSIÓN MEJORADA
+                // ============================================
                 $interesesQ = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(
                         CASE 
+                            WHEN mo.cod_tipo_movimiento = 2 THEN IF(mo.monto10 < 20, 20.0, mo.monto10)
                             WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
-                            WHEN mo.cod_tipo_movimiento IN (2, 3) THEN mo.monto10 - COALESCE(ca.abono, 0)
-                            ELSE 0
+                            WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - COALESCE((SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior), 0)
+                            ELSE 0 
                         END
                     ), 0) AS total_intereses
-                    FROM movimientos mo
+                    FROM movimientos mo 
                     INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
-                    WHERE mo.cod_tipo_movimiento IN (2,3,4) 
-                      AND mo.f_cancela IS NULL 
-                      AND con.f_cancelacion IS NULL
+                    WHERE con.f_cancelacion IS NULL 
+                      AND con.cod_tipo_prenda IN (1, 2, 3)
                       AND mo.f_alta BETWEEN :fIni AND :fFin
-                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
+                      AND mo.cod_tipo_movimiento IN (2, 3, 4)
+                ", [
+                    ':fIni' => $fechaInicio, 
+                    ':fFin' => $fechaFinQuery
+                ]);
+                
                 $data['intereses']['cobrados'] += (float)($interesesQ->total_intereses ?? 0);
 
-                // 5.1 Días de Mora (distribución)
+                // ============================================
+                // 6. DÍAS DE MORA (distribución) - MEJORADA
+                // ============================================
                 $moraQ = DB::connection($connectionName)->select("
                     SELECT 
                         CASE 
@@ -219,15 +304,19 @@ class OperacionesCarteraController extends Controller
                         COALESCE(SUM(con.prestamo), 0) as monto
                     FROM contratos con
                     WHERE con.f_cancelacion IS NULL
+                      AND con.cod_tipo_prenda IN (1, 2, 3)
                     GROUP BY rango_mora
                 ");
+                
                 foreach ($moraQ as $mora) {
                     if (isset($data['mora'][$mora->rango_mora])) {
                         $data['mora'][$mora->rango_mora] += (float)$mora->monto;
                     }
                 }
 
-                // 6. Tiempo Promedio de Empeño a Desempeño
+                // ============================================
+                // 7. TIEMPO PROMEDIO DE EMPEÑO A DESEMPEÑO
+                // ============================================
                 $tiempoQ = DB::connection($connectionName)->selectOne("
                     SELECT 
                         COUNT(*) as count_dias,
@@ -236,12 +325,16 @@ class OperacionesCarteraController extends Controller
                     INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE mo.cod_tipo_movimiento = 4
                       AND mo.f_cancela IS NULL
+                      AND con.f_cancelacion IS NULL
                       AND mo.f_alta BETWEEN :fIni AND :fFin
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
-                $data['tiempos']['dias_empeno_desempeno'] += (int)$tiempoQ->sum_dias;
-                $data['tiempos']['total_desempenos_con_dias'] += (int)$tiempoQ->count_dias;
+                
+                $data['tiempos']['dias_empeno_desempeno'] += (int)($tiempoQ->sum_dias ?? 0);
+                $data['tiempos']['total_desempenos_con_dias'] += (int)($tiempoQ->count_dias ?? 0);
 
-                // 7. Rankings de Artículos Más Empeñados (VERSIÓN OPTIMIZADA)
+                // ============================================
+                // 8. RANKINGS DE ARTÍCULOS MÁS EMPEÑADOS
+                // ============================================
                 $topEmpQ = DB::connection($connectionName)->select("
                     SELECT articulo, SUM(total_movs) as total_movs, SUM(monto) as monto
                     FROM (
@@ -250,7 +343,10 @@ class OperacionesCarteraController extends Controller
                         INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                         INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
                         INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1
-                        WHERE mo.cod_tipo_movimiento = 1 AND mo.f_cancela IS NULL AND con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 1
+                        WHERE mo.cod_tipo_movimiento = 1 
+                          AND mo.f_cancela IS NULL 
+                          AND con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 1
                           AND mo.f_alta BETWEEN :fIni1 AND :fFin1
                         GROUP BY pre.prenda
                         
@@ -261,7 +357,10 @@ class OperacionesCarteraController extends Controller
                         INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                         INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
                         INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
-                        WHERE mo.cod_tipo_movimiento = 1 AND mo.f_cancela IS NULL AND con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 2
+                        WHERE mo.cod_tipo_movimiento = 1 
+                          AND mo.f_cancela IS NULL 
+                          AND con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 2
                           AND mo.f_alta BETWEEN :fIni2 AND :fFin2
                         GROUP BY pre.prenda
                         
@@ -272,7 +371,10 @@ class OperacionesCarteraController extends Controller
                         INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                         INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
                         INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda AND pre.cod_tipo_prenda = 3
-                        WHERE mo.cod_tipo_movimiento = 1 AND mo.f_cancela IS NULL AND con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 3
+                        WHERE mo.cod_tipo_movimiento = 1 
+                          AND mo.f_cancela IS NULL 
+                          AND con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 3
                           AND mo.f_alta BETWEEN :fIni3 AND :fFin3
                         GROUP BY pre.prenda
                     ) as t
@@ -293,7 +395,9 @@ class OperacionesCarteraController extends Controller
                     $rankingsEmpenados[$key]['monto'] += (float)$emp->monto;
                 }
 
-                // 8. Rankings de Artículos Más Desempeñados (VERSIÓN OPTIMIZADA)
+                // ============================================
+                // 9. RANKINGS DE ARTÍCULOS MÁS DESEMPEÑADOS
+                // ============================================
                 $topDesQ = DB::connection($connectionName)->select("
                     SELECT articulo, SUM(total_movs) as total_movs, SUM(monto) as monto
                     FROM (
@@ -302,7 +406,10 @@ class OperacionesCarteraController extends Controller
                         INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                         INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
                         INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1
-                        WHERE mo.cod_tipo_movimiento = 4 AND mo.f_cancela IS NULL AND con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 1
+                        WHERE mo.cod_tipo_movimiento = 4 
+                          AND mo.f_cancela IS NULL 
+                          AND con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 1
                           AND mo.f_alta BETWEEN :fIni1 AND :fFin1
                         GROUP BY pre.prenda
                         
@@ -313,7 +420,10 @@ class OperacionesCarteraController extends Controller
                         INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                         INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
                         INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
-                        WHERE mo.cod_tipo_movimiento = 4 AND mo.f_cancela IS NULL AND con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 2
+                        WHERE mo.cod_tipo_movimiento = 4 
+                          AND mo.f_cancela IS NULL 
+                          AND con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 2
                           AND mo.f_alta BETWEEN :fIni2 AND :fFin2
                         GROUP BY pre.prenda
                         
@@ -324,7 +434,10 @@ class OperacionesCarteraController extends Controller
                         INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                         INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
                         INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda AND pre.cod_tipo_prenda = 3
-                        WHERE mo.cod_tipo_movimiento = 4 AND mo.f_cancela IS NULL AND con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 3
+                        WHERE mo.cod_tipo_movimiento = 4 
+                          AND mo.f_cancela IS NULL 
+                          AND con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 3
                           AND mo.f_alta BETWEEN :fIni3 AND :fFin3
                         GROUP BY pre.prenda
                     ) as t
@@ -366,12 +479,14 @@ class OperacionesCarteraController extends Controller
             ($data['empenos']['monto_total'] / $data['empenos']['avaluo_total']) * 100 : 0;
 
         $data['tiempos']['promedio_dias'] = $data['tiempos']['total_desempenos_con_dias'] > 0 ? 
-            $data['tiempos']['dias_empeno_desempeno'] / $data['tiempos']['total_desempenos_con_dias'] : 0;
+            round($data['tiempos']['dias_empeno_desempeno'] / $data['tiempos']['total_desempenos_con_dias'], 2) : 0;
 
-        $tasaRealMensual = ($data['cartera']['vigente'] + $data['cartera']['vencida']) > 0 ? 
-            ($data['intereses']['cobrados'] / ($data['cartera']['vigente'] + $data['cartera']['vencida'])) * 100 : 0;
-        $data['intereses']['tasa_real_mensual_pct'] = $tasaRealMensual;
-        $data['intereses']['tasa_real_anual_pct'] = $tasaRealMensual * 12;
+        $carteraTotal = $data['cartera']['vigente'] + $data['cartera']['vencida'];
+        $tasaRealMensual = $carteraTotal > 0 ? 
+            ($data['intereses']['cobrados'] / $carteraTotal) * 100 : 0;
+            
+        $data['intereses']['tasa_real_mensual_pct'] = round($tasaRealMensual, 2);
+        $data['intereses']['tasa_real_anual_pct'] = round($tasaRealMensual * 12, 2);
 
         return response()->json($data);
     }
