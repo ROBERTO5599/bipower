@@ -155,7 +155,7 @@
                     <i class="bi bi-house-fill me-2"></i>Inicio
                 </a>
                 <a href="{{ route('resumen-ejecutivo.index') }}" class="list-group-item list-group-item-action">
-                    <i class="bi bi-bar-chart-line me-2"></i>Resumen Ejecutivo
+                    <i class="bi bi-bar-chart-line me-2"></i>Flujo de Efectivo
                 </a>
                 <a href="{{ route('operaciones-cartera.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-briefcase-fill me-2"></i>Empeños y Cartera

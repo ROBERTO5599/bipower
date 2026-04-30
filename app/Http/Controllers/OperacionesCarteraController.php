@@ -108,20 +108,45 @@ class OperacionesCarteraController extends Controller
                 // ============================================
                 // Primero obtener el total general de empeños
                 $empenosTotal = DB::connection($connectionName)->selectOne("
-                    SELECT
-                        COUNT(DISTINCT con.cod_contrato) AS contratos,
-                        COALESCE(SUM(mo.monto10), 0) AS prestamo
-                    FROM movimientos mo
-                    INNER JOIN contratos con 
-                        ON con.cod_contrato = mo.cod_contrato
-                    WHERE mo.cod_tipo_movimiento = 1
-                    AND mo.f_cancela IS NULL
-                    AND con.f_cancelacion IS NULL
-                    AND con.cod_tipo_prenda IN (1, 2, 3)
-                    AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
+                    SELECT 
+                        COUNT(DISTINCT contrato) AS contratos,
+                        COALESCE(SUM(total), 0) AS prestamo
+                    FROM (
+                        select con.contrato, al.prestamo as total
+                        from movimientos mo 
+                        inner join contratos con on con.cod_contrato = mo.cod_contrato
+                        inner join alhajas al on al.cod_contrato = con.cod_seguimiento
+                        where con.f_cancelacion is null 
+                          and con.cod_tipo_prenda = 1 
+                          and mo.f_alta BETWEEN :fechaDel1 AND :fechaAlSig1
+                          and mo.cod_tipo_movimiento = 1
+
+                        UNION ALL 
+
+                        select con.contrato, au.prestamo as total
+                        from movimientos mo 
+                        inner join contratos con on con.cod_contrato = mo.cod_contrato
+                        inner join autos au on au.cod_contrato = con.cod_seguimiento
+                        where con.f_cancelacion is null 
+                          and con.cod_tipo_prenda = 2 
+                          and mo.f_alta BETWEEN :fechaDel2 AND :fechaAlSig2
+                          and mo.cod_tipo_movimiento = 1
+
+                        UNION ALL
+
+                        select con.contrato, va.prestamo as total
+                        from movimientos mo 
+                        inner join contratos con on con.cod_contrato = mo.cod_contrato
+                        inner join varios va on va.cod_contrato = con.cod_seguimiento
+                        where con.f_cancelacion is null 
+                          and con.cod_tipo_prenda = 3 
+                          and mo.f_alta BETWEEN :fechaDel3 AND :fechaAlSig3
+                          and mo.cod_tipo_movimiento = 1
+                    ) AS t
                 ", [
-                    ':fechaDel' => $fechaInicio, 
-                    ':fechaAlSig' => $fechaFinQuery
+                    ':fechaDel1' => $fechaInicio, ':fechaAlSig1' => $fechaFinQuery,
+                    ':fechaDel2' => $fechaInicio, ':fechaAlSig2' => $fechaFinQuery,
+                    ':fechaDel3' => $fechaInicio, ':fechaAlSig3' => $fechaFinQuery
                 ]);
                 
                 $data['empenos']['total_contratos'] += (int)($empenosTotal->contratos ?? 0);

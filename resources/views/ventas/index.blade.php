@@ -173,7 +173,7 @@
                 <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Utilidad Bruta</h6>
+                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Utilidad Venta</h6>
                             <div class="icon-shape bg-light-primary text-primary">
                                 <i class="bi bi-graph-up-arrow"></i>
                             </div>

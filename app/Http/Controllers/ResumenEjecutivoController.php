@@ -103,6 +103,7 @@ class ResumenEjecutivoController extends Controller
 
         // Variables para costos y gastos
         $costoVentasGlobal = 0;
+        $fundicionGlobal = 0;
 
         // Balance General y Flujo de Efectivo
         $balanceGeneral = [
@@ -147,6 +148,7 @@ class ResumenEjecutivoController extends Controller
             $b_transaccionesVentas = 0;
             $b_contratosApartados = 0;
             $b_costoVentas = 0;
+            $b_fundicion = 0;
 
             $b_carteraVigente = 0;
             $b_carteraVencida = 0;
@@ -394,18 +396,70 @@ class ResumenEjecutivoController extends Controller
                 // 12. EMPEÑOS
                 // ============================================
                 $empenosResult = DB::connection($connectionName)->selectOne("
-                    SELECT
-                        COUNT(DISTINCT con.contrato) AS contratos,
-                        COALESCE(SUM(mo.monto10), 0) AS prestamo
-                    FROM movimientos mo
-                    INNER JOIN contratos con 
-                        ON con.cod_contrato = mo.cod_contrato
-                    WHERE mo.cod_tipo_movimiento = 1
-                    AND mo.f_cancela IS NULL
-                    AND con.f_cancelacion IS NULL
-                    AND mo.f_alta >= :fechaDel
-                    AND mo.f_alta < :fechaAlSig
-                ", [    'fechaDel'   => $fechaInicio, 'fechaAlSig' => $fechaFinSiguiente]);
+                    SELECT 
+                        COUNT(DISTINCT contrato) AS contratos,
+                        COALESCE(SUM(total), 0) AS prestamo
+                    FROM (
+                        select con.contrato, al.prestamo as total
+                        from movimientos mo 
+                        inner join contratos con on con.cod_contrato = mo.cod_contrato
+                        inner join alhajas al on al.cod_contrato = con.cod_seguimiento
+                        where con.f_cancelacion is null 
+                          and con.cod_tipo_prenda = 1 
+                          and mo.f_alta BETWEEN :fechaDel1 AND :fechaAlSig1
+                          and mo.cod_tipo_movimiento = 1
+
+                        UNION ALL 
+
+                        select con.contrato, au.prestamo as total
+                        from movimientos mo 
+                        inner join contratos con on con.cod_contrato = mo.cod_contrato
+                        inner join autos au on au.cod_contrato = con.cod_seguimiento
+                        where con.f_cancelacion is null 
+                          and con.cod_tipo_prenda = 2 
+                          and mo.f_alta BETWEEN :fechaDel2 AND :fechaAlSig2
+                          and mo.cod_tipo_movimiento = 1
+
+                        UNION ALL
+
+                        select con.contrato, va.prestamo as total
+                        from movimientos mo 
+                        inner join contratos con on con.cod_contrato = mo.cod_contrato
+                        inner join varios va on va.cod_contrato = con.cod_seguimiento
+                        where con.f_cancelacion is null 
+                          and con.cod_tipo_prenda = 3 
+                          and mo.f_alta BETWEEN :fechaDel3 AND :fechaAlSig3
+                          and mo.cod_tipo_movimiento = 1
+                    ) AS t
+                ", [
+                    ':fechaDel1' => $fechaInicio, ':fechaAlSig1' => $fechaFinSiguiente,
+                    ':fechaDel2' => $fechaInicio, ':fechaAlSig2' => $fechaFinSiguiente,
+                    ':fechaDel3' => $fechaInicio, ':fechaAlSig3' => $fechaFinSiguiente
+                ]);
+
+                // ============================================
+                // 12.1 FUNDICIÓN
+                // ============================================
+                $fundicionResult = DB::connection($connectionName)->selectOne("
+                    SELECT 
+                        COUNT(*) AS total_registros,
+                        COALESCE(SUM(ar.prestamo), 0) AS total_prestamo
+                    FROM salidas_inventario sal
+                    INNER JOIN detalle_salida_inventario det 
+                        ON sal.cod_salida = det.cod_salida
+                    INNER JOIN motivo_salida ms 
+                        ON sal.cod_motivo = ms.cod_motivo
+                    INNER JOIN alhajas ar 
+                        ON det.cod_prenda = ar.cod_alhaja
+                    WHERE sal.cod_tipo_prenda = 1
+                      AND ms.motivo = 'FUNDICION'
+                      AND sal.f_salida >= :fechaDel
+                      AND sal.f_salida < :fechaAlSig
+                ", [
+                    ':fechaDel' => $fechaInicio, 
+                    ':fechaAlSig' => $fechaFinSiguiente
+                ]);
+                $b_fundicion = (float) ($fundicionResult->total_prestamo ?? 0);
 
                 // ============================================
                 // 13. VENTAS POR CATEGORÍA
@@ -620,17 +674,19 @@ class ResumenEjecutivoController extends Controller
                 // ============================================
                 // 15.2 UTILIDAD DE CRÉDITO (CORREGIDO)
                 // ============================================
-                $utilidadCreditosResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(mo.monto10 - COALESCE(cap.prestamo, 0)), 0) AS total_utilidad_creditos
+               $utilidadCreditosResult = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(op.monto_total - cap.prestamo), 0) AS total_utilidad_creditos
                     FROM movimientos mo
-                    LEFT JOIN creditos cre ON cre.cod_credito = mo.cod_contrato
-                    LEFT JOIN varios cap ON cap.cod_varios = cre.cod_varios
+                    INNER JOIN creditos op ON op.cod_credito = mo.cod_contrato
+                    INNER JOIN varios cap ON cap.cod_varios = op.cod_varios
                     WHERE mo.cod_tipo_movimiento = 21
-                      AND mo.f_cancela IS NULL
-                      AND mo.cod_estatus IN (1, 2)
-                      AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
-                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
-                
+                    AND mo.f_cancela IS NULL
+                    AND mo.cod_estatus IN (1, 2)
+                    AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
+                ", [
+                    ':fechaDel' => $fechaInicio,
+                    ':fechaAlSig' => $fechaFinSiguiente
+                ]);
                 $b_utilidadCreditos = (float) ($utilidadCreditosResult->total_utilidad_creditos ?? 0);
 
                 // ============================================
@@ -660,9 +716,10 @@ class ResumenEjecutivoController extends Controller
                 }
 
                 // ============================================
-                // 18. UTILIDAD NETA
+                // 18. UTILIDAD NETA Y EGRESOS TOTALES
                 // ============================================
-                $b_utilidadNeta = $b_ingresos - $b_egresos;
+                $b_egresos_totales = $b_egresos + (float) ($empenosResult->prestamo ?? 0);
+                $b_utilidadNeta = $b_ingresos - $b_egresos_totales;
 
                 // ============================================
                 // 19. BALANCE GENERAL
@@ -682,15 +739,15 @@ class ResumenEjecutivoController extends Controller
                 $balanceGeneral['capital_total'] = $balanceGeneral['activo_total'] - $balanceGeneral['pasivo_total'];
 
                 $balanceGeneral['efectivo_inicial'] += 100000;
-                $balanceGeneral['efectivo_final'] = $balanceGeneral['efectivo_inicial'] + $b_ingresos - $b_egresos;
-                $balanceGeneral['flujo_neto'] = $b_ingresos - $b_egresos;
+                $balanceGeneral['efectivo_final'] = $balanceGeneral['efectivo_inicial'] + $b_ingresos - $b_egresos_totales;
+                $balanceGeneral['flujo_neto'] = $b_ingresos - $b_egresos_totales;
 
                 // ============================================
                 // 20. ACUMULAR GLOBALES
                 // ============================================
                 $totalIngresos += $b_ingresos;
                 $totalIngresosVentasIntereses += $b_ingresosVentasIntereses;
-                $totalEgresos += $b_egresos;
+                $totalEgresos += $b_egresos_totales;
                 $totalGastosOperativos += $b_egresos;
 
                 $empenosData['contratos'] += (int) ($empenosResult->contratos ?? 0);
@@ -724,6 +781,7 @@ class ResumenEjecutivoController extends Controller
                 $ventasTotalesGlobal += $b_ventasTotales;
                 $prestamoVentasGlobal += $b_prestamoVentasTotal;
                 $costoVentasGlobal += $b_costoVentasCalc;
+                $fundicionGlobal += $b_fundicion;
 
                 // ============================================
                 // 21. METAS Y SEMÁFORO
@@ -753,7 +811,7 @@ class ResumenEjecutivoController extends Controller
                     'id' => $sucursal->id_valora_mas,
                     'ingresos' => $b_ingresos,
                     'ingresos_ventas_intereses' => $b_ingresosVentasIntereses,
-                    'gastos' => $b_egresos,
+                    'gastos' => $b_egresos_totales,
                     'utilidad_bruta' => $b_utilidadBruta,
                     'utilidad_neta' => $b_utilidadNeta,
                     'margen_bruto_pct' => round($margenBruto, 2),
@@ -849,6 +907,7 @@ class ResumenEjecutivoController extends Controller
             'utilidadNetaConsolidada' => $utilidadNetaConsolidada,
             'margenNetoConsolidado' => $margenNetoConsolidado,
             'costoVentas' => $costoVentasGlobal,
+            'fundicion' => $fundicionGlobal,
             'carteraVigente' => $carteraVigente,
             'carteraVencida' => $carteraVencida,
             'carteraTotal' => $carteraVigente + $carteraVencida,

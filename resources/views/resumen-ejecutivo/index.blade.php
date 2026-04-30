@@ -96,7 +96,7 @@
 <div class="container-fluid p-4" id="dashboard-content" style="display: none;">
     <div class="row mb-4">
         <div class="col-12">
-            <h4 class="title fw-bold text-dark">Resumen Ejecutivo Global</h4>
+            <h4 class="title fw-bold text-dark">Flujo de Efectivo Global</h4>
             <p class="text-muted">Vista rápida del desempeño global de Valora Más</p>
         </div>
     </div>
@@ -159,7 +159,7 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
-                            <span class="metric-tooltip" title="Total de egresos registrados en el período">Gastos Operativos</span>
+                            <span class="metric-tooltip" id="tooltip-egresos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de egresos...">Egresos Totales</span>
                         </h6>
                         <div class="icon-shape bg-light-danger text-danger">
                             <i class="bi bi-graph-down-arrow"></i>
@@ -171,13 +171,13 @@
             </div>
         </div>
 
-        <!-- Utilidad Neta -->
+        <!-- Utilidad Neta (Flujo Operativo) -->
         <div class="col-12 col-xl-4 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
-                            <span class="metric-tooltip" title="Ingresos totales menos gastos operativos">Utilidad Neta <small class="text-lowercase">(consolidado)</small></span>
+                            <span class="metric-tooltip" title="Ingresos totales menos gastos operativos">Flujo Operativo</span>
                         </h6>
                         <div class="icon-shape bg-light-info text-info">
                             <i class="bi bi-pie-chart-fill"></i>
@@ -195,12 +195,12 @@
     <!-- NUEVA FILA: Utilidad Bruta y Operativa -->
     <div class="row mb-4">
         <!-- Utilidad Bruta -->
-        <div class="col-12 col-xl-6 mb-3">
+        <div class="col-12 col-xl-4 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
-                            <span class="metric-tooltip" title="Utilidad de Ventas + Intereses + Utilidad de Crédito Liquidado + Ventas de Certificados">Utilidad Bruta</span>
+                            <span class="metric-tooltip" id="tooltip-utilidad-bruta" title="Utilidad de Ventas + Intereses + Utilidad de Crédito Liquidado + Ventas de Certificados">Utilidad Bruta</span>
                         </h6>
                         <div class="icon-shape bg-light-primary text-primary">
                             <i class="bi bi-graph-up-arrow"></i>
@@ -211,14 +211,14 @@
                         <span class="badge bg-primary me-2" id="kpi-margen-bruto">0%</span>
                         <small class="text-muted">Margen Bruto</small>
                     </div>
-                        <span class="text-muted small">Intereses + Utilidad de venta + Utilidad de certificado + Certificados</span>
+                        <span class="text-muted small">Intereses + Utilidad de venta + Utilidad de credito + Certificados</span>
                     <small class="text-muted d-block mt-1"></small>
                 </div>
             </div>
         </div>
 
         <!-- Utilidad Operativa -->
-        <div class="col-12 col-xl-6 mb-3">
+        <div class="col-12 col-xl-4 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
@@ -231,6 +231,24 @@
                     </div>
                     <h2 class="display-6 fw-bold mb-0" id="kpi-utilidad-operativa">$ 0.00</h2>
                     <span class="text-muted small">Utilidad Bruta − Gastos Operativos</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flujo Operación (Salida) -->
+        <div class="col-12 col-xl-4 mb-3">
+            <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-flujo" title="Total de salidas operativas">Flujo Operación</span>
+                        </h6>
+                        <div class="icon-shape bg-light-danger text-danger">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </div>
+                    </div>
+                    <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-flujo-operacion">$ 0.00</h2>
+                    <span class="text-muted small">Considerada salida</span>
                 </div>
             </div>
         </div>
@@ -677,7 +695,32 @@
 
                 // ===== 4. Actualizar KPI Cards Principales =====
                 updateElementText('kpi-ingresos', formatter.format(data.totalIngresos || 0));
-                updateElementText('kpi-gastos', formatter.format(gastosOperativos));
+                updateElementText('kpi-gastos', formatter.format(data.totalEgresos || 0));
+                
+                // Calcular y asignar Flujo de Operación
+                const fundicion = data.fundicion || 0;
+                const flujoOperativo = (data.totalIngresos || 0) - (data.totalEgresos || 0); // Este es el valor de la tarjeta Flujo Operativo
+                const flujoOperacionSalida = flujoOperativo + fundicion; 
+                updateElementText('kpi-flujo-operacion', formatter.format(flujoOperacionSalida));
+
+                // Construir tooltip de Flujo Operación
+                const tooltipFlujoEl = document.getElementById('tooltip-flujo');
+                if (tooltipFlujoEl) {
+                    let tooltipHtmlFlujo = `
+                        <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                            <strong class="d-block mb-1 border-bottom pb-1">Desglose de Flujo Operación:</strong>
+                            <div class="d-flex justify-content-between"><span>Flujo Operativo:</span> <span class="fw-bold">${formatter.format(flujoOperativo)}</span></div>
+                            <div class="d-flex justify-content-between text-danger"><span>Fundición:</span> <span class="fw-bold">${formatter.format(fundicion)}</span></div>
+                        </div>
+                    `;
+                    const existingTooltipFlujo = bootstrap.Tooltip.getInstance(tooltipFlujoEl);
+                    if (existingTooltipFlujo) { existingTooltipFlujo.dispose(); }
+                    
+                    tooltipFlujoEl.setAttribute('data-bs-original-title', tooltipHtmlFlujo);
+                    tooltipFlujoEl.setAttribute('title', tooltipHtmlFlujo);
+                    new bootstrap.Tooltip(tooltipFlujoEl, { html: true, placement: 'top' });
+                }
+
                 updateElementText('kpi-empeno', formatter.format(data.empenosData?.prestamo || 0));
                 updateElementText('kpi-empeno-contratos', `${numberFormatter.format(data.empenosData?.contratos || 0)} Contratos`);
 
@@ -709,6 +752,25 @@
                     new bootstrap.Tooltip(tooltipEl, { html: true, placement: 'top' });
                 }
 
+                // Construir tooltip de Egresos
+                const tooltipEgresosEl = document.getElementById('tooltip-egresos');
+                if(tooltipEgresosEl) {
+                    let tooltipHtmlEgresos = `
+                        <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 200px;">
+                            <strong class="d-block mb-1 border-bottom pb-1">Desglose de Egresos:</strong>
+                            <div class="d-flex justify-content-between"><span>Gastos Operativos:</span> <span class="fw-bold">${formatter.format(gastosOperativos)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Empeños (Préstamos):</span> <span class="fw-bold">${formatter.format(data.empenosData?.prestamo || 0)}</span></div>
+                        </div>
+                    `;
+                    // Limpiar tooltip viejo si existe
+                    const existingTooltipEgresos = bootstrap.Tooltip.getInstance(tooltipEgresosEl);
+                    if (existingTooltipEgresos) { existingTooltipEgresos.dispose(); }
+                    
+                    tooltipEgresosEl.setAttribute('data-bs-original-title', tooltipHtmlEgresos);
+                    tooltipEgresosEl.setAttribute('title', tooltipHtmlEgresos);
+                    new bootstrap.Tooltip(tooltipEgresosEl, { html: true, placement: 'top' });
+                }
+
                 // Utilidad Neta (simple)
                 const utilidadCalculada = (data.totalIngresos || 0) - (data.totalEgresos || 0);
                 const utilEl = document.getElementById('kpi-utilidad');
@@ -729,6 +791,27 @@
 
                 // ===== 5. Actualizar tarjetas de utilidades =====
                 updateElementText('kpi-utilidad-bruta', formatter.format(utilidadBruta));
+
+                // Construir tooltip de Utilidad Bruta
+                const tooltipUtilidadBrutaEl = document.getElementById('tooltip-utilidad-bruta');
+                if (tooltipUtilidadBrutaEl && detalle) {
+                    let tooltipHtmlUtilidadBruta = `
+                        <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                            <strong class="d-block mb-1 border-bottom pb-1">Desglose de Utilidad Bruta:</strong>
+                            <div class="d-flex justify-content-between"><span>Utilidad de Venta:</span> <span class="fw-bold">${formatter.format(detalle.utilidad_venta || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Intereses:</span> <span class="fw-bold">${formatter.format(detalle.intereses || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Utilidad de Créditos:</span> <span class="fw-bold">${formatter.format(detalle.utilidad_creditos || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Certificados de Confianza:</span> <span class="fw-bold">${formatter.format(detalle.certificado_confianza || 0)}</span></div>
+                        </div>
+                    `;
+                    const existingTooltipUB = bootstrap.Tooltip.getInstance(tooltipUtilidadBrutaEl);
+                    if (existingTooltipUB) { existingTooltipUB.dispose(); }
+                    
+                    tooltipUtilidadBrutaEl.setAttribute('data-bs-original-title', tooltipHtmlUtilidadBruta);
+                    tooltipUtilidadBrutaEl.setAttribute('title', tooltipHtmlUtilidadBruta);
+                    new bootstrap.Tooltip(tooltipUtilidadBrutaEl, { html: true, placement: 'top' });
+                }
+
                 updateElementText('kpi-margen-bruto', `${margenBruto.toFixed(1)}%`);
                 updateElementText('kpi-utilidad-operativa', formatter.format(utilidadOperativa));
                 updateElementText('kpi-utilidad-neta-consolidada', formatter.format(utilidadNeta));
