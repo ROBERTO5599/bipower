@@ -152,6 +152,10 @@ class OperacionesCarteraController extends Controller
                 $data['empenos']['total_contratos'] += (int)($empenosTotal->contratos ?? 0);
                 $data['empenos']['monto_total'] += (float)($empenosTotal->prestamo ?? 0);
                 
+                if (!isset($data['abonos_capital'])) {
+                    $data['abonos_capital'] = ['total' => 0, 'monto' => 0];
+                }
+                
                 // Ahora obtener el desglose por tipo de prenda con avalúo
                 $empenosQ = DB::connection($connectionName)->select("
                     SELECT 
@@ -196,22 +200,133 @@ class OperacionesCarteraController extends Controller
                 }
 
                 // ============================================
-                // 2. REFRENDOS (Movimientos 2 y 3) - MEJORADO
+                // 2. REFRENDOS (Movimientos 2)
                 // ============================================
                 $refrendosRes = DB::connection($connectionName)->selectOne("
                     SELECT 
-                        COUNT(DISTINCT mo.cod_movimiento) as total,
-                        COALESCE(SUM(mo.monto10), 0) as monto
-                    FROM movimientos mo
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    WHERE mo.cod_tipo_movimiento IN (2, 3) 
-                      AND mo.f_cancela IS NULL
-                      AND con.f_cancelacion IS NULL
-                      AND mo.f_alta BETWEEN :fIni AND :fFin
-                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
+                        COUNT(*) AS total,
+                        COALESCE(SUM(total), 0) AS monto
+                    FROM (
+                        SELECT 
+                            (mo.monto10 / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
+                                 FROM alhajas 
+                                 WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 1 
+                          AND mo.cod_tipo_movimiento = 2
+                          AND mo.f_alta BETWEEN :fIni1 AND :fFin1
+
+                        UNION ALL
+
+                        SELECT 
+                            (mo.monto10 / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
+                                 FROM autos 
+                                 WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 2 
+                          AND mo.cod_tipo_movimiento = 2
+                          AND mo.f_alta BETWEEN :fIni2 AND :fFin2
+
+                        UNION ALL
+
+                        SELECT 
+                            (mo.monto10 / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
+                                 FROM varios 
+                                 WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 3 
+                          AND mo.cod_tipo_movimiento = 2
+                          AND mo.f_alta BETWEEN :fIni3 AND :fFin3
+                    ) AS t
+                ", [
+                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFinQuery,
+                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFinQuery,
+                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFinQuery
+                ]);
                 
                 $data['refrendos']['total'] += (int)($refrendosRes->total ?? 0);
                 $data['refrendos']['monto'] += (float)($refrendosRes->monto ?? 0);
+
+                // ============================================
+                // 2.1 ABONOS A CAPITAL (Movimiento 3)
+                // ============================================
+                $abonosCapitalRes = DB::connection($connectionName)->selectOne("
+                    SELECT 
+                        COUNT(*) AS total,
+                        COALESCE(SUM(total), 0) AS monto
+                    FROM (
+                        SELECT 
+                            (COALESCE(ca.abono, 0) / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
+                                 FROM alhajas 
+                                 WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
+                        INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 1 
+                          AND mo.cod_tipo_movimiento = 3
+                          AND mo.f_alta BETWEEN :fIni1 AND :fFin1
+
+                        UNION ALL
+
+                        SELECT 
+                            (COALESCE(ca.abono, 0) / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
+                                 FROM autos 
+                                 WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
+                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 2 
+                          AND mo.cod_tipo_movimiento = 3
+                          AND mo.f_alta BETWEEN :fIni2 AND :fFin2
+
+                        UNION ALL
+
+                        SELECT 
+                            (COALESCE(ca.abono, 0) / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
+                                 FROM varios 
+                                 WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
+                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 3 
+                          AND mo.cod_tipo_movimiento = 3
+                          AND mo.f_alta BETWEEN :fIni3 AND :fFin3
+                    ) AS t
+                ", [
+                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFinQuery,
+                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFinQuery,
+                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFinQuery
+                ]);
+                
+                $data['abonos_capital']['total'] += (int)($abonosCapitalRes->total ?? 0);
+                $data['abonos_capital']['monto'] += (float)($abonosCapitalRes->monto ?? 0);
 
                 // ============================================
                 // 3. DESEMPEÑOS (Movimiento 4) - MEJORADO

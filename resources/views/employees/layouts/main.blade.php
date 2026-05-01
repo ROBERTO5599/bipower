@@ -158,7 +158,7 @@
                     <i class="bi bi-bar-chart-line me-2"></i>Flujo de Efectivo
                 </a>
                 <a href="{{ route('operaciones-cartera.index') }}" class="list-group-item list-group-item-action">
-                    <i class="bi bi-briefcase-fill me-2"></i>Empeños y Cartera
+                    <i class="bi bi-briefcase-fill me-2"></i>Movimiento de Inventario de Depositaria
                 </a>
                 <a href="{{ route('ventas.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-cart-check-fill me-2"></i>Ventas y Pagos

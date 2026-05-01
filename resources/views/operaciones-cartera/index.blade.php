@@ -87,10 +87,41 @@
         </div>
     </div>
 
+    <!-- BALANCE ROW -->
+    <div class="row mb-4">
+        <!-- Ingresos -->
+        <div class="col-12 col-md-6 mb-3">
+            <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-start border-success border-4">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Ingresos</h6>
+                        <div class="icon-shape bg-light-success text-success"><i class="bi bi-arrow-down-left-circle-fill"></i></div>
+                    </div>
+                    <h2 class="fw-bold text-dark mb-0" id="kpi-ingresos-total">$ 0.00</h2>
+                    <span class="text-muted small">Empeños + Refrendos</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Egresos -->
+        <div class="col-12 col-md-6 mb-3">
+            <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-start border-danger border-4">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Egresos</h6>
+                        <div class="icon-shape bg-light-danger text-danger"><i class="bi bi-arrow-up-right-circle-fill"></i></div>
+                    </div>
+                    <h2 class="fw-bold text-dark mb-0" id="kpi-egresos-total">$ 0.00</h2>
+                    <span class="text-muted small">Desempeños + Abonos a Capital</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- MAIN KPIs ROW 1 -->
     <div class="row mb-4">
         <!-- Empeños -->
-        <div class="col-12 col-md-3 mb-3">
+        <div class="col-12 col-md-3 col-xl mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-primary border-3">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
@@ -107,7 +138,7 @@
         </div>
 
         <!-- Refrendos -->
-        <div class="col-12 col-md-3 mb-3">
+        <div class="col-12 col-md-3 col-xl mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-info border-3">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
@@ -120,8 +151,22 @@
             </div>
         </div>
 
+        <!-- Abono a Capital -->
+        <div class="col-12 col-md-3 col-xl mb-3">
+            <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-secondary border-3">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Abono a Capital</h6>
+                        <div class="icon-shape bg-light-secondary text-secondary"><i class="bi bi-piggy-bank"></i></div>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-0" id="kpi-abono-monto">$ 0.00</h3>
+                    <span class="text-muted small fw-semibold" id="kpi-abono-total">0 Operaciones</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Desempeños -->
-        <div class="col-12 col-md-3 mb-3">
+        <div class="col-12 col-md-3 col-xl mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-success border-3">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
@@ -135,7 +180,7 @@
         </div>
         
         <!-- Cartera Total -->
-        <div class="col-12 col-md-3 mb-3">
+        <div class="col-12 col-md-3 col-xl mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-warning border-3">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
@@ -340,6 +385,13 @@
         }
 
         function updateDashboard(data) {
+            // Balance
+            const ingresosTotal = (data.empenos.monto_total || 0) + (data.refrendos.monto || 0);
+            const egresosTotal = (data.desempenos.monto || 0) + (data.abonos_capital ? data.abonos_capital.monto : 0);
+            
+            updateElement('kpi-ingresos-total', formatter.format(ingresosTotal));
+            updateElement('kpi-egresos-total', formatter.format(egresosTotal));
+
             // Main KPIs
             updateElement('kpi-empenos-monto', formatter.format(data.empenos.monto_total));
             updateElement('kpi-empenos-contratos', `${data.empenos.total_contratos} Contratos`);
@@ -347,6 +399,11 @@
             
             updateElement('kpi-refrendos-monto', formatter.format(data.refrendos.monto));
             updateElement('kpi-refrendos-total', `${data.refrendos.total} Operaciones`);
+            
+            if(data.abonos_capital) {
+                updateElement('kpi-abono-monto', formatter.format(data.abonos_capital.monto));
+                updateElement('kpi-abono-total', `${data.abonos_capital.total} Operaciones`);
+            }
             
             updateElement('kpi-desempenos-monto', formatter.format(data.desempenos.monto));
             updateElement('kpi-desempenos-total', `${data.desempenos.total} Operaciones`);
