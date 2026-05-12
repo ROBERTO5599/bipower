@@ -12,7 +12,7 @@ class OperacionesCarteraController extends Controller
 {
     public function index(Request $request)
     {
-        // MODIFICACIÓN: Filtrar solo sucursales que existen (misma lógica que resumen ejecutivo)
+        // Filtrar solo sucursales que existen
         $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
         $sucursales = Sucursal::whereNotNull('id_valora_mas')
             ->whereIn('id_valora_mas', $idsQueFuncionan)
@@ -33,7 +33,7 @@ class OperacionesCarteraController extends Controller
         
         $sucursalId = $request->input('sucursal_id');
         
-        // MODIFICACIÓN: Filtrar solo sucursales que existen
+        // Filtrar solo sucursales que existen
         $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
         $sucursales = Sucursal::whereNotNull('id_valora_mas')
             ->whereIn('id_valora_mas', $idsQueFuncionan)
@@ -57,7 +57,8 @@ class OperacionesCarteraController extends Controller
                 'auto' => ['contratos' => 0, 'monto' => 0],
                 'avaluo_total' => 0
             ],
-            'refrendos' => ['total' => 0, 'monto' => 0],
+            'refrendos' => ['total' => 0, 'monto' => 0], // REFRENDOS NORMALES (comentado en el código, se mantiene por si acaso)
+            'refrendos_extemporaneos' => ['total' => 0, 'monto' => 0], // NUEVO: REFRENDOS EXTEMPORÁNEOS
             'desempenos' => ['total' => 0, 'monto' => 0],
             'cartera' => [
                 'vigente' => 0,
@@ -104,7 +105,7 @@ class OperacionesCarteraController extends Controller
                 }
 
                 // ============================================
-                // 1. EMPEÑOS - VERSIÓN MEJORADA (DESDE RESÚMEN EJECUTIVO)
+                // 1. EMPEÑOS
                 // ============================================
                 // Primero obtener el total general de empeños
                 $empenosTotal = DB::connection($connectionName)->selectOne("
@@ -200,8 +201,10 @@ class OperacionesCarteraController extends Controller
                 }
 
                 // ============================================
-                // 2. REFRENDOS (Movimientos 2)
+                // 2. REFRENDOS NORMALES (Movimientos 2) - COMENTADO
+                // Si se necesita en el futuro, descomentar este bloque
                 // ============================================
+                /*
                 $refrendosRes = DB::connection($connectionName)->selectOne("
                     SELECT 
                         COUNT(*) AS total,
@@ -261,9 +264,79 @@ class OperacionesCarteraController extends Controller
                 
                 $data['refrendos']['total'] += (int)($refrendosRes->total ?? 0);
                 $data['refrendos']['monto'] += (float)($refrendosRes->monto ?? 0);
+                */
 
                 // ============================================
-                // 2.1 ABONOS A CAPITAL (Movimiento 3)
+                // 2.1 REFRENDOS EXTEMPORÁNEOS (con p_venta <= fecha_refrendo)
+                // ============================================
+                $refrendosExtemporaneos = DB::connection($connectionName)->selectOne("
+                    SELECT 
+                        COUNT(*) AS total,
+                        COALESCE(SUM(total), 0) AS monto
+                    FROM (
+                        SELECT 
+                            (mo.monto10 / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
+                                 FROM alhajas 
+                                 WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 1 
+                          AND mo.cod_tipo_movimiento = 2
+                          AND mo.f_alta BETWEEN :fIni1 AND :fFin1
+                          AND al.p_venta IS NOT NULL
+                          AND al.p_venta <= mo.f_alta
+
+                        UNION ALL
+
+                        SELECT 
+                            (mo.monto10 / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
+                                 FROM autos 
+                                 WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 2 
+                          AND mo.cod_tipo_movimiento = 2
+                          AND mo.f_alta BETWEEN :fIni2 AND :fFin2
+                          AND au.p_venta IS NOT NULL
+                          AND au.p_venta <= mo.f_alta
+
+                        UNION ALL
+
+                        SELECT 
+                            (mo.monto10 / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
+                                 FROM varios 
+                                 WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 3 
+                          AND mo.cod_tipo_movimiento = 2
+                          AND mo.f_alta BETWEEN :fIni3 AND :fFin3
+                          AND va.p_venta IS NOT NULL
+                          AND va.p_venta <= mo.f_alta
+                    ) AS t
+                ", [
+                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFinQuery,
+                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFinQuery,
+                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFinQuery
+                ]);
+                
+                $data['refrendos_extemporaneos']['total'] += (int)($refrendosExtemporaneos->total ?? 0);
+                $data['refrendos_extemporaneos']['monto'] += (float)($refrendosExtemporaneos->monto ?? 0);
+
+                // ============================================
+                // 2.2 ABONOS A CAPITAL (Movimiento 3)
                 // ============================================
                 $abonosCapitalRes = DB::connection($connectionName)->selectOne("
                     SELECT 
@@ -329,7 +402,7 @@ class OperacionesCarteraController extends Controller
                 $data['abonos_capital']['monto'] += (float)($abonosCapitalRes->monto ?? 0);
 
                 // ============================================
-                // 3. DESEMPEÑOS (Movimiento 4) - MEJORADO
+                // 3. DESEMPEÑOS (Movimiento 4)
                 // ============================================
                 $desempenosRes = DB::connection($connectionName)->selectOne("
                     SELECT 
@@ -347,7 +420,7 @@ class OperacionesCarteraController extends Controller
                 $data['desempenos']['monto'] += (float)($desempenosRes->monto ?? 0);
 
                 // ============================================
-                // 4. CARTERA VIGENTE/VENCIDA - MEJORADA
+                // 4. CARTERA VIGENTE/VENCIDA
                 // ============================================
                 $inventarioResult = DB::connection($connectionName)->select("
                     SELECT
@@ -406,7 +479,7 @@ class OperacionesCarteraController extends Controller
                 }
 
                 // ============================================
-                // 5. INTERESES COBRADOS - VERSIÓN MEJORADA
+                // 5. INTERESES COBRADOS
                 // ============================================
                 $interesesQ = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(
@@ -431,7 +504,7 @@ class OperacionesCarteraController extends Controller
                 $data['intereses']['cobrados'] += (float)($interesesQ->total_intereses ?? 0);
 
                 // ============================================
-                // 6. DÍAS DE MORA (distribución) - MEJORADA
+                // 6. DÍAS DE MORA (distribución)
                 // ============================================
                 $moraQ = DB::connection($connectionName)->select("
                     SELECT 

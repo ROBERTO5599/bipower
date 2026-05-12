@@ -137,7 +137,7 @@
             </div>
         </div>
 
-        <!-- Refrendos -->
+        <!-- Refrendos
         <div class="col-12 col-md-3 col-xl mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-info border-3">
                 <div class="card-body p-3">
@@ -149,8 +149,20 @@
                     <span class="text-muted small fw-semibold" id="kpi-refrendos-total">0 Operaciones</span>
                 </div>
             </div>
+        </div> -->
+         <!-- Refrendos Extemporáneos (NUEVO) -->
+        <div class="col-12 col-md-3 col-xl mb-3">
+            <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-danger border-3">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Refrendoss Extemporáneos</h6>
+                        <div class="icon-shape bg-light-danger"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-0" id="kpi-refrendos-extemporaneos-monto">$ 0.00</h3>
+                    <span class="text-muted small fw-semibold" id="kpi-refrendos-extemporaneos-total">0 Operaciones</span>
+                </div>
+            </div>
         </div>
-
         <!-- Abono a Capital -->
         <div class="col-12 col-md-3 col-xl mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-secondary border-3">
@@ -184,14 +196,14 @@
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-warning border-3">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Cartera Total</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Depositaria</h6>
                         <div class="icon-shape bg-light-warning"><i class="bi bi-briefcase-fill"></i></div>
                     </div>
-                    <h3 class="fw-bold text-dark mb-0" id="kpi-cartera-monto">$ 0.00</h3>
+                    <!--<h3 class="fw-bold text-dark mb-0" id="kpi-cartera-monto">$ 0.00</h3>
                     <div class="d-flex justify-content-between mt-2">
                         <span class="text-success small fw-semibold"><i class="bi bi-check-circle"></i> <span id="kpi-cartera-vigente"></span></span>
                         <span class="text-danger small fw-semibold"><i class="bi bi-exclamation-triangle"></i> <span id="kpi-cartera-vencida"></span></span>
-                    </div>
+                    </div>-->
                 </div>
             </div>
         </div>
@@ -399,7 +411,9 @@
             
             updateElement('kpi-refrendos-monto', formatter.format(data.refrendos.monto));
             updateElement('kpi-refrendos-total', `${data.refrendos.total} Operaciones`);
-            
+             // Refrendos Extemporáneos (NUEVO)
+            updateElement('kpi-refrendos-extemporaneos-monto', formatter.format(data.refrendos_extemporaneos.monto));
+            updateElement('kpi-refrendos-extemporaneos-total', `${data.refrendos_extemporaneos.total} Operaciones`);
             if(data.abonos_capital) {
                 updateElement('kpi-abono-monto', formatter.format(data.abonos_capital.monto));
                 updateElement('kpi-abono-total', `${data.abonos_capital.total} Operaciones`);
