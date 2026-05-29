@@ -166,6 +166,12 @@
                 <a href="{{ route('inventario-piso.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-box-seam me-2"></i>Inventario en Piso
                 </a>
+                <a href="{{ route('inventario-apartados.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bookmark-heart-fill me-2"></i>Inventario en Apartados
+                </a>
+                <a href="{{ route('inventario-credito.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-credit-card-fill me-2"></i>Inventario en Créditos
+                </a>
                 <a href="{{ route('clientes.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-people-fill me-2"></i>Clientes
                 </a>

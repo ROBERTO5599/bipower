@@ -39,6 +39,18 @@ class InventarioPisoController extends Controller
         $totalDias = 0;
         $ventasAcumuladas = 0;
 
+        // Nuevos acumuladores para Flujo de Piso de Venta
+        $globalInventarioInicial = 0;
+        $globalDotaciones = 0;
+        $globalDepositaria = 0;
+        $globalDevolucion = 0;
+        $globalRemate = 0;
+        $globalVentas = 0;
+        $globalApartado = 0;
+        $globalSalidas = 0;
+        $globalTraspaso = 0;
+        $globalRefExt = 0;
+
         $valorOro = 0;
         $valorVarios = 0;
         $countOro = 0;
@@ -196,6 +208,172 @@ class InventarioPisoController extends Controller
                 ");
                 $perdidasMerma += (float) $perdidasQuery->total_perdidas;
 
+                // ================= NUEVOS CÁLCULOS DE FLUJO (PISO DE VENTA) =================
+                
+                // 1. Inventario Inicial: Items que ya estaban en Piso de Venta (status 9) antes de la fecha de inicio
+                $invInicialQ = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(prestamo), 0) AS total
+                    FROM (
+                        SELECT prestamo FROM alhajas WHERE cod_estatus_prenda = 9 AND (p_venta IS NULL OR p_venta < :fIni1)
+                        UNION ALL
+                        SELECT prestamo FROM varios WHERE cod_estatus_prenda = 9 AND (p_venta IS NULL OR p_venta < :fIni2)
+                        UNION ALL
+                        SELECT prestamo FROM autos WHERE cod_estatus_prenda = 9 AND (p_venta IS NULL OR p_venta < :fIni3)
+                    ) as t
+                ", [':fIni1' => $fechaInicio, ':fIni2' => $fechaInicio, ':fIni3' => $fechaInicio]);
+                $globalInventarioInicial += (float)($invInicialQ->total ?? 0);
+
+                // 2. Dotaciones: Salidas de inventario con motivo 'DOTACION'
+                $dotacionesQ = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(ar.prestamo), 0) AS total
+                    FROM salidas_inventario sal
+                    INNER JOIN detalle_salida_inventario det ON sal.cod_salida = det.cod_salida
+                    INNER JOIN motivo_salida ms ON sal.cod_motivo = ms.cod_motivo
+                    INNER JOIN alhajas ar ON det.cod_prenda = ar.cod_alhaja
+                    WHERE ms.motivo = 'DOTACION' AND sal.f_salida BETWEEN :fIni AND :fFin
+                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFin]);
+                $globalDotaciones += (float)($dotacionesQ->total ?? 0);
+
+                // 3. Depositaria (entradas por vencimiento/adjudicación a status 9): Items que entraron a Piso de Venta durante el período
+                $depositariaQ = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(prestamo), 0) AS total
+                    FROM (
+                        SELECT prestamo FROM alhajas WHERE cod_estatus_prenda = 9 AND p_venta BETWEEN :fIni1 AND :fFin1
+                        UNION ALL
+                        SELECT prestamo FROM varios WHERE cod_estatus_prenda = 9 AND p_venta BETWEEN :fIni2 AND :fFin2
+                        UNION ALL
+                        SELECT prestamo FROM autos WHERE cod_estatus_prenda = 9 AND p_venta BETWEEN :fIni3 AND :fFin3
+                    ) as t
+                ", [
+                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFin,
+                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFin,
+                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFin
+                ]);
+                $globalDepositaria += (float)($depositariaQ->total ?? 0);
+
+                // 4. Devolución de Crédito: Movimientos de tipo 23
+                $devolucionQ = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(mo.monto10), 0) AS total
+                    FROM movimientos mo
+                    WHERE mo.cod_tipo_movimiento = 23 AND mo.f_cancela IS NULL AND mo.f_alta BETWEEN :fIni AND :fFin
+                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFin]);
+                $globalDevolucion += (float)($devolucionQ->total ?? 0);
+
+                // 5. Remate de Apartados Vencidos (estimado en 0 por defecto)
+                $globalRemate += 0;
+
+                // 6. Ventas (salida de piso): Ya obtenido en $ventasRes->total_ventas
+                $globalVentas += (float)$ventasRes->total_ventas;
+
+                // 7. Apartados (items que pasaron de piso a apartado status 4):
+                $apartadosQ = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(prestamo), 0) AS total
+                    FROM (
+                        SELECT a.prestamo FROM alhajas a
+                        INNER JOIN detalle_apartado da ON da.cod_prenda = a.cod_alhaja
+                        INNER JOIN apartados ap ON ap.cod_apartado = da.cod_apartado
+                        WHERE ap.f_apartado BETWEEN :fIni1 AND :fFin1
+                        
+                        UNION ALL
+                        
+                        SELECT v.prestamo FROM varios v
+                        INNER JOIN detalle_apartado da ON da.cod_prenda = v.cod_varios
+                        INNER JOIN apartados ap ON ap.cod_apartado = da.cod_apartado
+                        WHERE ap.f_apartado BETWEEN :fIni2 AND :fFin2
+                        
+                        UNION ALL
+                        
+                        SELECT au.prestamo FROM autos au
+                        INNER JOIN detalle_apartado da ON da.cod_prenda = au.cod_auto
+                        INNER JOIN apartados ap ON ap.cod_apartado = da.cod_apartado
+                        WHERE ap.f_apartado BETWEEN :fIni3 AND :fFin3
+                    ) as t
+                ", [
+                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFin,
+                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFin,
+                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFin
+                ]);
+                $globalApartado += (float)($apartadosQ->total ?? 0);
+
+                // 8. Salidas (Mermas, Bajas, Siniestros, Robos):
+                $salidasQ = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(ar.prestamo), 0) AS total
+                    FROM salidas_inventario sal
+                    INNER JOIN detalle_salida_inventario det ON sal.cod_salida = det.cod_salida
+                    INNER JOIN motivo_salida ms ON sal.cod_motivo = ms.cod_motivo
+                    INNER JOIN alhajas ar ON det.cod_prenda = ar.cod_alhaja
+                    WHERE ms.motivo IN ('FUNDICION', 'MERMA', 'SINIESTRO', 'ROBO', 'BAJA') AND sal.f_salida BETWEEN :fIni AND :fFin
+                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFin]);
+                $globalSalidas += (float)($salidasQ->total ?? 0);
+
+                // 9. Traspasos:
+                $traspasosQ = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(ar.prestamo), 0) AS total
+                    FROM salidas_inventario sal
+                    INNER JOIN detalle_salida_inventario det ON sal.cod_salida = det.cod_salida
+                    INNER JOIN motivo_salida ms ON sal.cod_motivo = ms.cod_motivo
+                    INNER JOIN alhajas ar ON det.cod_prenda = ar.cod_alhaja
+                    WHERE ms.motivo = 'TRASPASO' AND sal.f_salida BETWEEN :fIni AND :fFin
+                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFin]);
+                $globalTraspaso += (float)($traspasosQ->total ?? 0);
+
+                // 10. Refrendos Extemporáneos (renovaciones de artículos que ya estaban en piso de venta):
+                $refExtQ = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(total), 0) AS total
+                    FROM (
+                        SELECT 
+                            (mo.monto10 / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) FROM alhajas WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 1 
+                          AND mo.cod_tipo_movimiento = 2
+                          AND mo.f_alta BETWEEN :fIni1 AND :fFin1
+                          AND al.p_venta IS NOT NULL
+                          AND al.p_venta <= mo.f_alta
+
+                        UNION ALL
+
+                        SELECT 
+                            (mo.monto10 / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) FROM autos WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 2 
+                          AND mo.cod_tipo_movimiento = 2
+                          AND mo.f_alta BETWEEN :fIni2 AND :fFin2
+                          AND au.p_venta IS NOT NULL
+                          AND au.p_venta <= mo.f_alta
+
+                        UNION ALL
+
+                        SELECT 
+                            (mo.monto10 / 
+                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) FROM varios WHERE cod_contrato = con.cod_seguimiento)
+                            ) AS total
+                        FROM movimientos mo 
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
+                        WHERE con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 3 
+                          AND mo.cod_tipo_movimiento = 2
+                          AND mo.f_alta BETWEEN :fIni3 AND :fFin3
+                          AND va.p_venta IS NOT NULL
+                          AND va.p_venta <= mo.f_alta
+                    ) AS t
+                ", [
+                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFin,
+                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFin,
+                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFin
+                ]);
+                $globalRefExt += (float)($refExtQ->total ?? 0);
+
             } catch (\Exception $e) {
                 Log::error("Error inventario {$sucursal->nombre}: " . $e->getMessage());
             }
@@ -215,11 +393,30 @@ class InventarioPisoController extends Controller
         // Rotación de Inventario (Ventas periodo / Valor Inventario actual como proxy del promedio)
         $rotacionInventario = $valorTotalInventario > 0 ? ($ventasAcumuladas / $valorTotalInventario) : 0;
 
+        $totalIngresos = $globalInventarioInicial + $globalDotaciones + $globalDepositaria + $globalDevolucion + $globalRemate;
+        $totalEgresos = $globalVentas + $globalApartado + $globalSalidas + $globalTraspaso + $globalRefExt;
+        $inventarioPisoNeto = $totalIngresos - $totalEgresos;
+
         return response()->json([
             'valorTotalInventario' => $valorTotalInventario,
             'totalArticulosN' => $totalArticulosN,
             'antiguedadPromedioDias' => round($antiguedadPromedio, 1),
             'rotacionInventario' => round($rotacionInventario, 2),
+            
+            // Nuevas métricas de flujo del Piso de Venta
+            'inventarioInicial' => $globalInventarioInicial,
+            'dotaciones' => $globalDotaciones,
+            'depositaria' => $globalDepositaria,
+            'devolucion' => $globalDevolucion,
+            'remate' => $globalRemate,
+            'ventas' => $globalVentas,
+            'apartado' => $globalApartado,
+            'salidas' => $globalSalidas,
+            'traspaso' => $globalTraspaso,
+            'refrendoExtemporaneo' => $globalRefExt,
+            'ingresosTotales' => $totalIngresos,
+            'egresosTotales' => $totalEgresos,
+            'inventarioPisoNeto' => $inventarioPisoNeto,
 
             'valorOro' => $valorOro,
             'valorVarios' => $valorVarios,

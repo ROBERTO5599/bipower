@@ -39,6 +39,12 @@
         }
         .table-ranking th { font-weight: 600; text-transform: uppercase; font-size: 0.8rem; color: #6c757d; }
         .table-ranking td { font-size: 0.9rem; vertical-align: middle; }
+        .metric-tooltip {
+            position: relative;
+            display: inline-block;
+            border-bottom: 1px dotted #6c757d;
+            cursor: help;
+        }
     </style>
 @endsection
 
@@ -52,7 +58,7 @@
 <div class="container-fluid p-4" id="dashboard-content" style="display: none;">
     <div class="row mb-4">
         <div class="col-12">
-            <h4 class="title fw-bold text-dark mb-1">Operaciones y Cartera</h4>
+            <h4 class="title fw-bold text-dark mb-1">Movimiento de inventario de depositaria|</h4>
             <p class="text-muted">Análisis de transacciones, métricas de cartera y comportamiento de artículos.</p>
         </div>
     </div>
@@ -90,29 +96,55 @@
     <!-- BALANCE ROW -->
     <div class="row mb-4">
         <!-- Ingresos -->
-        <div class="col-12 col-md-6 mb-3">
+        <div class="col-12 col-md-4 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-start border-success border-4">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Ingresos</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-ingresos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de ingresos...">
+                                Ingresos
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-success text-success"><i class="bi bi-arrow-down-left-circle-fill"></i></div>
                     </div>
                     <h2 class="fw-bold text-dark mb-0" id="kpi-ingresos-total">$ 0.00</h2>
-                    <span class="text-muted small">Empeños + Refrendos</span>
+                    <span class="text-muted small">Empeños + Refrendos Ext.</span>
                 </div>
             </div>
         </div>
 
         <!-- Egresos -->
-        <div class="col-12 col-md-6 mb-3">
+        <div class="col-12 col-md-4 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-start border-danger border-4">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Egresos</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-egresos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de egresos...">
+                                Egresos
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-danger text-danger"><i class="bi bi-arrow-up-right-circle-fill"></i></div>
                     </div>
                     <h2 class="fw-bold text-dark mb-0" id="kpi-egresos-total">$ 0.00</h2>
                     <span class="text-muted small">Desempeños + Abonos a Capital</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total de Inventario en Depositaria -->
+        <div class="col-12 col-md-4 mb-3">
+            <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-start border-warning border-4">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-depositaria" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de depositaria...">
+                                Total de Inventario en Depositaria
+                            </span>
+                        </h6>
+                        <div class="icon-shape bg-light-warning text-warning"><i class="bi bi-briefcase-fill"></i></div>
+                    </div>
+                    <h2 class="fw-bold text-dark mb-0" id="kpi-depositaria-total">$ 0.00</h2>
+                    <span class="text-muted small">Ingresos - Egresos</span>
                 </div>
             </div>
         </div>
@@ -196,14 +228,14 @@
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-warning border-3">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Depositaria</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Depositaria (Cartera)</h6>
                         <div class="icon-shape bg-light-warning"><i class="bi bi-briefcase-fill"></i></div>
                     </div>
-                    <!--<h3 class="fw-bold text-dark mb-0" id="kpi-cartera-monto">$ 0.00</h3>
+                    <h3 class="fw-bold text-dark mb-0" id="kpi-cartera-monto">$ 0.00</h3>
                     <div class="d-flex justify-content-between mt-2">
                         <span class="text-success small fw-semibold"><i class="bi bi-check-circle"></i> <span id="kpi-cartera-vigente"></span></span>
                         <span class="text-danger small fw-semibold"><i class="bi bi-exclamation-triangle"></i> <span id="kpi-cartera-vencida"></span></span>
-                    </div>-->
+                    </div>
                 </div>
             </div>
         </div>
@@ -397,12 +429,80 @@
         }
 
         function updateDashboard(data) {
-            // Balance
-            const ingresosTotal = (data.empenos.monto_total || 0) + (data.refrendos.monto || 0);
-            const egresosTotal = (data.desempenos.monto || 0) + (data.abonos_capital ? data.abonos_capital.monto : 0);
+            // Balance calculations based on user requirements:
+            // Ingresos (Entradas de Depositaria) = Empeños + Refrendos Extemporáneos
+            // Egresos (Salidas de Depositaria) = Desempeños + Abonos a Capital
+            // Total Inventario en Depositaria = Ingresos - Egresos
+            const refrendosMonto = data.refrendos ? (data.refrendos.monto || 0) : 0;
+            const refrendosExtMonto = data.refrendos_extemporaneos ? (data.refrendos_extemporaneos.monto || 0) : 0;
+            const abonosMonto = data.abonos_capital ? (data.abonos_capital.monto || 0) : 0;
+            const desempenosMonto = data.desempenos ? (data.desempenos.monto || 0) : 0;
+            const empenosMonto = data.empenos ? (data.empenos.monto_total || 0) : 0;
+
+            const ingresosTotal = empenosMonto + refrendosExtMonto;
+            const egresosTotal = desempenosMonto + abonosMonto;
+            const depositariaTotalFlow = ingresosTotal - egresosTotal;
             
             updateElement('kpi-ingresos-total', formatter.format(ingresosTotal));
             updateElement('kpi-egresos-total', formatter.format(egresosTotal));
+            updateElement('kpi-depositaria-total', formatter.format(depositariaTotalFlow));
+
+            // Tooltip Ingresos
+            const tooltipIngresosEl = document.getElementById('tooltip-ingresos');
+            if (tooltipIngresosEl && typeof bootstrap !== 'undefined') {
+                let tooltipHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Ingresos:</strong>
+                        <div class="d-flex justify-content-between"><span>Empeños (Nuevos):</span> <span class="fw-bold">${formatter.format(empenosMonto)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Refrendos Ext.:</span> <span class="fw-bold">${formatter.format(refrendosExtMonto)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>INGRESOS TOTALES</span> <span class="text-success">${formatter.format(ingresosTotal)}</span></div>
+                    </div>
+                `;
+                const existingTooltip = bootstrap.Tooltip.getInstance(tooltipIngresosEl);
+                if (existingTooltip) existingTooltip.dispose();
+                tooltipIngresosEl.setAttribute('data-bs-original-title', tooltipHtml);
+                tooltipIngresosEl.setAttribute('title', tooltipHtml);
+                new bootstrap.Tooltip(tooltipIngresosEl, { html: true, placement: 'top' });
+            }
+
+            // Tooltip Egresos
+            const tooltipEgresosEl = document.getElementById('tooltip-egresos');
+            if (tooltipEgresosEl && typeof bootstrap !== 'undefined') {
+                let tooltipHtmlEgresos = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Egresos:</strong>
+                        <div class="d-flex justify-content-between"><span>Desempeños:</span> <span class="fw-bold">${formatter.format(desempenosMonto)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Abonos a Capital:</span> <span class="fw-bold">${formatter.format(abonosMonto)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>EGRESOS TOTALES</span> <span class="text-danger">${formatter.format(egresosTotal)}</span></div>
+                    </div>
+                `;
+                const existingTooltipEgresos = bootstrap.Tooltip.getInstance(tooltipEgresosEl);
+                if (existingTooltipEgresos) existingTooltipEgresos.dispose();
+                tooltipEgresosEl.setAttribute('data-bs-original-title', tooltipHtmlEgresos);
+                tooltipEgresosEl.setAttribute('title', tooltipHtmlEgresos);
+                new bootstrap.Tooltip(tooltipEgresosEl, { html: true, placement: 'top' });
+            }
+
+            // Tooltip Depositaria (Flujo Neto)
+            const tooltipDepositariaEl = document.getElementById('tooltip-depositaria');
+            if (tooltipDepositariaEl && typeof bootstrap !== 'undefined') {
+                let tooltipHtmlDepositaria = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Movimiento de Inventario:</strong>
+                        <div class="d-flex justify-content-between"><span>Ingresos (Entradas) (+):</span> <span class="fw-bold text-success">${formatter.format(ingresosTotal)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Egresos (Salidas) (-):</span> <span class="fw-bold text-danger">${formatter.format(egresosTotal)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>NETO DEPOSITARIA</span> <span class="text-primary">${formatter.format(depositariaTotalFlow)}</span></div>
+                    </div>
+                `;
+                const existingTooltipDepositaria = bootstrap.Tooltip.getInstance(tooltipDepositariaEl);
+                if (existingTooltipDepositaria) existingTooltipDepositaria.dispose();
+                tooltipDepositariaEl.setAttribute('data-bs-original-title', tooltipHtmlDepositaria);
+                tooltipDepositariaEl.setAttribute('title', tooltipHtmlDepositaria);
+                new bootstrap.Tooltip(tooltipDepositariaEl, { html: true, placement: 'top' });
+            }
 
             // Main KPIs
             updateElement('kpi-empenos-monto', formatter.format(data.empenos.monto_total));

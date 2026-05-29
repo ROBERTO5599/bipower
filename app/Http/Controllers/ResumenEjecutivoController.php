@@ -58,6 +58,8 @@ class ResumenEjecutivoController extends Controller
 
         // Inventario
         $inventarioPisoVentaTotal = 0;
+        $inventarioApartadosTotal = 0;
+        $inventarioCreditoTotal = 0;
         $inventarioPisoPrestamoTotal = 0;
         $inventarioVarios = 0;
         $inventarioOro = 0;
@@ -505,7 +507,7 @@ class ResumenEjecutivoController extends Controller
                         cod_estatus_prenda,
                         COALESCE(SUM(prestamo), 0) as total_prestamo
                     FROM alhajas 
-                    WHERE cod_estatus_prenda IN (1,9) 
+                    WHERE cod_estatus_prenda IN (1, 9, 4, 12) 
                     GROUP BY CategoriaMetal, cod_estatus_prenda
                     
                     UNION ALL
@@ -516,7 +518,7 @@ class ResumenEjecutivoController extends Controller
                         cod_estatus_prenda, 
                         COALESCE(SUM(prestamo), 0) as total_prestamo
                     FROM varios 
-                    WHERE cod_estatus_prenda IN (1,9) 
+                    WHERE cod_estatus_prenda IN (1, 9, 4, 12) 
                     GROUP BY cod_estatus_prenda
                     
                     UNION ALL
@@ -527,9 +529,13 @@ class ResumenEjecutivoController extends Controller
                         cod_estatus_prenda, 
                         COALESCE(SUM(prestamo), 0) as total_prestamo
                     FROM autos 
-                    WHERE cod_estatus_prenda IN (1,9) 
+                    WHERE cod_estatus_prenda IN (1, 9, 4, 12) 
                     GROUP BY cod_estatus_prenda
                 ");
+
+                $b_invPisoVenta = 0;
+                $b_invApartados = 0;
+                $b_invCreditos = 0;
 
                 foreach ($inventarioResult as $invRow) {
                     $monto = (float) $invRow->total_prestamo;
@@ -538,6 +544,7 @@ class ResumenEjecutivoController extends Controller
                     if ($invRow->cod_estatus_prenda == 1) {
                         $b_carteraVigente += $monto;
                     } elseif ($invRow->cod_estatus_prenda == 9) {
+                        $b_invPisoVenta += $monto;
                         $inventarioPisoVentaTotal += $monto;
                         if ($invRow->CategoriaMetal === 'Oro') {
                             $inventarioOro += $monto;
@@ -545,6 +552,12 @@ class ResumenEjecutivoController extends Controller
                         if ($invRow->Tipo === 'Varios') {
                             $inventarioVarios += $monto;
                         }
+                    } elseif ($invRow->cod_estatus_prenda == 4) {
+                        $b_invApartados += $monto;
+                        $inventarioApartadosTotal += $monto;
+                    } elseif ($invRow->cod_estatus_prenda == 12) {
+                        $b_invCreditos += $monto;
+                        $inventarioCreditoTotal += $monto;
                     }
 
                     if ($invRow->CategoriaMetal === 'Oro') {
@@ -802,7 +815,8 @@ class ResumenEjecutivoController extends Controller
                     $semaforo = 'rojo';
                 }
 
-                $margenBruto = $b_ingresos > 0 ? ($b_utilidadBruta / $b_ingresos) * 100 : 0;
+                $sumaInventariosSucursal = ($b_carteraVigente + $b_carteraVencida) + $b_invPisoVenta + $b_invCreditos + $b_invApartados;
+                $margenBruto = $sumaInventariosSucursal > 0 ? ($b_utilidadBruta / $sumaInventariosSucursal) * 100 : 0;
 
                 // ============================================
                 // 22. KPI POR SUCURSAL
@@ -858,7 +872,8 @@ class ResumenEjecutivoController extends Controller
         // 23. CÁLCULOS FINALES
         // ============================================
         $utilidadBruta = $utilidadVentaGlobal + $interesesGlobal + $utilidadCreditosGlobal + $certificadoConfianzaGlobal;
-        $margenBrutoPorcentaje = $totalIngresos > 0 ? round(($utilidadBruta / $totalIngresos) * 100, 2) : 0;
+        $sumaInventariosGlobal = ($carteraVigente + $carteraVencida) + $inventarioPisoVentaTotal + $inventarioCreditoTotal + $inventarioApartadosTotal;
+        $margenBrutoPorcentaje = $sumaInventariosGlobal > 0 ? round(($utilidadBruta / $sumaInventariosGlobal) * 100, 2) : 0;
         $utilidadOperativa = $utilidadBruta - $totalGastosOperativos;
         $utilidadNetaConsolidada = $totalIngresos - $totalEgresos;
         $margenNetoConsolidado = $totalIngresos > 0 ? round(($utilidadNetaConsolidada / $totalIngresos) * 100, 2) : 0;
@@ -913,6 +928,8 @@ class ResumenEjecutivoController extends Controller
             'carteraTotal' => $carteraVigente + $carteraVencida,
             'tasaMora' => ($carteraVigente + $carteraVencida) > 0 ? round(($carteraVencida / ($carteraVigente + $carteraVencida)) * 100, 2) : 0,
             'inventarioPisoVentaTotal' => $inventarioPisoVentaTotal,
+            'inventarioApartadosTotal' => $inventarioApartadosTotal,
+            'inventarioCreditoTotal' => $inventarioCreditoTotal,
             'inventarioVarios' => $inventarioVarios,
             'inventarioOro' => $inventarioOro,
             'invOro' => $invOro,

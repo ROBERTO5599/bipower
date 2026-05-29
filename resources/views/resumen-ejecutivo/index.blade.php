@@ -208,7 +208,7 @@
                     </div>
                     <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-utilidad-bruta">$ 0.00</h2>
                     <div class="d-flex align-items-center mt-2">
-                        <span class="badge bg-primary me-2" id="kpi-margen-bruto">0%</span>
+                        <span class="badge bg-primary me-2 metric-tooltip cursor-pointer" id="kpi-margen-bruto" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de Margen Bruto...">0%</span>
                         <small class="text-muted">Margen Bruto</small>
                     </div>
                         <span class="text-muted small">Intereses + Utilidad de venta + Utilidad de credito + Certificados</span>
@@ -281,7 +281,7 @@
         <div class="col-md-8 mb-3">
             <div class="row h-100">
                 <div class="col-12 mb-3">
-                    <h5 class="fw-bold text-dark">Monto de Cartera de Empeño</h5>
+                    <h5 class="fw-bold text-dark">Depositaria</h5>
                 </div>
                 <!-- Cartera Vigente -->
                 <div class="col-md-6 mb-3 mb-md-0">
@@ -812,7 +812,47 @@
                     new bootstrap.Tooltip(tooltipUtilidadBrutaEl, { html: true, placement: 'top' });
                 }
 
-                updateElementText('kpi-margen-bruto', `${margenBruto.toFixed(1)}%`);
+                // Construir tooltip de Margen Bruto
+                const tooltipMargenBrutoEl = document.getElementById('kpi-margen-bruto');
+                if (tooltipMargenBrutoEl) {
+                    const invDepositaria = data.carteraTotal || 0;
+                    const invPisoVenta = data.inventarioPisoVentaTotal || 0;
+                    const invCredito = data.inventarioCreditoTotal || 0;
+                    const invApartados = data.inventarioApartadosTotal || 0;
+                    const sumaInventarios = invDepositaria + invPisoVenta + invCredito + invApartados;
+                    const resMargenBruto = sumaInventarios > 0 ? (utilidadBruta / sumaInventarios) * 100 : 0;
+                    
+                    let tooltipHtmlMargenBruto = `
+                        <div class="text-start" style="font-size:0.85rem; line-height: 1.6; min-width: 280px; padding: 4px;">
+                            <strong class="d-block mb-2 border-bottom pb-1 text-primary"><i class="bi bi-calculator me-1"></i> Desglose de Margen Bruto:</strong>
+                            <div class="d-flex justify-content-between mb-1"><span>Utilidad Bruta:</span> <span class="fw-bold text-success">${formatter.format(utilidadBruta)}</span></div>
+                            <div class="border-top my-1"></div>
+                            <div class="d-flex justify-content-between"><span>(+) Inv. Depositaria:</span> <span class="fw-bold">${formatter.format(invDepositaria)}</span></div>
+                            <div class="d-flex justify-content-between"><span>(+) Inv. Piso de Venta:</span> <span class="fw-bold">${formatter.format(invPisoVenta)}</span></div>
+                            <div class="d-flex justify-content-between"><span>(+) Inv. Crédito:</span> <span class="fw-bold">${formatter.format(invCredito)}</span></div>
+                            <div class="d-flex justify-content-between"><span>(+) Inv. Apartados:</span> <span class="fw-bold">${formatter.format(invApartados)}</span></div>
+                            <div class="border-top my-1" style="border-top-style: dashed !important;"></div>
+                            <div class="d-flex justify-content-between mb-2"><strong>(=) Denominador:</strong> <span class="fw-bold text-info">${formatter.format(sumaInventarios)}</span></div>
+                            <div class="border-top my-1"></div>
+                            <div class="mb-1 small text-muted text-center" style="font-style: italic;">
+                                Fórmula: Utilidad Bruta / Denominador
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <strong>Resultado:</strong>
+                                <span class="badge bg-primary fs-7 px-2 py-1">${resMargenBruto.toFixed(2)}%</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    const existingTooltipMB = bootstrap.Tooltip.getInstance(tooltipMargenBrutoEl);
+                    if (existingTooltipMB) { existingTooltipMB.dispose(); }
+                    
+                    tooltipMargenBrutoEl.setAttribute('data-bs-original-title', tooltipHtmlMargenBruto);
+                    tooltipMargenBrutoEl.setAttribute('title', tooltipHtmlMargenBruto);
+                    new bootstrap.Tooltip(tooltipMargenBrutoEl, { html: true, placement: 'top' });
+                }
+
+                updateElementText('kpi-margen-bruto', `${margenBruto.toFixed(2)}%`);
                 updateElementText('kpi-utilidad-operativa', formatter.format(utilidadOperativa));
                 updateElementText('kpi-utilidad-neta-consolidada', formatter.format(utilidadNeta));
                 updateElementText('kpi-margen-neto-consolidado', `${margenNeto.toFixed(1)}%`);

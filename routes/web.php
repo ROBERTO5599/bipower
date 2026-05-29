@@ -6,6 +6,8 @@ use App\Http\Controllers\ResumenEjecutivoController;
 use App\Http\Controllers\OperacionesCarteraController;
 use App\Http\Controllers\VentasController;
 use App\Http\Controllers\InventarioPisoController;
+use App\Http\Controllers\InventarioApartadosController;
+use App\Http\Controllers\InventarioCreditoController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\CreditosController;
 use App\Http\Controllers\CertificadosController;
@@ -38,6 +40,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/inventario-piso', [InventarioPisoController::class, 'index'])->name('inventario-piso.index');
     Route::get('/inventario-piso/data', [InventarioPisoController::class, 'data'])->name('inventario-piso.data');
+
+    Route::get('/inventario-apartados', [InventarioApartadosController::class, 'index'])->name('inventario-apartados.index');
+    Route::get('/inventario-apartados/data', [InventarioApartadosController::class, 'data'])->name('inventario-apartados.data');
+
+    Route::get('/inventario-credito', [InventarioCreditoController::class, 'index'])->name('inventario-credito.index');
+    Route::get('/inventario-credito/data', [InventarioCreditoController::class, 'data'])->name('inventario-credito.data');
 
     Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
     Route::get('/clientes/data', [ClientesController::class, 'data'])->name('clientes.data');
