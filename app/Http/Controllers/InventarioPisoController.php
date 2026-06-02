@@ -223,26 +223,50 @@ class InventarioPisoController extends Controller
                 ", [':fIni1' => $fechaInicio, ':fIni2' => $fechaInicio, ':fIni3' => $fechaInicio]);
                 $globalInventarioInicial += (float)($invInicialQ->total ?? 0);
 
-                // 2. Dotaciones: Salidas de inventario con motivo 'DOTACION'
+                // 2. Dotaciones (Transferencias/Sourcing y Compras Directas): Items que entraron a Piso de Venta sin contrato (cod_contrato IS NULL)
                 $dotacionesQ = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(ar.prestamo), 0) AS total
-                    FROM salidas_inventario sal
-                    INNER JOIN detalle_salida_inventario det ON sal.cod_salida = det.cod_salida
-                    INNER JOIN motivo_salida ms ON sal.cod_motivo = ms.cod_motivo
-                    INNER JOIN alhajas ar ON det.cod_prenda = ar.cod_alhaja
-                    WHERE ms.motivo = 'DOTACION' AND sal.f_salida BETWEEN :fIni AND :fFin
-                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFin]);
-                $globalDotaciones += (float)($dotacionesQ->total ?? 0);
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN tipo_dotacion = 0 OR tipo_dotacion IS NULL THEN prestamo ELSE 0 END), 0) AS sourcing,
+                        COALESCE(SUM(CASE WHEN tipo_dotacion = 1 THEN prestamo ELSE 0 END), 0) AS compra_directa
+                    FROM (
+                        SELECT tipo_dotacion, prestamo 
+                        FROM alhajas 
+                        WHERE cod_estatus_prenda = 9 AND cod_contrato IS NULL AND p_venta BETWEEN :fIni1 AND :fFin1
+                        
+                        UNION ALL
+                        
+                        SELECT tipo_dotacion, prestamo 
+                        FROM varios 
+                        WHERE cod_estatus_prenda = 9 AND cod_contrato IS NULL AND p_venta BETWEEN :fIni2 AND :fFin2
+                        
+                        UNION ALL
+                        
+                        SELECT NULL AS tipo_dotacion, prestamo 
+                        FROM autos 
+                        WHERE cod_estatus_prenda = 9 AND cod_contrato IS NULL AND p_venta BETWEEN :fIni3 AND :fFin3
+                    ) as t
+                ", [
+                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFin,
+                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFin,
+                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFin
+                ]);
 
-                // 3. Depositaria (entradas por vencimiento/adjudicación a status 9): Items que entraron a Piso de Venta durante el período
+                $sourcingVal = (float)($dotacionesQ->sourcing ?? 0);
+                $compraDirectaVal = (float)($dotacionesQ->compra_directa ?? 0);
+
+                $globalDotacionesSourcing += $sourcingVal;
+                $globalDotacionesCompraDirecta += $compraDirectaVal;
+                $globalDotaciones += ($sourcingVal + $compraDirectaVal);
+
+                // 3. Depositaria (entradas por vencimiento/adjudicación a status 9): normal pawn items adjudicated (cod_contrato IS NOT NULL)
                 $depositariaQ = DB::connection($connectionName)->selectOne("
                     SELECT COALESCE(SUM(prestamo), 0) AS total
                     FROM (
-                        SELECT prestamo FROM alhajas WHERE cod_estatus_prenda = 9 AND p_venta BETWEEN :fIni1 AND :fFin1
+                        SELECT prestamo FROM alhajas WHERE cod_estatus_prenda = 9 AND cod_contrato IS NOT NULL AND p_venta BETWEEN :fIni1 AND :fFin1
                         UNION ALL
-                        SELECT prestamo FROM varios WHERE cod_estatus_prenda = 9 AND p_venta BETWEEN :fIni2 AND :fFin2
+                        SELECT prestamo FROM varios WHERE cod_estatus_prenda = 9 AND cod_contrato IS NOT NULL AND p_venta BETWEEN :fIni2 AND :fFin2
                         UNION ALL
-                        SELECT prestamo FROM autos WHERE cod_estatus_prenda = 9 AND p_venta BETWEEN :fIni3 AND :fFin3
+                        SELECT prestamo FROM autos WHERE cod_estatus_prenda = 9 AND cod_contrato IS NOT NULL AND p_venta BETWEEN :fIni3 AND :fFin3
                     ) as t
                 ", [
                     ':fIni1' => $fechaInicio, ':fFin1' => $fechaFin,
@@ -406,6 +430,8 @@ class InventarioPisoController extends Controller
             // Nuevas métricas de flujo del Piso de Venta
             'inventarioInicial' => $globalInventarioInicial,
             'dotaciones' => $globalDotaciones,
+            'dotacionesSourcing' => $globalDotacionesSourcing,
+            'dotacionesCompraDirecta' => $globalDotacionesCompraDirecta,
             'depositaria' => $globalDepositaria,
             'devolucion' => $globalDevolucion,
             'remate' => $globalRemate,
