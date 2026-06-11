@@ -253,15 +253,23 @@ class ResumenEjecutivoController extends Controller
                 // 5. ABONO A CAPITAL PENDIENTE
                 // ============================================
                 $abonoCapitalResult = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(COALESCE(ca.abono, 0)), 0) AS total_abono_capital
-                    FROM movimientos mo 
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
-                    WHERE mo.cod_tipo_movimiento IN (2,3)
-                      AND mo.f_cancela IS NULL
-                      AND con.f_cancelacion IS NULL
-                      AND mo.f_alta BETWEEN :fechaDel AND :fechaAlSig
-                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
+                    SELECT COALESCE(SUM(abono_capital), 0) AS total_abono_capital
+                    FROM (
+                        SELECT 
+                            con.contrato,
+                            COALESCE((SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior ORDER BY f_contrato DESC LIMIT 1), 0) AS abono_capital
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato   = mo.cod_contrato
+                        LEFT  JOIN alhajas al   ON al.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 1 AND al.id = 1
+                        LEFT  JOIN autos   au   ON au.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 2 AND au.id = 1
+                        LEFT  JOIN varios  va   ON va.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 3 AND va.id = 1
+                        WHERE con.f_cancelacion IS NULL
+                          AND mo.cod_tipo_movimiento = 3
+                          AND mo.f_cancela IS NULL
+                          AND mo.f_alta BETWEEN :fIni AND :fFin
+                    ) AS t
+                    WHERE abono_capital > 0
+                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinSiguiente]);
 
                 $b_abonoCapital = (float) ($abonoCapitalResult->total_abono_capital ?? 0);
 
@@ -293,49 +301,28 @@ class ResumenEjecutivoController extends Controller
                 // ============================================
                 $desempenosResult = DB::connection($connectionName)->selectOne("
                     SELECT 
-                        COUNT(*) AS total_registros,
-                        SUM(prestamo) AS suma_prestamos
+                        COUNT(DISTINCT contrato) AS total_registros,
+                        COALESCE(SUM(prestamo_desempenio), 0) AS suma_prestamos
                     FROM (
-                        SELECT al.prestamo
-                        FROM movimientos mo 
-                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
-                        INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1
-                        INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario
-                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 1 
-                        AND mo.f_alta BETWEEN :fechaDel1 AND :fechaAlSig1
-                        AND mo.cod_tipo_movimiento IN (4)
-
-                        UNION ALL 
-
-                        SELECT au.prestamo
-                        FROM movimientos mo 
-                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
-                        INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
-                        INNER JOIN marcas ma ON ma.cod_marca = au.cod_marca AND ma.cod_tipo_prenda = 2
-                        INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario 
-                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 2 
-                        AND mo.f_alta BETWEEN :fechaDel2 AND :fechaAlSig2
-                        AND mo.cod_tipo_movimiento IN (4)
-                        UNION ALL
-                        SELECT va.prestamo
-                        FROM movimientos mo 
-                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
-                        INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda AND pre.cod_tipo_prenda = 3
-                        INNER JOIN marcas ma ON ma.cod_marca = va.cod_marca AND ma.cod_tipo_prenda = 3
-                        INNER JOIN usuarios us ON us.cod_usuario = mo.cod_usuario
-                        WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda = 3 
-                        AND mo.f_alta BETWEEN :fechaDel3 AND :fechaAlSig3
-                        AND mo.cod_tipo_movimiento IN (4)
-
-                    ) AS reporte_general;
-                ", [
-                    ':fechaDel1' => $fechaInicio, ':fechaAlSig1' => $fechaFinSiguiente,
-                    ':fechaDel2' => $fechaInicio, ':fechaAlSig2' => $fechaFinSiguiente,
-                    ':fechaDel3' => $fechaInicio, ':fechaAlSig3' => $fechaFinSiguiente
-                ]);
+                        SELECT 
+                            con.contrato,
+                            COALESCE(CASE
+                                WHEN con.cod_tipo_prenda = 1 THEN al.prestamo
+                                WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
+                                WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
+                            END, 0) AS prestamo_desempenio
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato   = mo.cod_contrato
+                        LEFT  JOIN alhajas al   ON al.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 1
+                        LEFT  JOIN autos   au   ON au.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 2
+                        LEFT  JOIN varios  va   ON va.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                        WHERE con.f_cancelacion IS NULL
+                          AND mo.cod_tipo_movimiento = 4
+                          AND mo.f_cancela IS NULL
+                          AND mo.f_alta BETWEEN :fIni AND :fFin
+                    ) AS t
+                    WHERE prestamo_desempenio > 0
+                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinSiguiente]);
 
                 $b_desempenos = (float) ($desempenosResult->suma_prestamos ?? 0);
 
@@ -400,44 +387,29 @@ class ResumenEjecutivoController extends Controller
                 $empenosResult = DB::connection($connectionName)->selectOne("
                     SELECT 
                         COUNT(DISTINCT contrato) AS contratos,
-                        COALESCE(SUM(total), 0) AS prestamo
+                        COALESCE(SUM(avance), 0) AS prestamo
                     FROM (
-                        select con.contrato, al.prestamo as total
-                        from movimientos mo 
-                        inner join contratos con on con.cod_contrato = mo.cod_contrato
-                        inner join alhajas al on al.cod_contrato = con.cod_seguimiento
-                        where con.f_cancelacion is null 
-                          and con.cod_tipo_prenda = 1 
-                          and mo.f_alta BETWEEN :fechaDel1 AND :fechaAlSig1
-                          and mo.cod_tipo_movimiento = 1
-
-                        UNION ALL 
-
-                        select con.contrato, au.prestamo as total
-                        from movimientos mo 
-                        inner join contratos con on con.cod_contrato = mo.cod_contrato
-                        inner join autos au on au.cod_contrato = con.cod_seguimiento
-                        where con.f_cancelacion is null 
-                          and con.cod_tipo_prenda = 2 
-                          and mo.f_alta BETWEEN :fechaDel2 AND :fechaAlSig2
-                          and mo.cod_tipo_movimiento = 1
-
-                        UNION ALL
-
-                        select con.contrato, va.prestamo as total
-                        from movimientos mo 
-                        inner join contratos con on con.cod_contrato = mo.cod_contrato
-                        inner join varios va on va.cod_contrato = con.cod_seguimiento
-                        where con.f_cancelacion is null 
-                          and con.cod_tipo_prenda = 3 
-                          and mo.f_alta BETWEEN :fechaDel3 AND :fechaAlSig3
-                          and mo.cod_tipo_movimiento = 1
+                        SELECT 
+                            con.contrato,
+                            COALESCE(
+                                CASE
+                                    WHEN con.cod_tipo_prenda = 1 THEN al.prestamo
+                                    WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
+                                    WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
+                                END
+                            , 0) AS avance
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
+                        LEFT JOIN autos   au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
+                        LEFT JOIN varios  va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                        WHERE con.f_cancelacion IS NULL                             
+                          AND mo.cod_tipo_movimiento = 1
+                          AND mo.f_cancela IS NULL
+                          AND mo.f_alta BETWEEN :fIni AND :fFin
                     ) AS t
-                ", [
-                    ':fechaDel1' => $fechaInicio, ':fechaAlSig1' => $fechaFinSiguiente,
-                    ':fechaDel2' => $fechaInicio, ':fechaAlSig2' => $fechaFinSiguiente,
-                    ':fechaDel3' => $fechaInicio, ':fechaAlSig3' => $fechaFinSiguiente
-                ]);
+                    WHERE avance > 0
+                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinSiguiente]);
 
                 // ============================================
                 // 12.1 FUNDICIÓN

@@ -185,7 +185,7 @@
                     </div>
                     <h2 class="display-6 fw-bold mb-0" id="kpi-utilidad">$ 0.00</h2>
                     <span class="badge mt-2" id="kpi-margen">0% Margen</span>
-                    <span class="text-muted small">Ingresos totales - Gastos operativos</span>
+                    <span class="text-muted small">Ingresos totales - Egresos totales</span>
                 </div>
             </div>
         </div>
@@ -254,7 +254,7 @@
         </div>
     </div>
 
-    <!-- Tarjeta de Costo de Ventas -->
+    <!-- Tarjeta de Costo de Ventas
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0 bg-light rounded-3">
@@ -274,7 +274,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> -->
 
     <!-- Cartera de Empeño -->
     <div class="row mb-4">

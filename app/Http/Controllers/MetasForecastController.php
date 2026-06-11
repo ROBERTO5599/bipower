@@ -124,7 +124,7 @@ class MetasForecastController extends Controller
                     SELECT 
                         YEAR(mo.f_alta) as anio,
                         MONTH(mo.f_alta) as mes,
-                        SUM(CASE WHEN mo.cod_tipo_movimiento = 1 THEN mo.monto10 ELSE 0 END) as empenos,
+                        SUM(CASE WHEN mo.cod_tipo_movimiento = 1 THEN con.prestamo ELSE 0 END) as empenos,
                         SUM(CASE 
                             WHEN mo.cod_tipo_movimiento = 4 THEN (mo.monto10 - COALESCE(con.prestamo, 0))
                             WHEN mo.cod_tipo_movimiento IN (2, 3) THEN (mo.monto10 - COALESCE(ca.abono, 0))

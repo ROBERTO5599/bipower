@@ -55,7 +55,15 @@ class OperacionesCarteraController extends Controller
                 'oro' => ['contratos' => 0, 'monto' => 0],
                 'varios' => ['contratos' => 0, 'monto' => 0],
                 'auto' => ['contratos' => 0, 'monto' => 0],
-                'avaluo_total' => 0
+                'avaluo_total' => 0,
+                'categorias' => [
+                    'AUTOS' => ['contratos' => 0, 'monto' => 0],
+                    'ORO' => ['contratos' => 0, 'monto' => 0],
+                    'PLATA' => ['contratos' => 0, 'monto' => 0],
+                    'OTROS METALES' => ['contratos' => 0, 'monto' => 0],
+                    'MERCANCIA GENERAL' => ['contratos' => 0, 'monto' => 0],
+                    'SIN CATEGORIA' => ['contratos' => 0, 'monto' => 0]
+                ]
             ],
             'refrendos' => ['total' => 0, 'monto' => 0], // REFRENDOS NORMALES (comentado en el código, se mantiene por si acaso)
             'refrendos_extemporaneos' => ['total' => 0, 'monto' => 0], // NUEVO: REFRENDOS EXTEMPORÁNEOS
@@ -107,96 +115,80 @@ class OperacionesCarteraController extends Controller
                 // ============================================
                 // 1. EMPEÑOS
                 // ============================================
-                // Primero obtener el total general de empeños
-                $empenosTotal = DB::connection($connectionName)->selectOne("
+                // Primero obtener el total general de empeños y desglose por categorías
+                $empenosRes = DB::connection($connectionName)->select("
                     SELECT 
+                        categoria,
                         COUNT(DISTINCT contrato) AS contratos,
-                        COALESCE(SUM(total), 0) AS prestamo
+                        COALESCE(SUM(avance), 0) AS monto,
+                        COALESCE(SUM(avaluo), 0) AS avaluo
                     FROM (
-                        select con.contrato, al.prestamo as total
-                        from movimientos mo 
-                        inner join contratos con on con.cod_contrato = mo.cod_contrato
-                        inner join alhajas al on al.cod_contrato = con.cod_seguimiento
-                        where con.f_cancelacion is null 
-                          and con.cod_tipo_prenda = 1 
-                          and mo.f_alta BETWEEN :fechaDel1 AND :fechaAlSig1
-                          and mo.cod_tipo_movimiento = 1
-
-                        UNION ALL 
-
-                        select con.contrato, au.prestamo as total
-                        from movimientos mo 
-                        inner join contratos con on con.cod_contrato = mo.cod_contrato
-                        inner join autos au on au.cod_contrato = con.cod_seguimiento
-                        where con.f_cancelacion is null 
-                          and con.cod_tipo_prenda = 2 
-                          and mo.f_alta BETWEEN :fechaDel2 AND :fechaAlSig2
-                          and mo.cod_tipo_movimiento = 1
-
-                        UNION ALL
-
-                        select con.contrato, va.prestamo as total
-                        from movimientos mo 
-                        inner join contratos con on con.cod_contrato = mo.cod_contrato
-                        inner join varios va on va.cod_contrato = con.cod_seguimiento
-                        where con.f_cancelacion is null 
-                          and con.cod_tipo_prenda = 3 
-                          and mo.f_alta BETWEEN :fechaDel3 AND :fechaAlSig3
-                          and mo.cod_tipo_movimiento = 1
+                        SELECT 
+                            con.contrato,
+                            CASE
+                                WHEN con.cod_tipo_prenda = 2 THEN 'AUTOS'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8   AND 26  THEN 'ORO'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN con.cod_tipo_prenda = 1 THEN 'OTROS METALES'
+                                WHEN con.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
+                                ELSE 'SIN CATEGORIA'
+                            END AS categoria,
+                            COALESCE(
+                                CASE
+                                    WHEN con.cod_tipo_prenda = 1 THEN al.prestamo
+                                    WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
+                                    WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
+                                END
+                            , 0) AS avance,
+                            COALESCE(
+                                CASE
+                                    WHEN con.cod_tipo_prenda = 1 THEN al.precio
+                                    WHEN con.cod_tipo_prenda = 2 THEN au.precio
+                                    WHEN con.cod_tipo_prenda = 3 THEN va.precio
+                                END
+                            , 0) AS avaluo
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
+                        LEFT JOIN autos   au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
+                        LEFT JOIN varios  va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                        WHERE con.f_cancelacion IS NULL                             
+                          AND mo.cod_tipo_movimiento = 1
+                          AND mo.f_cancela IS NULL
+                          AND mo.f_alta BETWEEN :fIni AND :fFin
                     ) AS t
-                ", [
-                    ':fechaDel1' => $fechaInicio, ':fechaAlSig1' => $fechaFinQuery,
-                    ':fechaDel2' => $fechaInicio, ':fechaAlSig2' => $fechaFinQuery,
-                    ':fechaDel3' => $fechaInicio, ':fechaAlSig3' => $fechaFinQuery
-                ]);
-                
-                $data['empenos']['total_contratos'] += (int)($empenosTotal->contratos ?? 0);
-                $data['empenos']['monto_total'] += (float)($empenosTotal->prestamo ?? 0);
-                
+                    WHERE avance > 0
+                    GROUP BY categoria
+                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
+
                 if (!isset($data['abonos_capital'])) {
                     $data['abonos_capital'] = ['total' => 0, 'monto' => 0];
                 }
-                
-                // Ahora obtener el desglose por tipo de prenda con avalúo
-                $empenosQ = DB::connection($connectionName)->select("
-                    SELECT 
-                        con.cod_tipo_prenda,
-                        COUNT(DISTINCT mo.cod_movimiento) as total,
-                        COALESCE(SUM(mo.monto10), 0) as prestamo,
-                        COALESCE(SUM(
-                            CASE 
-                                WHEN con.cod_tipo_prenda = 1 THEN al.precio
-                                WHEN con.cod_tipo_prenda = 2 THEN au.precio
-                                WHEN con.cod_tipo_prenda = 3 THEN va.precio
-                                ELSE 0
-                            END
-                        ), 0) as avaluo_total
-                    FROM movimientos mo
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
-                    LEFT JOIN autos au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
-                    LEFT JOIN varios va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
-                    WHERE mo.cod_tipo_movimiento = 1 
-                      AND mo.f_cancela IS NULL
-                      AND con.f_cancelacion IS NULL
-                      AND con.cod_tipo_prenda IN (1, 2, 3)
-                      AND mo.f_alta BETWEEN :fIni AND :fFin
-                    GROUP BY con.cod_tipo_prenda
-                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
 
-                foreach ($empenosQ as $row) {
-                    if ($row->cod_tipo_prenda == 1) { // Oro/Alhajas
-                        $data['empenos']['oro']['contratos'] += $row->total;
-                        $data['empenos']['oro']['monto'] += $row->prestamo;
-                        $data['empenos']['avaluo_total'] += $row->avaluo_total;
-                    } elseif ($row->cod_tipo_prenda == 2) { // Auto
-                        $data['empenos']['auto']['contratos'] += $row->total;
-                        $data['empenos']['auto']['monto'] += $row->prestamo;
-                        $data['empenos']['avaluo_total'] += $row->avaluo_total;
-                    } elseif ($row->cod_tipo_prenda == 3) { // Varios
-                        $data['empenos']['varios']['contratos'] += $row->total;
-                        $data['empenos']['varios']['monto'] += $row->prestamo;
-                        $data['empenos']['avaluo_total'] += $row->avaluo_total;
+                foreach ($empenosRes as $row) {
+                    $cat = $row->categoria;
+                    $monto = (float)$row->monto;
+                    $contratos = (int)$row->contratos;
+                    $avaluo = (float)$row->avaluo;
+
+                    // Acumuladores globales
+                    $data['empenos']['monto_total'] += $monto;
+                    $data['empenos']['total_contratos'] += $contratos;
+                    $data['empenos']['avaluo_total'] += $avaluo;
+
+                    $data['empenos']['categorias'][$cat]['contratos'] += $contratos;
+                    $data['empenos']['categorias'][$cat]['monto'] += $monto;
+
+                    // Mapeo a categorías tradicionales para compatibilidad
+                    if (in_array($cat, ['ORO', 'PLATA', 'OTROS METALES'])) {
+                        $data['empenos']['oro']['contratos'] += $contratos;
+                        $data['empenos']['oro']['monto'] += $monto;
+                    } elseif ($cat === 'AUTOS') {
+                        $data['empenos']['auto']['contratos'] += $contratos;
+                        $data['empenos']['auto']['monto'] += $monto;
+                    } elseif (in_array($cat, ['MERCANCIA GENERAL', 'SIN CATEGORIA'])) {
+                        $data['empenos']['varios']['contratos'] += $contratos;
+                        $data['empenos']['varios']['monto'] += $monto;
                     }
                 }
 
@@ -340,63 +332,24 @@ class OperacionesCarteraController extends Controller
                 // ============================================
                 $abonosCapitalRes = DB::connection($connectionName)->selectOne("
                     SELECT 
-                        COUNT(*) AS total,
-                        COALESCE(SUM(total), 0) AS monto
+                        COUNT(DISTINCT contrato) AS total,
+                        COALESCE(SUM(abono_capital), 0) AS monto
                     FROM (
                         SELECT 
-                            (COALESCE(ca.abono, 0) / 
-                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
-                                 FROM alhajas 
-                                 WHERE cod_contrato = con.cod_seguimiento)
-                            ) AS total
-                        FROM movimientos mo 
-                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
-                        INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
-                        WHERE con.f_cancelacion IS NULL 
-                          AND con.cod_tipo_prenda = 1 
+                            con.contrato,
+                            COALESCE((SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior ORDER BY f_contrato DESC LIMIT 1), 0) AS abono_capital
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato   = mo.cod_contrato
+                        LEFT  JOIN alhajas al   ON al.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 1 AND al.id = 1
+                        LEFT  JOIN autos   au   ON au.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 2 AND au.id = 1
+                        LEFT  JOIN varios  va   ON va.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 3 AND va.id = 1
+                        WHERE con.f_cancelacion IS NULL
                           AND mo.cod_tipo_movimiento = 3
-                          AND mo.f_alta BETWEEN :fIni1 AND :fFin1
-
-                        UNION ALL
-
-                        SELECT 
-                            (COALESCE(ca.abono, 0) / 
-                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
-                                 FROM autos 
-                                 WHERE cod_contrato = con.cod_seguimiento)
-                            ) AS total
-                        FROM movimientos mo 
-                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
-                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
-                        WHERE con.f_cancelacion IS NULL 
-                          AND con.cod_tipo_prenda = 2 
-                          AND mo.cod_tipo_movimiento = 3
-                          AND mo.f_alta BETWEEN :fIni2 AND :fFin2
-
-                        UNION ALL
-
-                        SELECT 
-                            (COALESCE(ca.abono, 0) / 
-                                (SELECT IF(COUNT(*)=0,1,COUNT(*)) 
-                                 FROM varios 
-                                 WHERE cod_contrato = con.cod_seguimiento)
-                            ) AS total
-                        FROM movimientos mo 
-                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
-                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
-                        WHERE con.f_cancelacion IS NULL 
-                          AND con.cod_tipo_prenda = 3 
-                          AND mo.cod_tipo_movimiento = 3
-                          AND mo.f_alta BETWEEN :fIni3 AND :fFin3
+                          AND mo.f_cancela IS NULL
+                          AND mo.f_alta BETWEEN :fIni AND :fFin
                     ) AS t
-                ", [
-                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFinQuery,
-                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFinQuery,
-                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFinQuery
-                ]);
+                    WHERE abono_capital > 0
+                ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
                 
                 $data['abonos_capital']['total'] += (int)($abonosCapitalRes->total ?? 0);
                 $data['abonos_capital']['monto'] += (float)($abonosCapitalRes->monto ?? 0);
@@ -406,14 +359,27 @@ class OperacionesCarteraController extends Controller
                 // ============================================
                 $desempenosRes = DB::connection($connectionName)->selectOne("
                     SELECT 
-                        COUNT(DISTINCT mo.cod_movimiento) as total,
-                        COALESCE(SUM(mo.monto10), 0) as monto
-                    FROM movimientos mo
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    WHERE mo.cod_tipo_movimiento = 4 
-                      AND mo.f_cancela IS NULL
-                      AND con.f_cancelacion IS NULL
-                      AND mo.f_alta BETWEEN :fIni AND :fFin
+                        COUNT(DISTINCT contrato) AS total,
+                        COALESCE(SUM(prestamo_desempenio), 0) AS monto
+                    FROM (
+                        SELECT 
+                            con.contrato,
+                            COALESCE(CASE
+                                WHEN con.cod_tipo_prenda = 1 THEN al.prestamo
+                                WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
+                                WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
+                            END, 0) AS prestamo_desempenio
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato   = mo.cod_contrato
+                        LEFT  JOIN alhajas al   ON al.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 1
+                        LEFT  JOIN autos   au   ON au.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 2
+                        LEFT  JOIN varios  va   ON va.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                        WHERE con.f_cancelacion IS NULL
+                          AND mo.cod_tipo_movimiento = 4
+                          AND mo.f_cancela IS NULL
+                          AND mo.f_alta BETWEEN :fIni AND :fFin
+                    ) AS t
+                    WHERE prestamo_desempenio > 0
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinQuery]);
 
                 $data['desempenos']['total'] += (int)($desempenosRes->total ?? 0);

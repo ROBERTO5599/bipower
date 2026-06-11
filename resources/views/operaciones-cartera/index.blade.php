@@ -157,7 +157,11 @@
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-primary border-3">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Empeños</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">
+                            <span class="metric-tooltip" id="tooltip-empenos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de empeños...">
+                                Empeños
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-primary"><i class="bi bi-tags-fill"></i></div>
                     </div>
                     <h3 class="fw-bold text-dark mb-0" id="kpi-empenos-monto">$ 0.00</h3>
@@ -502,6 +506,48 @@
                 tooltipDepositariaEl.setAttribute('data-bs-original-title', tooltipHtmlDepositaria);
                 tooltipDepositariaEl.setAttribute('title', tooltipHtmlDepositaria);
                 new bootstrap.Tooltip(tooltipDepositariaEl, { html: true, placement: 'top' });
+            }
+
+            // Tooltip Empeños (NUEVO)
+            const tooltipEmpenosEl = document.getElementById('tooltip-empenos');
+            if (tooltipEmpenosEl && typeof bootstrap !== 'undefined') {
+                const cats = data.empenos.categorias || {};
+                let tooltipHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Empeños:</strong>
+                `;
+                
+                const catLabels = {
+                    'ORO': 'Oro',
+                    'PLATA': 'Plata',
+                    'AUTOS': 'Autos',
+                    'OTROS METALES': 'Otros Metales',
+                    'MERCANCIA GENERAL': 'Mercancía General',
+                    'SIN CATEGORIA': 'Sin Categoría'
+                };
+
+                Object.keys(catLabels).forEach(key => {
+                    const val = cats[key] || { contratos: 0, monto: 0 };
+                    if (val.monto > 0 || val.contratos > 0) {
+                        tooltipHtml += `
+                            <div class="d-flex justify-content-between">
+                                <span>${catLabels[key]} (${val.contratos}):</span>
+                                <span class="fw-bold">${formatter.format(val.monto)}</span>
+                            </div>
+                        `;
+                    }
+                });
+
+                tooltipHtml += `
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>TOTAL EMPEÑOS</span> <span class="text-primary">${formatter.format(empenosMonto)}</span></div>
+                    </div>
+                `;
+                const existingTooltip = bootstrap.Tooltip.getInstance(tooltipEmpenosEl);
+                if (existingTooltip) existingTooltip.dispose();
+                tooltipEmpenosEl.setAttribute('data-bs-original-title', tooltipHtml);
+                tooltipEmpenosEl.setAttribute('title', tooltipHtml);
+                new bootstrap.Tooltip(tooltipEmpenosEl, { html: true, placement: 'top' });
             }
 
             // Main KPIs
