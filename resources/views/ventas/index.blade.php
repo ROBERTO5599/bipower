@@ -140,7 +140,11 @@
                 <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Ventas Totales</h6>
+                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                <span class="metric-tooltip" id="tooltip-ventas-totales" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">
+                                    Ventas Totales
+                                </span>
+                            </h6>
                             <div class="icon-shape bg-light-success text-success">
                                 <i class="bi bi-cart-check"></i>
                             </div>
@@ -156,8 +160,11 @@
                 <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Contratos de ventas, apartados y
-                                creditos liquidados</h6>
+                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                <span class="metric-tooltip" id="tooltip-total-tickets" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">
+                                    Contratos de ventas, apartados y creditos liquidados
+                                </span>
+                            </h6>
                             <div class="icon-shape bg-light-info text-info">
                                 <i class="bi bi-receipt"></i>
                             </div>
@@ -173,12 +180,140 @@
                 <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Utilidad Venta</h6>
+                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                <span class="metric-tooltip" id="tooltip-utilidad-bruta" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">
+                                    Utilidad Venta
+                                </span>
+                            </h6>
                             <div class="icon-shape bg-light-primary text-primary">
                                 <i class="bi bi-graph-up-arrow"></i>
                             </div>
                         </div>
                         <h2 class="display-6 fw-bold mb-0 text-dark" id="kpi-utilidad-bruta">$ 0.00</h2>
+                        <span class="text-muted small" id="kpi-margen-venta">0.0% Margen de Venta</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Desglose de Ventas Totales (Ventas Directas, Apartados, Créditos) -->
+        <div class="row mb-4 justify-content-center">
+            <!-- Ventas Directas -->
+            <div class="col-12 col-md-4 mb-3">
+                <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-primary border-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">
+                                <span class="metric-tooltip" id="tooltip-ventas-directas" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">
+                                    Ventas Directas
+                                </span>
+                            </h6>
+                            <div class="icon-shape bg-light-primary text-primary">
+                                <i class="bi bi-bag-check"></i>
+                            </div>
+                        </div>
+                        <h3 class="fw-bold text-dark mb-0" id="kpi-ventas-directas">$ 0.00</h3>
+                        <div class="d-flex justify-content-between align-items-center mt-1 mb-2">
+                            <span class="text-muted small fw-semibold" id="kpi-ventas-directas-contratos">0 Contratos</span>
+                        </div>
+                        <div class="border-top pt-2 mt-2">
+                            <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                <span class="text-muted">Oro:</span>
+                                <span class="fw-bold text-dark" id="kpi-ventas-directas-oro">$ 0.00 (0)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                <span class="text-muted">Plata:</span>
+                                <span class="fw-bold text-dark" id="kpi-ventas-directas-plata">$ 0.00 (0)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                <span class="text-muted">Varios:</span>
+                                <span class="fw-bold text-dark" id="kpi-ventas-directas-varios">$ 0.00 (0)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-0" style="font-size: 0.75rem;">
+                                <span class="text-muted">Autos:</span>
+                                <span class="fw-bold text-dark" id="kpi-ventas-directas-autos">$ 0.00 (0)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Apartados Liquidados -->
+            <div class="col-12 col-md-4 mb-3">
+                <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-warning border-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">
+                                <span class="metric-tooltip" id="tooltip-apartados-liquidados" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">
+                                    Apartados Liquidados
+                                </span>
+                            </h6>
+                            <div class="icon-shape bg-light-warning text-warning">
+                                <i class="bi bi-bookmark-check"></i>
+                            </div>
+                        </div>
+                        <h3 class="fw-bold text-dark mb-0" id="kpi-apartados-liquidados">$ 0.00</h3>
+                        <div class="d-flex justify-content-between align-items-center mt-1 mb-2">
+                            <span class="text-muted small fw-semibold" id="kpi-apartados-liquidados-contratos">0 Contratos</span>
+                        </div>
+                        <div class="border-top pt-2 mt-2">
+                            <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                <span class="text-muted">Oro:</span>
+                                <span class="fw-bold text-dark" id="kpi-apartados-liquidados-oro">$ 0.00 (0)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                <span class="text-muted">Plata:</span>
+                                <span class="fw-bold text-dark" id="kpi-apartados-liquidados-plata">$ 0.00 (0)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                <span class="text-muted">Varios:</span>
+                                <span class="fw-bold text-dark" id="kpi-apartados-liquidados-varios">$ 0.00 (0)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-0" style="font-size: 0.75rem;">
+                                <span class="text-muted">Autos:</span>
+                                <span class="fw-bold text-dark" id="kpi-apartados-liquidados-autos">$ 0.00 (0)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Créditos Liquidados -->
+            <div class="col-12 col-md-4 mb-3">
+                <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-info border-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">
+                                <span class="metric-tooltip" id="tooltip-creditos-liquidados" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">
+                                    Créditos Liquidados
+                                </span>
+                            </h6>
+                            <div class="icon-shape bg-light-info text-info">
+                                <i class="bi bi-credit-card-2-front"></i>
+                            </div>
+                        </div>
+                        <h3 class="fw-bold text-dark mb-0" id="kpi-creditos-liquidados">$ 0.00</h3>
+                        <div class="d-flex justify-content-between align-items-center mt-1 mb-2">
+                            <span class="text-muted small fw-semibold" id="kpi-creditos-liquidados-contratos">0 Contratos</span>
+                        </div>
+                        <div class="border-top pt-2 mt-2">
+                            <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                <span class="text-muted">Oro:</span>
+                                <span class="fw-bold text-dark" id="kpi-creditos-liquidados-oro">$ 0.00 (0)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                <span class="text-muted">Plata:</span>
+                                <span class="fw-bold text-dark" id="kpi-creditos-liquidados-plata">$ 0.00 (0)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                <span class="text-muted">Varios:</span>
+                                <span class="fw-bold text-dark" id="kpi-creditos-liquidados-varios">$ 0.00 (0)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-0" style="font-size: 0.75rem;">
+                                <span class="text-muted">Autos:</span>
+                                <span class="fw-bold text-dark" id="kpi-creditos-liquidados-autos">$ 0.00 (0)</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -195,7 +330,11 @@
                                 <i class="bi bi-tags-fill"></i>
                             </div>
                             <div>
-                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Total en Descuentos</h6>
+                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                    <span class="metric-tooltip" id="tooltip-descuento-total" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">
+                                        Total en Descuentos
+                                    </span>
+                                </h6>
                                 <h3 class="fw-bold text-dark mb-0" id="kpi-descuento-total">$ 0.00</h3>
                             </div>
                         </div>
@@ -218,7 +357,11 @@
                                 <i class="bi bi-cash-stack"></i>
                             </div>
                             <div>
-                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Efectivo / Tarjeta</h6>
+                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                    <span class="metric-tooltip" id="tooltip-pagos-metodos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">
+                                        Efectivo / Tarjeta
+                                    </span>
+                                </h6>
                                 <h3 class="fw-bold text-dark mb-0">
                                     <span id="kpi-pagos-efectivo" class="text-success">$ 0.00</span>
                                     <span class="text-muted fs-5 mx-1">|</span>
@@ -331,6 +474,39 @@
         </div>
     </div>
 
+    <!-- Modal de Marcas -->
+    <div class="modal fade" id="modalMarcas" tabindex="-1" aria-labelledby="modalMarcasLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 rounded-3">
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold" id="modalMarcasLabel">
+                        <i class="bi bi-tag-fill me-2"></i> Top 10 Marcas
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3 text-muted" id="modal-subtitle" style="font-size: 0.9rem;">
+                        Mostrando las marcas más vendidas para este artículo.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-uppercase text-muted small fw-bold">Marca</th>
+                                    <th class="text-uppercase text-muted small fw-bold text-center">Operaciones</th>
+                                    <th class="text-uppercase text-muted small fw-bold text-end">Monto Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-marcas-top">
+                                <!-- Filas dinámicas -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 @endsection
 
 @section('scripts')
@@ -387,19 +563,56 @@
                 if (el) el.innerText = text;
             }
 
+            function updateTooltip(id, tooltipHtml) {
+                const el = document.getElementById(id);
+                if (el && typeof bootstrap !== 'undefined') {
+                    const existingTooltip = bootstrap.Tooltip.getInstance(el);
+                    if (existingTooltip) existingTooltip.dispose();
+                    el.setAttribute('data-bs-original-title', tooltipHtml);
+                    el.setAttribute('title', tooltipHtml);
+                    new bootstrap.Tooltip(el, { html: true, placement: 'top' });
+                }
+            }
+ 
             function updateDashboard(data) {
                 // KPIs Principales
                 updateElementText('kpi-ventas-totales', formatter.format(data.ventasTotales || 0));
                 updateElementText('kpi-ticket-promedio', `Monto prestamo: ${formatter.format(data.montoPrestamo || 0)}`);
                 updateElementText('kpi-total-tickets', `${numberFormatter.format(data.totalTickets || 0)} Contratos`);
-
+ 
                 updateElementText('kpi-utilidad-bruta', formatter.format(data.utilidadBruta || 0));
                 updateElementText('kpi-margen-venta', `${(data.margenVentaPorcentaje || 0).toFixed(1)}% Margen de Venta`);
 
+                // Desgloses de ventas en KPIs individuales
+                const dV = data.desgloseVentas || {};
+                updateElementText('kpi-ventas-directas', formatter.format(dV.venta ? dV.venta.monto : 0));
+                updateElementText('kpi-ventas-directas-contratos', `${numberFormatter.format(dV.venta ? dV.venta.cantidad : 0)} Contratos`);
+                const vtaDet = (dV.venta && dV.venta.detalles) || {};
+                updateElementText('kpi-ventas-directas-oro', `${formatter.format(vtaDet.Oro ? vtaDet.Oro.monto : 0)} (${numberFormatter.format(vtaDet.Oro ? vtaDet.Oro.cantidad : 0)})`);
+                updateElementText('kpi-ventas-directas-plata', `${formatter.format(vtaDet.Plata ? vtaDet.Plata.monto : 0)} (${numberFormatter.format(vtaDet.Plata ? vtaDet.Plata.cantidad : 0)})`);
+                updateElementText('kpi-ventas-directas-varios', `${formatter.format(vtaDet.Varios ? vtaDet.Varios.monto : 0)} (${numberFormatter.format(vtaDet.Varios ? vtaDet.Varios.cantidad : 0)})`);
+                updateElementText('kpi-ventas-directas-autos', `${formatter.format(vtaDet.Autos ? vtaDet.Autos.monto : 0)} (${numberFormatter.format(vtaDet.Autos ? vtaDet.Autos.cantidad : 0)})`);
+
+                updateElementText('kpi-apartados-liquidados', formatter.format(dV.apartado ? dV.apartado.monto : 0));
+                updateElementText('kpi-apartados-liquidados-contratos', `${numberFormatter.format(dV.apartado ? dV.apartado.cantidad : 0)} Contratos`);
+                const aptDet = (dV.apartado && dV.apartado.detalles) || {};
+                updateElementText('kpi-apartados-liquidados-oro', `${formatter.format(aptDet.Oro ? aptDet.Oro.monto : 0)} (${numberFormatter.format(aptDet.Oro ? aptDet.Oro.cantidad : 0)})`);
+                updateElementText('kpi-apartados-liquidados-plata', `${formatter.format(aptDet.Plata ? aptDet.Plata.monto : 0)} (${numberFormatter.format(aptDet.Plata ? aptDet.Plata.cantidad : 0)})`);
+                updateElementText('kpi-apartados-liquidados-varios', `${formatter.format(aptDet.Varios ? aptDet.Varios.monto : 0)} (${numberFormatter.format(aptDet.Varios ? aptDet.Varios.cantidad : 0)})`);
+                updateElementText('kpi-apartados-liquidados-autos', `${formatter.format(aptDet.Autos ? aptDet.Autos.monto : 0)} (${numberFormatter.format(aptDet.Autos ? aptDet.Autos.cantidad : 0)})`);
+
+                updateElementText('kpi-creditos-liquidados', formatter.format(dV.credito ? dV.credito.monto : 0));
+                updateElementText('kpi-creditos-liquidados-contratos', `${numberFormatter.format(dV.credito ? dV.credito.cantidad : 0)} Contratos`);
+                const credDet = (dV.credito && dV.credito.detalles) || {};
+                updateElementText('kpi-creditos-liquidados-oro', `${formatter.format(credDet.Oro ? credDet.Oro.monto : 0)} (${numberFormatter.format(credDet.Oro ? credDet.Oro.cantidad : 0)})`);
+                updateElementText('kpi-creditos-liquidados-plata', `${formatter.format(credDet.Plata ? credDet.Plata.monto : 0)} (${numberFormatter.format(credDet.Plata ? credDet.Plata.cantidad : 0)})`);
+                updateElementText('kpi-creditos-liquidados-varios', `${formatter.format(credDet.Varios ? credDet.Varios.monto : 0)} (${numberFormatter.format(credDet.Varios ? credDet.Varios.cantidad : 0)})`);
+                updateElementText('kpi-creditos-liquidados-autos', `${formatter.format(credDet.Autos ? credDet.Autos.monto : 0)} (${numberFormatter.format(credDet.Autos ? credDet.Autos.cantidad : 0)})`);
+ 
                 // Descuentos y Tarjetas
                 updateElementText('kpi-descuento-total', formatter.format(data.montoDescuentoTotal || 0));
                 updateElementText('kpi-tickets-descuento', numberFormatter.format(data.ticketsConDescuento || 0));
-
+ 
                 updateElementText('kpi-pagos-efectivo', formatter.format(data.pagosEfectivo || 0));
                 updateElementText('kpi-pagos-tarjeta', formatter.format(data.pagosTarjeta || 0));
                 updateElementText('kpi-porcentaje-efectivo', `${(data.pagosEfectivoPorcentaje || 0).toFixed(1)}%`);
@@ -408,38 +621,209 @@
                 updateElementText('kpi-contratos-efectivo', numberFormatter.format(data.contratosEfectivo || 0));
                 updateElementText('kpi-contratos-tarjeta', numberFormatter.format(data.contratosTarjeta || 0));
 
+                // Desgloses dinámicos para Tooltips
+                const dF = data.desgloseFamilias || {};
+
+                // 1. Ventas Totales Tooltip
+                const vtaTotalHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 250px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Ventas:</strong>
+                        <span class="text-muted small fw-bold">POR TIPO DE TRANSACCIÓN</span>
+                        <div class="d-flex justify-content-between"><span>Ventas Directas:</span> <span class="fw-bold">${formatter.format(dV.venta ? dV.venta.monto : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Apartados Liquidados:</span> <span class="fw-bold">${formatter.format(dV.apartado ? dV.apartado.monto : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Créditos Liquidados:</span> <span class="fw-bold">${formatter.format(dV.credito ? dV.credito.monto : 0)}</span></div>
+                        <hr class="my-1">
+                        <span class="text-muted small fw-bold">POR FAMILIA DE PRENDA</span>
+                        <div class="d-flex justify-content-between"><span>Oro:</span> <span class="fw-bold">${formatter.format(dF.Oro ? dF.Oro.monto : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Varios:</span> <span class="fw-bold">${formatter.format(dF.Varios ? dF.Varios.monto : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Autos:</span> <span class="fw-bold">${formatter.format(dF.Autos ? dF.Autos.monto : 0)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>VENTAS TOTALES</span> <span class="text-success">${formatter.format(data.ventasTotales || 0)}</span></div>
+                    </div>
+                `;
+                updateTooltip('tooltip-ventas-totales', vtaTotalHtml);
+
+                // Tooltips para los nuevos KPIs individuales
+                const vtaDir = dV.venta || {};
+                const vtaDirHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 230px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose Ventas Directas:</strong>
+                        <div class="d-flex justify-content-between"><span>Monto Total:</span> <span class="fw-bold">${formatter.format(vtaDir.monto || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Cantidad:</span> <span class="fw-bold">${numberFormatter.format(vtaDir.cantidad || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Utilidad:</span> <span class="fw-bold text-success">${formatter.format(vtaDir.utilidad || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Descuento:</span> <span class="fw-bold text-danger">${formatter.format(vtaDir.descuento || 0)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between"><span>Cobro Efectivo:</span> <span class="fw-bold text-success">${formatter.format(vtaDir.efectivo || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Cobro Tarjeta:</span> <span class="fw-bold text-primary">${formatter.format(vtaDir.tarjeta || 0)}</span></div>
+                    </div>
+                `;
+                updateTooltip('tooltip-ventas-directas', vtaDirHtml);
+
+                const aptLiq = dV.apartado || {};
+                const aptLiqHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 230px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose Apartados Liquidados:</strong>
+                        <div class="d-flex justify-content-between"><span>Monto Total:</span> <span class="fw-bold">${formatter.format(aptLiq.monto || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Cantidad:</span> <span class="fw-bold">${numberFormatter.format(aptLiq.cantidad || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Utilidad:</span> <span class="fw-bold text-success">${formatter.format(aptLiq.utilidad || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Descuento:</span> <span class="fw-bold text-danger">${formatter.format(aptLiq.descuento || 0)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between"><span>Cobro Efectivo:</span> <span class="fw-bold text-success">${formatter.format(aptLiq.efectivo || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Cobro Tarjeta:</span> <span class="fw-bold text-primary">${formatter.format(aptLiq.tarjeta || 0)}</span></div>
+                    </div>
+                `;
+                updateTooltip('tooltip-apartados-liquidados', aptLiqHtml);
+
+                const credLiq = dV.credito || {};
+                const credLiqHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 230px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose Créditos Liquidados:</strong>
+                        <div class="d-flex justify-content-between"><span>Monto Total:</span> <span class="fw-bold">${formatter.format(credLiq.monto || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Cantidad:</span> <span class="fw-bold">${numberFormatter.format(credLiq.cantidad || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Utilidad:</span> <span class="fw-bold text-success">${formatter.format(credLiq.utilidad || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Descuento:</span> <span class="fw-bold text-danger">${formatter.format(credLiq.descuento || 0)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between"><span>Cobro Efectivo:</span> <span class="fw-bold text-success">${formatter.format(credLiq.efectivo || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Cobro Tarjeta:</span> <span class="fw-bold text-primary">${formatter.format(credLiq.tarjeta || 0)}</span></div>
+                    </div>
+                `;
+                updateTooltip('tooltip-creditos-liquidados', credLiqHtml);
+
+                // 2. Contratos Tooltip
+                const contHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 250px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Contratos:</strong>
+                        <span class="text-muted small fw-bold">POR TIPO DE TRANSACCIÓN</span>
+                        <div class="d-flex justify-content-between"><span>Ventas Directas:</span> <span class="fw-bold">${numberFormatter.format(dV.venta ? dV.venta.cantidad : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Apartados Liquidados:</span> <span class="fw-bold">${numberFormatter.format(dV.apartado ? dV.apartado.cantidad : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Créditos Liquidados:</span> <span class="fw-bold">${numberFormatter.format(dV.credito ? dV.credito.cantidad : 0)}</span></div>
+                        <hr class="my-1">
+                        <span class="text-muted small fw-bold">POR FAMILIA DE PRENDA</span>
+                        <div class="d-flex justify-content-between"><span>Oro:</span> <span class="fw-bold">${numberFormatter.format(dF.Oro ? dF.Oro.cantidad : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Varios:</span> <span class="fw-bold">${numberFormatter.format(dF.Varios ? dF.Varios.cantidad : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Autos:</span> <span class="fw-bold">${numberFormatter.format(dF.Autos ? dF.Autos.cantidad : 0)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>TOTAL CONTRATOS</span> <span class="text-info">${numberFormatter.format(data.totalTickets || 0)}</span></div>
+                    </div>
+                `;
+                updateTooltip('tooltip-total-tickets', contHtml);
+
+                // 3. Utilidad Venta Tooltip
+                const utilHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 250px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Utilidad:</strong>
+                        <span class="text-muted small fw-bold">POR TIPO DE TRANSACCIÓN</span>
+                        <div class="d-flex justify-content-between"><span>Ventas Directas:</span> <span class="fw-bold">${formatter.format(dV.venta ? dV.venta.utilidad : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Apartados Liquidados:</span> <span class="fw-bold">${formatter.format(dV.apartado ? dV.apartado.utilidad : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Créditos Liquidados:</span> <span class="fw-bold">${formatter.format(dV.credito ? dV.credito.utilidad : 0)}</span></div>
+                        <hr class="my-1">
+                        <span class="text-muted small fw-bold">POR FAMILIA DE PRENDA</span>
+                        <div class="d-flex justify-content-between"><span>Oro:</span> <span class="fw-bold">${formatter.format(dF.Oro ? dF.Oro.utilidad : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Varios:</span> <span class="fw-bold">${formatter.format(dF.Varios ? dF.Varios.utilidad : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Autos:</span> <span class="fw-bold">${formatter.format(dF.Autos ? dF.Autos.utilidad : 0)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>UTILIDAD TOTAL</span> <span class="text-primary">${formatter.format(data.utilidadBruta || 0)}</span></div>
+                    </div>
+                `;
+                updateTooltip('tooltip-utilidad-bruta', utilHtml);
+
+                // 4. Total en Descuentos Tooltip
+                const descHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 250px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Descuentos:</strong>
+                        <span class="text-muted small fw-bold">POR TIPO DE TRANSACCIÓN</span>
+                        <div class="d-flex justify-content-between"><span>Ventas Directas:</span> <span class="fw-bold">${formatter.format(dV.venta ? dV.venta.descuento : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Apartados Liquidados:</span> <span class="fw-bold">${formatter.format(dV.apartado ? dV.apartado.descuento : 0)}</span></div>
+                        <hr class="my-1">
+                        <span class="text-muted small fw-bold">POR FAMILIA DE PRENDA</span>
+                        <div class="d-flex justify-content-between"><span>Oro:</span> <span class="fw-bold">${formatter.format(dF.Oro ? dF.Oro.descuento : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Varios:</span> <span class="fw-bold">${formatter.format(dF.Varios ? dF.Varios.descuento : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Autos:</span> <span class="fw-bold">${formatter.format(dF.Autos ? dF.Autos.descuento : 0)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>DESCUENTOS TOTALES</span> <span class="text-warning">${formatter.format(data.montoDescuentoTotal || 0)}</span></div>
+                    </div>
+                `;
+                updateTooltip('tooltip-descuento-total', descHtml);
+
+                // 5. Efectivo / Tarjeta Tooltip
+                const pagosHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 250px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose por Medio de Pago:</strong>
+                        <span class="text-success small fw-bold">EFECTIVO POR ORIGEN</span>
+                        <div class="d-flex justify-content-between"><span>Ventas Directas:</span> <span class="fw-bold">${formatter.format(dV.venta ? dV.venta.efectivo : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Apartados:</span> <span class="fw-bold">${formatter.format(dV.apartado ? dV.apartado.efectivo : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Créditos:</span> <span class="fw-bold">${formatter.format(dV.credito ? dV.credito.efectivo : 0)}</span></div>
+                        <hr class="my-1">
+                        <span class="text-primary small fw-bold">TARJETA POR ORIGEN</span>
+                        <div class="d-flex justify-content-between"><span>Ventas Directas:</span> <span class="fw-bold">${formatter.format(dV.venta ? dV.venta.tarjeta : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Apartados:</span> <span class="fw-bold">${formatter.format(dV.apartado ? dV.apartado.tarjeta : 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Créditos:</span> <span class="fw-bold">${formatter.format(dV.credito ? dV.credito.tarjeta : 0)}</span></div>
+                    </div>
+                `;
+                updateTooltip('tooltip-pagos-metodos', pagosHtml);
+
                 // Tablas Top Artículos - Importe
                 const tbodyImporte = document.getElementById('top-articulos-importe');
+                tbodyImporte.innerHTML = '';
                 if (data.topArticulosImporte && data.topArticulosImporte.length > 0) {
-                    let tableHtml = '';
                     data.topArticulosImporte.forEach(item => {
-                        tableHtml += `
-                                                <tr>
-                                                    <td class="ps-4 py-3 fw-bold text-dark">${item.nombre}</td>
-                                                    <td class="py-3 text-end">${numberFormatter.format(item.cantidad)}</td>
-                                                    <td class="pe-4 py-3 text-end fw-bold text-primary">${formatter.format(item.ventas)}</td>
-                                                </tr>
-                                            `;
+                        const tr = document.createElement('tr');
+                        const codPrenda = item.cod_prenda;
+                        if (codPrenda) {
+                            tr.className = 'cursor-pointer';
+                            tr.title = 'Haz clic para ver marcas';
+                            tr.innerHTML = `
+                                <td class="ps-4 py-3 fw-bold text-dark">
+                                    <i class="bi bi-info-circle text-primary me-1"></i> ${escapeHtml(item.nombre)}
+                                </td>
+                                <td class="py-3 text-end">${numberFormatter.format(item.cantidad)}</td>
+                                <td class="pe-4 py-3 text-end fw-bold text-primary">${formatter.format(item.ventas)}</td>
+                            `;
+                            tr.addEventListener('click', function() {
+                                mostrarMarcas(codPrenda, item.nombre);
+                            });
+                        } else {
+                            tr.innerHTML = `
+                                <td class="ps-4 py-3 fw-bold text-dark">${escapeHtml(item.nombre)}</td>
+                                <td class="py-3 text-end">${numberFormatter.format(item.cantidad)}</td>
+                                <td class="pe-4 py-3 text-end fw-bold text-primary">${formatter.format(item.ventas)}</td>
+                            `;
+                        }
+                        tbodyImporte.appendChild(tr);
                     });
-                    tbodyImporte.innerHTML = tableHtml;
                 } else {
                     tbodyImporte.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Sin datos</td></tr>';
                 }
 
                 // Tablas Top Artículos - Margen
                 const tbodyMargen = document.getElementById('top-articulos-margen');
+                tbodyMargen.innerHTML = '';
                 if (data.topArticulosMargen && data.topArticulosMargen.length > 0) {
-                    let tableHtml = '';
                     data.topArticulosMargen.forEach(item => {
-                        tableHtml += `
-                                                <tr>
-                                                    <td class="ps-4 py-3 fw-bold text-dark">${item.nombre}</td>
-                                                    <td class="py-3 text-end text-success">${formatter.format(item.utilidad)}</td>
-                                                    <td class="pe-4 py-3 text-end fw-bold">${(item.margen_prc || 0).toFixed(1)}%</td>
-                                                </tr>
-                                            `;
+                        const tr = document.createElement('tr');
+                        const codPrenda = item.cod_prenda;
+                        if (codPrenda) {
+                            tr.className = 'cursor-pointer';
+                            tr.title = 'Haz clic para ver marcas';
+                            tr.innerHTML = `
+                                <td class="ps-4 py-3 fw-bold text-dark">
+                                    <i class="bi bi-info-circle text-primary me-1"></i> ${escapeHtml(item.nombre)}
+                                </td>
+                                <td class="py-3 text-end text-success">${formatter.format(item.utilidad)}</td>
+                                <td class="pe-4 py-3 text-end fw-bold">${(item.margen_prc || 0).toFixed(1)}%</td>
+                            `;
+                            tr.addEventListener('click', function() {
+                                mostrarMarcas(codPrenda, item.nombre);
+                            });
+                        } else {
+                            tr.innerHTML = `
+                                <td class="ps-4 py-3 fw-bold text-dark">${escapeHtml(item.nombre)}</td>
+                                <td class="py-3 text-end text-success">${formatter.format(item.utilidad)}</td>
+                                <td class="pe-4 py-3 text-end fw-bold">${(item.margen_prc || 0).toFixed(1)}%</td>
+                            `;
+                        }
+                        tbodyMargen.appendChild(tr);
                     });
-                    tbodyMargen.innerHTML = tableHtml;
                 } else {
                     tbodyMargen.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Sin datos</td></tr>';
                 }
@@ -524,6 +908,75 @@
                         }
                     }
                 });
+            }
+
+            function escapeHtml(str) {
+                if (!str) return '';
+                return str.replace(/&/g, '&amp;')
+                          .replace(/</g, '&lt;')
+                          .replace(/>/g, '&gt;')
+                          .replace(/"/g, '&quot;')
+                          .replace(/'/g, '&#039;');
+            }
+
+            function mostrarMarcas(codPrenda, prendaNombre) {
+                if (!codPrenda) return;
+                const modalElement = document.getElementById('modalMarcas');
+                const tbody = document.getElementById('tbody-marcas-top');
+                const subtitle = document.getElementById('modal-subtitle');
+                const label = document.getElementById('modalMarcasLabel');
+                
+                if (!modalElement || !tbody) return;
+
+                label.innerHTML = `<i class="bi bi-tag-fill me-2"></i> Top 10 Marcas: ${escapeHtml(prendaNombre)}`;
+                subtitle.innerText = `Mostrando las marcas con más operaciones de venta en el período.`;
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando...</td></tr>';
+                
+                // Mostrar modal
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
+
+                const sucursalId = document.getElementById('sucursal_id').value;
+                const fechaInicio = document.getElementById('fecha_inicio').value;
+                const fechaFin = document.getElementById('fecha_fin').value;
+
+                const params = new URLSearchParams({
+                    cod_prenda: codPrenda,
+                    sucursal_id: sucursalId,
+                    fecha_inicio: fechaInicio,
+                    fecha_fin: fechaFin
+                }).toString();
+
+                fetch(`{{ route('ventas.top-marcas') }}?${params}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        tbody.innerHTML = '';
+                        if (!data || data.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-4">No se encontraron marcas registradas para este artículo.</td></tr>`;
+                            return;
+                        }
+                        data.forEach((item, index) => {
+                            const tr = document.createElement('tr');
+                            let badgeClass = 'bg-secondary';
+                            if (index === 0) badgeClass = 'bg-warning text-dark';
+                            else if (index === 1) badgeClass = 'bg-light text-dark border';
+                            else if (index === 2) badgeClass = 'bg-danger text-white';
+                            
+                            tr.innerHTML = `
+                                <td>
+                                    <span class="badge ${badgeClass} rounded-pill me-2" style="width: 24px; display: inline-block; text-align: center;">${index + 1}</span>
+                                    <span class="fw-semibold text-dark">${escapeHtml(item.marca || 'Desconocido')}</span>
+                                </td>
+                                <td class="text-center fw-bold">${numberFormatter.format(item.total)}</td>
+                                <td class="text-end text-primary fw-bold">${formatter.format(item.monto)}</td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    })
+                    .catch(err => {
+                        console.error("Error cargando marcas:", err);
+                        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-4">Error al cargar marcas</td></tr>`;
+                    });
             }
         });
     </script>

@@ -195,7 +195,7 @@
     <!-- NUEVA FILA: Utilidad Bruta y Operativa -->
     <div class="row mb-4">
         <!-- Utilidad Bruta -->
-        <div class="col-12 col-xl-4 mb-3">
+        <div class="col-12 col-xl-3 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
@@ -218,7 +218,7 @@
         </div>
 
         <!-- Utilidad Operativa -->
-        <div class="col-12 col-xl-4 mb-3">
+        <div class="col-12 col-xl-3 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
@@ -234,9 +234,25 @@
                 </div>
             </div>
         </div>
-
+        <!-- Fundición -->
+        <div class="col-12 col-xl-3 mb-3">
+                    <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                    <span class="metric-tooltip" title="Total de prendas enviadas a fundición (salidas de inventario)">Salida Por Fundición</span>
+                                </h6>
+                                <div class="icon-shape bg-light-danger text-danger">
+                                    <i class="bi bi-fire"></i>
+                                </div>
+                            </div>
+                            <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-fundicion">$ 0.00</h2>
+                            <span class="text-muted small" id="kpi-fundicion-registros">0 Registro(s)</span>
+                        </div>
+                    </div>
+                </div>
         <!-- Flujo Operación (Salida) -->
-        <div class="col-12 col-xl-4 mb-3">
+        <div class="col-12 col-xl-3 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
@@ -251,7 +267,7 @@
                     <span class="text-muted small">Considerada salida</span>
                 </div>
             </div>
-        </div>
+        </div>        
     </div>
 
     <!-- Tarjeta de Costo de Ventas
@@ -414,7 +430,7 @@
                         </div>
                         <div>
                             <h6 class="text-muted text-uppercase fw-bold ls-1 mb-1">
-                                <span class="metric-tooltip" title="Nuevos préstamos otorgados en el período">Empeños Nuevos</span>
+                                <span class="metric-tooltip" id="tooltip-empenos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de empeños...">Empeños Nuevos</span>
                             </h6>
                             <h4 class="fw-bold text-dark mb-0" id="kpi-empeno">$ 0.00</h4>
                             <small class="text-muted" id="kpi-empeno-contratos">0 Contratos</small>
@@ -452,10 +468,9 @@
                         </div>
                         <div>
                             <h6 class="text-muted text-uppercase fw-bold ls-1 mb-1">
-                                <span class="metric-tooltip" title="Ventas de contado + ventas de apartados">Ventas Totales</span>
+                                <span class="metric-tooltip" id="tooltip-ventas" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de ventas...">Ventas Totales</span>
                             </h6>
                             <h4 class="fw-bold text-dark mb-0" id="kpi-ventas">$ 0.00</h4>
-                            <span class="text-muted small">Oro, Varios</span>
                         </div>
                     </div>
                 </div>
@@ -913,14 +928,58 @@
                 const ventasTotales = data.ventasTotales || 0;
                 const transaccionesVentas = data.transaccionesVentas || 0;
                 updateElementText('kpi-ventas', formatter.format(ventasTotales));
-                updateElementText('kpi-ventas-oro', formatter.format(data.ventasOro || 0));
-                updateElementText('kpi-ventas-varios', formatter.format(data.ventasVarios || 0));
-                updateElementText('kpi-ventas-remate', formatter.format(data.ventasRemate || 0));
+
+                // Construir tooltip de Ventas Totales
+                const tooltipVentasEl = document.getElementById('tooltip-ventas');
+                if (tooltipVentasEl) {
+                    let tooltipHtmlVentas = `
+                        <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                            <strong class="d-block mb-1 border-bottom pb-1">Desglose de Ventas:</strong>
+                            <div class="d-flex justify-content-between"><span>Mercancía General:</span> <span class="fw-bold">${formatter.format(data.ventasVarios || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Oro:</span> <span class="fw-bold">${formatter.format(data.ventasOro || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Plata:</span> <span class="fw-bold">${formatter.format(data.ventasPlata || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Autos:</span> <span class="fw-bold">${formatter.format(data.ventasAutos || 0)}</span></div>
+                        </div>
+                    `;
+                    // Limpiar tooltip viejo si existe
+                    const existingTooltipVentas = bootstrap.Tooltip.getInstance(tooltipVentasEl);
+                    if (existingTooltipVentas) { existingTooltipVentas.dispose(); }
+                    
+                    tooltipVentasEl.setAttribute('data-bs-original-title', tooltipHtmlVentas);
+                    tooltipVentasEl.setAttribute('title', tooltipHtmlVentas);
+                    new bootstrap.Tooltip(tooltipVentasEl, { html: true, placement: 'top' });
+                }
+
+                // Construir tooltip de Empeños Nuevos
+                const tooltipEmpenosEl = document.getElementById('tooltip-empenos');
+                if (tooltipEmpenosEl) {
+                    let tooltipHtmlEmpenos = `
+                        <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                            <strong class="d-block mb-1 border-bottom pb-1">Desglose de Empeños:</strong>
+                            <div class="d-flex justify-content-between"><span>Mercancía General:</span> <span class="fw-bold">${formatter.format(data.empenosVarios || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Oro:</span> <span class="fw-bold">${formatter.format(data.empenosOro || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Plata:</span> <span class="fw-bold">${formatter.format(data.empenosPlata || 0)}</span></div>
+                            <div class="d-flex justify-content-between"><span>Autos:</span> <span class="fw-bold">${formatter.format(data.empenosAutos || 0)}</span></div>
+                        </div>
+                    `;
+                    // Limpiar tooltip viejo si existe
+                    const existingTooltipEmpenos = bootstrap.Tooltip.getInstance(tooltipEmpenosEl);
+                    if (existingTooltipEmpenos) { existingTooltipEmpenos.dispose(); }
+                    
+                    tooltipEmpenosEl.setAttribute('data-bs-original-title', tooltipHtmlEmpenos);
+                    tooltipEmpenosEl.setAttribute('title', tooltipHtmlEmpenos);
+                    new bootstrap.Tooltip(tooltipEmpenosEl, { html: true, placement: 'top' });
+                }
 
                 const apartadosLiquidados = data.detalleIngresos?.apartados_liquidados || 0;
                 const contratosApartados = data.contratosApartados || 0;
                 updateElementText('kpi-apartados-liquidados', formatter.format(apartadosLiquidados));
                 updateElementText('kpi-apartados-contratos', `${numberFormatter.format(contratosApartados)} Contratos`);
+
+                const fundicionTotal = data.fundicion || 0;
+                const fundicionRegistros = data.fundicionRegistros || 0;
+                updateElementText('kpi-fundicion', formatter.format(fundicionTotal));
+                updateElementText('kpi-fundicion-registros', `${numberFormatter.format(fundicionRegistros)} Registro(s)`);
 
                 // Indicadores Financieros
                 if (data.balanceGeneral) {

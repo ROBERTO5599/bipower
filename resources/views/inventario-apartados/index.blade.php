@@ -60,6 +60,8 @@
             transform: translateY(-5px);
             box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
         }
+        .table-ranking th { font-weight: 600; text-transform: uppercase; font-size: 0.8rem; color: #6c757d; }
+        .table-ranking td { font-size: 0.9rem; vertical-align: middle; }
     </style>
 @endsection
 
@@ -195,28 +197,51 @@
         </div>
     </div>
 
-    <!-- ========== TOP ARTÍCULOS MÁS ANTIGUOS ========== -->
+    <!-- ========== RANKINGS DE APARTADOS ========== -->
     <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0 rounded-3">
-                <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0">Ranking: Artículos con mayor tiempo en Apartado</h5>
+        <!-- Ranking Más Apartados -->
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                    <h5 class="fw-bold"><i class="bi bi-arrow-up-circle-fill text-success me-2"></i> Top 5 Artículos más Apartados</h5>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light">
+                        <table class="table table-hover table-ranking mb-0">
+                            <thead>
                                 <tr>
-                                    <th class="ps-4 py-3">Artículo</th>
-                                    <th class="py-3">Familia</th>
-                                    <th class="py-3">Tipo</th>
-                                    <th class="py-3">Sucursal</th>
-                                    <th class="py-3 text-end">Precio Apartado</th>
-                                    <th class="pe-4 py-3 text-center">Días Transcurridos</th>
+                                    <th>Artículo</th>
+                                    <th class="text-center">Apartados</th>
+                                    <th class="text-end">Monto Total</th>
                                 </tr>
                             </thead>
-                            <tbody id="top-articulos-body">
-                                <tr><td colspan="6" class="text-center text-muted py-4">Cargando datos...</td></tr>
+                            <tbody id="tbody-mas-apartados">
+                                <tr><td colspan="3" class="text-center text-muted py-3">Cargando datos...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ranking Menos Apartados -->
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                    <h5 class="fw-bold"><i class="bi bi-arrow-down-circle-fill text-danger me-2"></i> Top 5 Artículos menos Apartados</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-ranking mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Artículo</th>
+                                    <th class="text-center">Apartados</th>
+                                    <th class="text-end">Monto Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-menos-apartados">
+                                <tr><td colspan="3" class="text-center text-muted py-3">Cargando datos...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -224,7 +249,39 @@
             </div>
         </div>
     </div>
-</div>
+
+    <!-- Modal de Marcas -->
+    <div class="modal fade" id="modalMarcas" tabindex="-1" aria-labelledby="modalMarcasLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 rounded-3">
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold" id="modalMarcasLabel">
+                        <i class="bi bi-tag-fill me-2"></i> Top 10 Marcas
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3 text-muted" id="modal-subtitle" style="font-size: 0.9rem;">
+                        Mostrando las marcas más operadas para este artículo en apartado.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-uppercase text-muted small fw-bold">Marca</th>
+                                    <th class="text-uppercase text-muted small fw-bold text-center">Operaciones</th>
+                                    <th class="text-uppercase text-muted small fw-bold text-end">Monto Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-marcas-top">
+                                <!-- Filas dinámicas -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div></div>
 
 @endsection
 
@@ -363,35 +420,9 @@
                 new bootstrap.Tooltip(tooltipInventarioEl, { html: true, placement: 'top' });
             }
 
-            // Tabla de artículos añejos
-            const tbody = document.getElementById('top-articulos-body');
-            if (data.topArticulosAnejos && data.topArticulosAnejos.length > 0) {
-                let tableHtml = '';
-                data.topArticulosAnejos.forEach(item => {
-                    let badgeClass = item.dias > 90 ? 'bg-danger' : (item.dias > 60 ? 'bg-warning text-dark' : 'bg-secondary');
-                    let tipoBadge = '';
-                    if (item.tipo === 'ALHAJA') tipoBadge = '<span class="badge bg-primary badge-tipo">Alhaja</span>';
-                    else if (item.tipo === 'VARIOS') tipoBadge = '<span class="badge bg-info badge-tipo">Varios</span>';
-                    else if (item.tipo === 'AUTO') tipoBadge = '<span class="badge bg-success badge-tipo">Auto</span>';
-                    else tipoBadge = '<span class="badge bg-secondary badge-tipo">N/A</span>';
-                    
-                    tableHtml += `
-                        <tr>
-                            <td class="ps-4 py-3 fw-bold text-dark">${escapeHtml(item.articulo || item.id)}</td>
-                            <td class="py-3 text-muted">${escapeHtml(item.familia || '')}</td>
-                            <td class="py-3">${tipoBadge}</td>
-                            <td class="py-3">${escapeHtml(item.sucursal || '')}</td>
-                            <td class="py-3 text-end fw-bold text-success">${formatter.format(item.valor || 0)}</td>
-                            <td class="pe-4 py-3 text-center">
-                                <span class="badge ${badgeClass} rounded-pill px-3 py-2">${item.dias || 0} días</span>
-                            </td>
-                        </tr>
-                    `;
-                });
-                tbody.innerHTML = tableHtml;
-            } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No hay artículos para mostrar</td></tr>';
-            }
+            // Rankings de Más/Menos Apartados
+            buildRankingTableRows('tbody-mas-apartados', data.topMasApartados);
+            buildRankingTableRows('tbody-menos-apartados', data.topMenosApartados);
 
             // Gráficos
             if (data.chartDistribucionAntiguedad) {
@@ -483,6 +514,104 @@
                     }
                 }
             });
+        }
+
+        function buildRankingTableRows(tableId, dataList) {
+            const tbody = document.getElementById(tableId);
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            if (!dataList || dataList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3">No hay datos disponibles</td></tr>`;
+                return;
+            }
+
+            dataList.forEach(item => {
+                const tr = document.createElement('tr');
+                const codPrenda = item.cod_prenda;
+                
+                if (codPrenda) {
+                    tr.className = 'cursor-pointer';
+                    tr.title = 'Haz clic para ver marcas';
+                    tr.innerHTML = `
+                        <td class="text-truncate fw-semibold text-dark" style="max-width: 250px;" title="${escapeHtml(item.articulo)}">
+                            <i class="bi bi-info-circle text-primary me-1"></i> ${escapeHtml(item.articulo)}
+                        </td>
+                        <td class="text-center fw-bold">${item.total}</td>
+                        <td class="text-end text-primary fw-bold">${formatter.format(item.monto)}</td>
+                    `;
+                    tr.addEventListener('click', function() {
+                        mostrarMarcas(codPrenda, item.articulo);
+                    });
+                } else {
+                    tr.innerHTML = `
+                        <td class="text-truncate" style="max-width: 250px;" title="${escapeHtml(item.articulo)}">${escapeHtml(item.articulo)}</td>
+                        <td class="text-center fw-bold">${item.total}</td>
+                        <td class="text-end text-primary fw-bold">${formatter.format(item.monto)}</td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        function mostrarMarcas(codPrenda, articulo) {
+            if (!codPrenda) return;
+            const modalElement = document.getElementById('modalMarcas');
+            const tbody = document.getElementById('tbody-marcas-top');
+            const subtitle = document.getElementById('modal-subtitle');
+            const label = document.getElementById('modalMarcasLabel');
+            
+            if (!modalElement || !tbody) return;
+
+            label.innerHTML = `<i class="bi bi-tag-fill me-2"></i> Top 10 Marcas: ${escapeHtml(articulo)}`;
+            subtitle.innerText = `Mostrando las marcas con más apartados en el período.`;
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando...</td></tr>';
+            
+            // Mostrar modal
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+
+            const sucursalId = document.getElementById('sucursal_id').value;
+            const fechaInicio = document.getElementById('fecha_inicio').value;
+            const fechaFin = document.getElementById('fecha_fin').value;
+
+            const params = new URLSearchParams({
+                cod_prenda: codPrenda,
+                sucursal_id: sucursalId,
+                fecha_inicio: fechaInicio,
+                fecha_fin: fechaFin
+            }).toString();
+
+            fetch(`{{ route('inventario-apartados.top-marcas') }}?${params}`)
+                .then(r => r.json())
+                .then(data => {
+                    tbody.innerHTML = '';
+                    if (!data || data.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-4">No se encontraron marcas registradas para este artículo.</td></tr>`;
+                        return;
+                    }
+                    data.forEach((item, index) => {
+                        const tr = document.createElement('tr');
+                        let badgeClass = 'bg-secondary';
+                        if (index === 0) badgeClass = 'bg-warning text-dark';
+                        else if (index === 1) badgeClass = 'bg-light text-dark border';
+                        else if (index === 2) badgeClass = 'bg-danger text-white';
+                        
+                        tr.innerHTML = `
+                            <td>
+                                <span class="badge ${badgeClass} rounded-pill me-2" style="width: 24px; display: inline-block; text-align: center;">${index + 1}</span>
+                                <span class="fw-semibold text-dark">${escapeHtml(item.marca || 'Desconocido')}</span>
+                            </td>
+                            <td class="text-center fw-bold">${item.total}</td>
+                            <td class="text-end text-primary fw-bold">${formatter.format(item.monto)}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(err => {
+                    console.error("Error cargando marcas:", err);
+                    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-4">Error al cargar marcas</td></tr>`;
+                });
         }
 
         function escapeHtml(str) {

@@ -29,7 +29,7 @@ class InventarioApartadosController extends Controller
         $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
         
         if ($sucursalId) {
-            $sucursalesSeleccionadas = $sucursales->where('id_valora_mas', $sucursalId);
+            $sucursalesSeleccionadas = $sucursales->filter(fn($s) => (string)$s->id_valora_mas === (string)$sucursalId);
         } else {
             $sucursalesSeleccionadas = $sucursales;
         }
@@ -45,11 +45,11 @@ class InventarioApartadosController extends Controller
         $remateGlobal = 0;
         $totalArticulos = 0;
         $chartSucursales = ['labels' => [], 'valores' => [], 'antiguedad' => []];
-        $topArticulosAnejos = [];
         $chartDistribucionAntiguedadData = [
             'data_oro' => [0, 0, 0, 0],
             'data_varios' => [0, 0, 0, 0]
         ];
+        $rankingsApartados = [];
 
         foreach ($sucursalesSeleccionadas as $sucursal) {
             $dbName = 'sistema_prendario_' . $sucursal->id_valora_mas;
@@ -165,7 +165,10 @@ class InventarioApartadosController extends Controller
                 $sucCount = 0;
 
                 foreach ($items as $item) {
-                    $dias = $item->fecha ? $fechaFiltro->diffInDays($item->fecha) : 0;
+                    $dias = 0;
+                    if ($item->fecha) {
+                        $dias = (int) $fechaFiltro->diffInDays(\Carbon\Carbon::parse($item->fecha), true);
+                    }
                     $valor = (float) $item->prestamo;
 
                     $inventarioSucursal += $valor;
@@ -185,17 +188,6 @@ class InventarioApartadosController extends Controller
                         elseif ($dias <= 90) $chartDistribucionAntiguedadData['data_varios'][2]++;
                         else $chartDistribucionAntiguedadData['data_varios'][3]++;
                     }
-
-                    // Top Artículos
-                    $topArticulosAnejos[] = [
-                        'articulo' => $item->id,
-                        'id' => $item->id,
-                        'familia' => $item->categoria,
-                        'tipo' => $item->tipo,
-                        'sucursal' => $sucursal->nombre,
-                        'valor' => $valor,
-                        'dias' => $dias
-                    ];
                 }
 
                 $totalInventario += $inventarioSucursal;
@@ -311,7 +303,60 @@ class InventarioApartadosController extends Controller
                 $liquidacionMontoGlobal += (float) ($liquidaciones->total_liquidacion ?? 0);
                 Log::info("LIQUIDACION tipo12 - {$sucursal->nombre}: " . ($liquidaciones->total_liquidacion ?? 0));
 
-                // ========== 5. Gráfico por sucursal ==========
+                // ========== 5. Rankings de artículos más / menos apartados ==========
+                $topApartadosQuery = DB::connection($connectionName)->select("
+                    SELECT cod_prenda, articulo, SUM(total_movs) as total_movs, SUM(monto) as monto
+                    FROM (
+                        SELECT pre.cod_prenda, pre.prenda as articulo, COUNT(DISTINCT ap.cod_apartado) as total_movs, SUM(da.precio) as monto
+                        FROM apartados ap
+                        INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                        INNER JOIN alhajas al ON al.cod_alhaja = da.cod_prenda AND ap.cod_tipo_prenda = 1
+                        INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1
+                        WHERE ap.f_apartado BETWEEN :fIni1 AND :fFin1
+                        GROUP BY pre.cod_prenda, pre.prenda
+
+                        UNION ALL
+
+                        SELECT pre.cod_prenda, pre.prenda as articulo, COUNT(DISTINCT ap.cod_apartado) as total_movs, SUM(da.precio) as monto
+                        FROM apartados ap
+                        INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                        INNER JOIN varios va ON va.cod_varios = da.cod_prenda AND ap.cod_tipo_prenda = 3
+                        INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda AND pre.cod_tipo_prenda = 3
+                        WHERE ap.f_apartado BETWEEN :fIni2 AND :fFin2
+                        GROUP BY pre.cod_prenda, pre.prenda
+
+                        UNION ALL
+
+                        SELECT pre.cod_prenda, pre.prenda as articulo, COUNT(DISTINCT ap.cod_apartado) as total_movs, SUM(da.precio) as monto
+                        FROM apartados ap
+                        INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                        INNER JOIN autos au ON au.cod_auto = da.cod_prenda AND ap.cod_tipo_prenda = 2
+                        INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
+                        WHERE ap.f_apartado BETWEEN :fIni3 AND :fFin3
+                        GROUP BY pre.cod_prenda, pre.prenda
+                    ) as t
+                    GROUP BY cod_prenda, articulo
+                ", [
+                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFinSiguiente,
+                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFinSiguiente,
+                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFinSiguiente
+                ]);
+
+                foreach ($topApartadosQuery as $row) {
+                    $key = $row->cod_prenda . '_' . $row->articulo;
+                    if (!isset($rankingsApartados[$key])) {
+                        $rankingsApartados[$key] = [
+                            'cod_prenda' => $row->cod_prenda,
+                            'articulo' => $row->articulo,
+                            'total' => 0,
+                            'monto' => 0
+                        ];
+                    }
+                    $rankingsApartados[$key]['total'] += (int)$row->total_movs;
+                    $rankingsApartados[$key]['monto'] += (float)$row->monto;
+                }
+
+                // ========== 6. Gráfico por sucursal ==========
                 $chartSucursales['labels'][] = $sucursal->nombre;
                 $chartSucursales['valores'][] = $inventarioSucursal;
                 $chartSucursales['antiguedad'][] = $sucCount > 0 ? $sucDias / $sucCount : 0;
@@ -327,9 +372,27 @@ class InventarioApartadosController extends Controller
         $totalEgresos = $liquidacionMontoGlobal + $remateGlobal;
         $inventarioApartadosNeto = $totalIngresos - $totalEgresos;
 
-        // Ordenar y limitar artículos añejos
-        usort($topArticulosAnejos, function($a, $b) { return $b['dias'] <=> $a['dias']; });
-        $topArticulosAnejos = array_slice($topArticulosAnejos, 0, 10);
+        // Ordenar y limitar rankings de artículos más / menos apartados
+        $rankingsMasApartados = $rankingsApartados;
+        usort($rankingsMasApartados, function($a, $b) {
+            if ($b['total'] === $a['total']) {
+                return $b['monto'] <=> $a['monto'];
+            }
+            return $b['total'] <=> $a['total'];
+        });
+        $topMasApartados = array_slice($rankingsMasApartados, 0, 5);
+
+        $rankingsMenosApartados = array_filter($rankingsApartados, function($item) {
+            return $item['total'] > 0;
+        });
+        usort($rankingsMenosApartados, function($a, $b) {
+            if ($a['total'] === $b['total']) {
+                return $b['monto'] <=> $a['monto'];
+            }
+            return $a['total'] <=> $b['total'];
+        });
+        $topMenosApartados = array_slice($rankingsMenosApartados, 0, 5);
+
 
         Log::info("========== RESULTADOS FINALES APARTADOS ==========");
         Log::info("Inventario Inicial: " . $inventarioInicialGlobal);
@@ -353,7 +416,8 @@ class InventarioApartadosController extends Controller
             'remate' => $remateGlobal,
             'valorVentaTotal' => $totalInventario,
             'cantidadTotal' => $totalArticulos,
-            'topArticulosAnejos' => $topArticulosAnejos,
+            'topMasApartados' => $topMasApartados,
+            'topMenosApartados' => $topMenosApartados,
             'chartDistribucionAntiguedad' => [
                 'labels' => ['0-30 días', '31-60 días', '61-90 días', '>90 días'],
                 'data_oro' => $chartDistribucionAntiguedadData['data_oro'],
@@ -361,5 +425,89 @@ class InventarioApartadosController extends Controller
             ],
             'chartValorAntiguedadSucursal' => $chartSucursales
         ]);
+    }
+
+    public function topMarcas(Request $request)
+    {
+        $codPrenda = $request->input('cod_prenda');
+        $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
+        $fechaFin = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
+        $sucursalId = $request->input('sucursal_id');
+
+        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        if ($sucursalId) {
+            $sucursalesSeleccionadas = $sucursales->where('id_valora_mas', $sucursalId);
+        } else {
+            $sucursalesSeleccionadas = $sucursales;
+        }
+
+        $baseConfig = Config::get('database.connections.mysql');
+        $rankingsMarcas = [];
+
+        foreach ($sucursalesSeleccionadas as $sucursal) {
+            $dbName = 'sistema_prendario_' . $sucursal->id_valora_mas;
+            $connectionName = 'dynamic_kpi_marcas_apartados_' . $sucursal->id_valora_mas;
+
+            try {
+                if ($baseConfig) {
+                    $config = $baseConfig;
+                    $config['database'] = $dbName;
+                    Config::set("database.connections.{$connectionName}", $config);
+                    DB::purge($connectionName);
+                } else {
+                    throw new \Exception("Base MySQL configuration not found.");
+                }
+
+                $topMarcasQ = DB::connection($connectionName)->select("
+                    SELECT mar.marca, SUM(t.total_movs) as total_movs, SUM(t.monto) as monto
+                    FROM (
+                        SELECT va.cod_marca, COUNT(DISTINCT ap.cod_apartado) as total_movs, SUM(da.precio) as monto
+                        FROM apartados ap
+                        INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                        INNER JOIN varios va ON va.cod_varios = da.cod_prenda AND ap.cod_tipo_prenda = 3
+                        WHERE ap.cod_tipo_prenda = 3
+                          AND va.cod_prenda = :codPrenda1
+                          AND ap.f_apartado BETWEEN :fIni1 AND :fFin1
+                        GROUP BY va.cod_marca
+                        
+                        UNION ALL
+                        
+                        SELECT au.cod_marca, COUNT(DISTINCT ap.cod_apartado) as total_movs, SUM(da.precio) as monto
+                        FROM apartados ap
+                        INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                        INNER JOIN autos au ON au.cod_auto = da.cod_prenda AND ap.cod_tipo_prenda = 2
+                        WHERE ap.cod_tipo_prenda = 2
+                          AND au.cod_prenda = :codPrenda2
+                          AND ap.f_apartado BETWEEN :fIni2 AND :fFin2
+                        GROUP BY au.cod_marca
+                    ) as t
+                    INNER JOIN marcas mar ON mar.cod_marca = t.cod_marca
+                    GROUP BY mar.marca
+                    ORDER BY total_movs DESC
+                ", [
+                    ':codPrenda1' => $codPrenda, ':fIni1' => $fechaInicio, ':fFin1' => $fechaFin,
+                    ':codPrenda2' => $codPrenda, ':fIni2' => $fechaInicio, ':fFin2' => $fechaFin
+                ]);
+
+                foreach ($topMarcasQ as $row) {
+                    $key = $row->marca;
+                    if (!isset($rankingsMarcas[$key])) {
+                        $rankingsMarcas[$key] = ['marca' => $key, 'total' => 0, 'monto' => 0];
+                    }
+                    $rankingsMarcas[$key]['total'] += (int)$row->total_movs;
+                    $rankingsMarcas[$key]['monto'] += (float)$row->monto;
+                }
+
+            } catch (\Exception $e) {
+                Log::error("Error top marcas apartados sucursal {$sucursal->nombre}: " . $e->getMessage());
+                continue;
+            }
+        }
+
+        // Ordenar y limitar al top 10
+        usort($rankingsMarcas, function($a, $b) { return $b['total'] <=> $a['total']; });
+        $rankingsMarcas = array_slice($rankingsMarcas, 0, 10);
+
+        return response()->json($rankingsMarcas);
     }
 }

@@ -41,6 +41,24 @@
             left: 0;
             z-index: 1000;
             transition: margin-left 0.3s ease;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.1);
+        }
+
+        /* Custom scrollbar for sidebar (WebKit browsers) */
+        #sidebar-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+        #sidebar-wrapper::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        #sidebar-wrapper::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 3px;
+        }
+        #sidebar-wrapper::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.45);
         }
 
         /* Contenido principal: Empujado a la derecha y ancho dinámico, ahora flex para footer sticky */
@@ -162,7 +180,7 @@
                     <i class="bi bi-house-fill me-2"></i>Inicio
                 </a>
                 <a href="{{ route('resumen-ejecutivo.index') }}" class="list-group-item list-group-item-action">
-                    <i class="bi bi-bar-chart-line me-2"></i>Flujo de Efectivo
+                    <i class="bi bi-bar-chart-line me-2"></i>Flujo de Opertivo
                 </a>
                 <a href="{{ route('operaciones-cartera.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-briefcase-fill me-2"></i>Movimiento de Inventario de Depositaria
@@ -199,6 +217,9 @@
                 </a>
                 <a href="{{ route('metas-forecast.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-bullseye me-2"></i>Metas y Forecast
+                </a>
+                <a href="{{ route('tablero-control.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-speedometer2 me-2"></i>Tablero de Control
                 </a>
                 <a class="list-group-item list-group-item-action" href="{{ route('logout') }}" onclick="event.preventDefault();
                                  document.getElementById('logout-form').submit();">
@@ -244,6 +265,19 @@
         <!-- /#page-content-wrapper -->
     </div>
     <!-- /#wrapper -->
+
+    <script>
+        // Sincronizar filtro de sucursal desde la sesión
+        document.addEventListener('DOMContentLoaded', function () {
+            const sucursalSelect = document.getElementById('sucursal_id');
+            if (sucursalSelect) {
+                const sessionSucursalId = @json(session('sucursal_id', ''));
+                if (sessionSucursalId !== null && sessionSucursalId !== '') {
+                    sucursalSelect.value = sessionSucursalId;
+                }
+            }
+        });
+    </script>
 
     @yield('scripts')
     <!-- Bootstrap JS -->

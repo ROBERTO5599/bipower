@@ -274,6 +274,39 @@
     </div>
 </div>
 
+<!-- Modal de Marcas -->
+<div class="modal fade" id="modalMarcas" tabindex="-1" aria-labelledby="modalMarcasLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-3">
+            <div class="modal-header bg-primary text-white border-0 py-3">
+                <h5 class="modal-title fw-bold" id="modalMarcasLabel">
+                    <i class="bi bi-tag-fill me-2"></i> Top 10 Marcas
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3 text-muted" id="modal-subtitle" style="font-size: 0.9rem;">
+                    Mostrando las marcas más financiadas para este artículo.
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-uppercase text-muted small fw-bold">Marca</th>
+                                <th class="text-uppercase text-muted small fw-bold text-center">Créditos</th>
+                                <th class="text-uppercase text-muted small fw-bold text-end">Saldo Deudor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-marcas-top">
+                            <!-- Filas dinámicas -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -425,13 +458,32 @@
 
             // Tabla de artículos añejos
             const tbody = document.getElementById('top-articulos-body');
+            tbody.innerHTML = '';
             if (data.topArticulosAnejos && data.topArticulosAnejos.length > 0) {
-                let tableHtml = '';
                 data.topArticulosAnejos.forEach(item => {
+                    const tr = document.createElement('tr');
+                    const codPrenda = item.cod_prenda;
                     let badgeClass = item.dias > 90 ? 'bg-danger' : (item.dias > 60 ? 'bg-warning text-dark' : 'bg-secondary');
                     
-                    tableHtml += `
-                        <tr>
+                    if (codPrenda) {
+                        tr.className = 'cursor-pointer';
+                        tr.title = 'Haz clic para ver marcas';
+                        tr.innerHTML = `
+                            <td class="ps-4 py-3 fw-bold text-dark">
+                                <i class="bi bi-info-circle text-primary me-1"></i> ${escapeHtml(item.articulo || item.id)}
+                            </td>
+                            <td class="py-3 text-muted">${escapeHtml(item.familia || '')}</td>
+                            <td class="py-3">${escapeHtml(item.sucursal || '')}</td>
+                            <td class="py-3 text-end fw-bold text-success">${formatter.format(item.valor || 0)}</td>
+                            <td class="pe-4 py-3 text-center">
+                                <span class="badge ${badgeClass} rounded-pill px-3 py-2">${item.dias || 0} días</span>
+                            </td>
+                        `;
+                        tr.addEventListener('click', function() {
+                            mostrarMarcas(codPrenda, item.articulo || item.id);
+                        });
+                    } else {
+                        tr.innerHTML = `
                             <td class="ps-4 py-3 fw-bold text-dark">${escapeHtml(item.articulo || item.id)}</td>
                             <td class="py-3 text-muted">${escapeHtml(item.familia || '')}</td>
                             <td class="py-3">${escapeHtml(item.sucursal || '')}</td>
@@ -439,10 +491,10 @@
                             <td class="pe-4 py-3 text-center">
                                 <span class="badge ${badgeClass} rounded-pill px-3 py-2">${item.dias || 0} días</span>
                             </td>
-                        </tr>
-                    `;
+                        `;
+                    }
+                    tbody.appendChild(tr);
                 });
-                tbody.innerHTML = tableHtml;
             } else {
                 tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No hay datos para mostrar</td></tr>';
             }
@@ -540,7 +592,63 @@
 
         function escapeHtml(str) {
             if (!str) return '';
-            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function mostrarMarcas(codPrenda, prendaNombre) {
+            if (!codPrenda) return;
+            const modalElement = document.getElementById('modalMarcas');
+            const tbodyMarcas = document.getElementById('tbody-marcas-top');
+            const subtitle = document.getElementById('modal-subtitle');
+            const label = document.getElementById('modalMarcasLabel');
+            
+            if (!modalElement || !tbodyMarcas) return;
+
+            label.innerHTML = `<i class="bi bi-tag-fill me-2"></i> Top 10 Marcas: ${escapeHtml(prendaNombre)}`;
+            subtitle.innerText = `Mostrando las marcas más financiadas para este artículo.`;
+            tbodyMarcas.innerHTML = '<tr><td colspan="3" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando...</td></tr>';
+            
+            // Mostrar modal
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+
+            const sucursalId = document.getElementById('sucursal_id').value;
+
+            const params = new URLSearchParams({
+                cod_prenda: codPrenda,
+                sucursal_id: sucursalId
+            }).toString();
+
+            fetch(`{{ route('inventario-credito.top-marcas') }}?${params}`)
+                .then(r => r.json())
+                .then(data => {
+                    tbodyMarcas.innerHTML = '';
+                    if (!data || data.length === 0) {
+                        tbodyMarcas.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-4">No se encontraron marcas registradas para este artículo.</td></tr>`;
+                        return;
+                    }
+                    data.forEach((item, index) => {
+                        const tr = document.createElement('tr');
+                        let badgeClass = 'bg-secondary';
+                        if (index === 0) badgeClass = 'bg-warning text-dark';
+                        else if (index === 1) badgeClass = 'bg-light text-dark border';
+                        else if (index === 2) badgeClass = 'bg-danger text-white';
+                        
+                        tr.innerHTML = `
+                            <td>
+                                <span class="badge ${badgeClass} rounded-pill me-2" style="width: 24px; display: inline-block; text-align: center;">${index + 1}</span>
+                                <span class="fw-semibold text-dark">${escapeHtml(item.marca || 'Desconocido')}</span>
+                            </td>
+                            <td class="text-center fw-bold">${numberFormatter.format(item.total)}</td>
+                            <td class="text-end text-primary fw-bold">${formatter.format(item.monto)}</td>
+                        `;
+                        tbodyMarcas.appendChild(tr);
+                    });
+                })
+                .catch(err => {
+                    console.error("Error cargando marcas:", err);
+                    tbodyMarcas.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-4">Error al cargar marcas</td></tr>`;
+                });
         }
     });
 </script>

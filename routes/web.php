@@ -1,3 +1,4 @@
+
 <?php
 
 use App\Http\Controllers\ProfileController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\GastosFinanzasController;
 use App\Http\Controllers\BancosController;
 use App\Http\Controllers\ColaboradoresController;
 use App\Http\Controllers\MetasForecastController;
+use App\Http\Controllers\TableroControlController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,18 +36,23 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/operaciones-cartera', [OperacionesCarteraController::class, 'index'])->name('operaciones-cartera.index');
     Route::get('/operaciones-cartera/data', [OperacionesCarteraController::class, 'data'])->name('operaciones-cartera.data');
+    Route::get('/operaciones-cartera/top-marcas', [OperacionesCarteraController::class, 'topMarcas'])->name('operaciones-cartera.top-marcas');
 
     Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
     Route::get('/ventas/data', [VentasController::class, 'data'])->name('ventas.data');
+    Route::get('/ventas/top-marcas', [VentasController::class, 'topMarcas'])->name('ventas.top-marcas');
 
     Route::get('/inventario-piso', [InventarioPisoController::class, 'index'])->name('inventario-piso.index');
     Route::get('/inventario-piso/data', [InventarioPisoController::class, 'data'])->name('inventario-piso.data');
+    Route::get('/inventario-piso/top-marcas', [InventarioPisoController::class, 'topMarcas'])->name('inventario-piso.top-marcas');
 
     Route::get('/inventario-apartados', [InventarioApartadosController::class, 'index'])->name('inventario-apartados.index');
     Route::get('/inventario-apartados/data', [InventarioApartadosController::class, 'data'])->name('inventario-apartados.data');
+    Route::get('/inventario-apartados/top-marcas', [InventarioApartadosController::class, 'topMarcas'])->name('inventario-apartados.top-marcas');
 
     Route::get('/inventario-credito', [InventarioCreditoController::class, 'index'])->name('inventario-credito.index');
     Route::get('/inventario-credito/data', [InventarioCreditoController::class, 'data'])->name('inventario-credito.data');
+    Route::get('/inventario-credito/top-marcas', [InventarioCreditoController::class, 'topMarcas'])->name('inventario-credito.top-marcas');
 
     Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
     Route::get('/clientes/data', [ClientesController::class, 'data'])->name('clientes.data');
@@ -67,6 +74,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/metas-forecast', [MetasForecastController::class, 'index'])->name('metas-forecast.index');
     Route::get('/metas-forecast/data', [MetasForecastController::class, 'data'])->name('metas-forecast.data');
+
+    Route::get('/tablero-control', [TableroControlController::class, 'index'])->name('tablero-control.index');
+    Route::get('/tablero-control/data', [TableroControlController::class, 'data'])->name('tablero-control.data');
 });
 
 require __DIR__.'/auth.php';

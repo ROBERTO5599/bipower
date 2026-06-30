@@ -78,6 +78,14 @@ class ResumenEjecutivoController extends Controller
         $ventasRemate = 0;
         $ventasPlata = 0;
         $ventasAutos = 0;
+        $ventasDirectasAvance = 0;
+        $apartadosLiquidadosAvance = 0;
+
+        // Empeños por categoría
+        $empenosVarios = 0;
+        $empenosOro = 0;
+        $empenosPlata = 0;
+        $empenosAutos = 0;
 
         $empenosData = ['contratos' => 0, 'prestamo' => 0];
 
@@ -106,6 +114,7 @@ class ResumenEjecutivoController extends Controller
         // Variables para costos y gastos
         $costoVentasGlobal = 0;
         $fundicionGlobal = 0;
+        $fundicionRegistrosGlobal = 0;
 
         // Balance General y Flujo de Efectivo
         $balanceGeneral = [
@@ -151,6 +160,7 @@ class ResumenEjecutivoController extends Controller
             $b_contratosApartados = 0;
             $b_costoVentas = 0;
             $b_fundicion = 0;
+            $b_fundicionRegistros = 0;
 
             $b_carteraVigente = 0;
             $b_carteraVencida = 0;
@@ -160,6 +170,8 @@ class ResumenEjecutivoController extends Controller
             $b_ventasRemate = 0;
             $b_ventasPlata = 0;
             $b_ventasAutos = 0;
+            $b_ventasDirectasAvance = 0;
+            $b_apartadosLiquidadosAvance = 0;
 
             try {
                 if ($baseConfig) {
@@ -384,13 +396,19 @@ class ResumenEjecutivoController extends Controller
                 // ============================================
                 // 12. EMPEÑOS
                 // ============================================
-                $empenosResult = DB::connection($connectionName)->selectOne("
-                    SELECT 
-                        COUNT(DISTINCT contrato) AS contratos,
-                        COALESCE(SUM(avance), 0) AS prestamo
+                $empenosTableroResult = DB::connection($connectionName)->select("
+                    SELECT categoria, COUNT(DISTINCT contrato) AS contratos, SUM(avance) AS total_avance
                     FROM (
                         SELECT 
                             con.contrato,
+                            CASE
+                                WHEN con.cod_tipo_prenda = 2 THEN 'AUTOS'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8   AND 26  THEN 'ORO'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN con.cod_tipo_prenda = 1 THEN 'ORO'
+                                WHEN con.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
+                                ELSE 'MERCANCIA GENERAL'
+                            END AS categoria,
                             COALESCE(
                                 CASE
                                     WHEN con.cod_tipo_prenda = 1 THEN al.prestamo
@@ -409,7 +427,32 @@ class ResumenEjecutivoController extends Controller
                           AND mo.f_alta BETWEEN :fIni AND :fFin
                     ) AS t
                     WHERE avance > 0
+                    GROUP BY categoria
                 ", [':fIni' => $fechaInicio, ':fFin' => $fechaFinSiguiente]);
+
+                $b_empenosContratos = 0;
+                $b_empenosPrestamo = 0;
+                $b_empenosOro = 0;
+                $b_empenosPlata = 0;
+                $b_empenosVarios = 0;
+                $b_empenosAutos = 0;
+
+                foreach ($empenosTableroResult as $row) {
+                    $val = (float)$row->total_avance;
+                    $cnt = (int)$row->contratos;
+                    $b_empenosContratos += $cnt;
+                    $b_empenosPrestamo += $val;
+
+                    if ($row->categoria === 'ORO') {
+                        $b_empenosOro += $val;
+                    } elseif ($row->categoria === 'PLATA') {
+                        $b_empenosPlata += $val;
+                    } elseif ($row->categoria === 'AUTOS') {
+                        $b_empenosAutos += $val;
+                    } elseif ($row->categoria === 'MERCANCIA GENERAL') {
+                        $b_empenosVarios += $val;
+                    }
+                }
 
                 // ============================================
                 // 12.1 FUNDICIÓN
@@ -434,34 +477,93 @@ class ResumenEjecutivoController extends Controller
                     ':fechaAlSig' => $fechaFinSiguiente
                 ]);
                 $b_fundicion = (float) ($fundicionResult->total_prestamo ?? 0);
+                $b_fundicionRegistros = (int) ($fundicionResult->total_registros ?? 0);
 
                 // ============================================
-                // 13. VENTAS POR CATEGORÍA
+                // 13. VENTAS POR CATEGORÍA (Tomado de Tablero de Control)
                 // ============================================
-                $ventasCategoriaResult = DB::connection($connectionName)->select("
-                    SELECT
-                        ve.cod_tipo_prenda,
-                        SUM(dv.venta10) as total_venta,
-                        COUNT(DISTINCT ve.cod_venta) as transacciones
-                    FROM detalle_venta dv
-                    INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
-                    WHERE ve.f_cancela IS NULL 
-                      AND ve.f_venta BETWEEN :fechaDel AND :fechaAlSig
-                    GROUP BY ve.cod_tipo_prenda
-                ", [':fechaDel' => $fechaInicio, ':fechaAlSig' => $fechaFinSiguiente]);
+                $ventasTableroResult = DB::connection($connectionName)->select("
+                    SELECT tipo_venta, categoria, SUM(avance) AS total_avance
+                    FROM (
+                        -- Ventas Directas
+                        SELECT 
+                            'venta_directa' AS tipo_venta,
+                            CASE
+                                WHEN ve.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8  AND 26  THEN 'ORO'
+                                WHEN ve.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN ve.cod_tipo_prenda = 1 THEN 'ORO' -- fallback a oro
+                                WHEN ve.cod_tipo_prenda = 2 THEN 'AUTOS'
+                                WHEN ve.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
+                                ELSE 'MERCANCIA GENERAL'
+                            END AS categoria,
+                            CASE
+                                WHEN ve.cod_tipo_prenda = 1 THEN COALESCE(al.prestamo, 0)
+                                WHEN ve.cod_tipo_prenda = 2 THEN COALESCE(au.prestamo, 0)
+                                WHEN ve.cod_tipo_prenda = 3 THEN COALESCE(va.prestamo, 0)
+                                ELSE 0
+                            END AS avance
+                        FROM movimientos mo
+                        INNER JOIN ventas ve ON ve.cod_movimiento = mo.cod_movimiento
+                        INNER JOIN detalle_venta dv ON dv.cod_venta = ve.cod_venta
+                        LEFT JOIN alhajas al ON al.cod_alhaja = dv.cod_prenda AND ve.cod_tipo_prenda = 1
+                        LEFT JOIN autos   au ON au.cod_auto   = dv.cod_prenda AND ve.cod_tipo_prenda = 2
+                        LEFT JOIN varios  va ON va.cod_varios = dv.cod_prenda AND ve.cod_tipo_prenda = 3
+                        WHERE mo.f_alta BETWEEN :f1_1 AND :f2_1
+                          AND mo.f_cancela IS NULL
+                          AND mo.cod_tipo_movimiento IN (5, 6)
 
-                foreach ($ventasCategoriaResult as $venta) {
-                    $monto = (float) $venta->total_venta;
-                    switch ($venta->cod_tipo_prenda) {
-                        case 1:
-                            $b_ventasOro += $monto;
-                            break;
-                        case 2:
-                            $b_ventasAutos += $monto;
-                            break;
-                        case 3:
-                            $b_ventasVarios += $monto;
-                            break;
+                        UNION ALL
+
+                        -- Ventas Apartados Liquidados
+                        SELECT 
+                            'apartado_liquidado' AS tipo_venta,
+                            CASE
+                                WHEN ap.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8  AND 26  THEN 'ORO'
+                                WHEN ap.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN ap.cod_tipo_prenda = 1 THEN 'ORO' -- fallback a oro
+                                WHEN ap.cod_tipo_prenda = 2 THEN 'AUTOS'
+                                WHEN ap.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
+                                ELSE 'MERCANCIA GENERAL'
+                            END AS categoria,
+                            CASE
+                                WHEN ap.cod_tipo_prenda = 1 THEN COALESCE(al.prestamo, 0)
+                                WHEN ap.cod_tipo_prenda = 2 THEN COALESCE(au.prestamo, 0)
+                                WHEN ap.cod_tipo_prenda = 3 THEN COALESCE(va.prestamo, 0)
+                                ELSE 0
+                            END AS avance
+                        FROM apartado_pagos apg
+                        INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado
+                        INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
+                        INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento
+                        LEFT JOIN alhajas al ON al.cod_alhaja = da.cod_prenda AND ap.cod_tipo_prenda = 1
+                        LEFT JOIN autos   au ON au.cod_auto   = da.cod_prenda AND ap.cod_tipo_prenda = 2
+                        LEFT JOIN varios  va ON va.cod_varios = da.cod_prenda AND ap.cod_tipo_prenda = 3
+                        WHERE apg.f_cancela IS NULL
+                          AND mo.cod_tipo_movimiento = 12
+                          AND apg.f_pago BETWEEN :f1_2 AND :f2_2
+                    ) AS t
+                    GROUP BY tipo_venta, categoria
+                ", [
+                    'f1_1' => $fechaInicio, 'f2_1' => $fechaFinSiguiente,
+                    'f1_2' => $fechaInicio, 'f2_2' => $fechaFinSiguiente,
+                ]);
+
+                foreach ($ventasTableroResult as $row) {
+                    $val = (float)$row->total_avance;
+                    if ($row->categoria === 'ORO') {
+                        $b_ventasOro += $val;
+                    } elseif ($row->categoria === 'PLATA') {
+                        $b_ventasPlata += $val;
+                    } elseif ($row->categoria === 'AUTOS') {
+                        $b_ventasAutos += $val;
+                    } elseif ($row->categoria === 'MERCANCIA GENERAL') {
+                        $b_ventasVarios += $val;
+                    }
+
+                    if ($row->tipo_venta === 'venta_directa') {
+                        $b_ventasDirectasAvance += $val;
+                    } elseif ($row->tipo_venta === 'apartado_liquidado') {
+                        $b_apartadosLiquidadosAvance += $val;
                     }
                 }
 
@@ -545,7 +647,6 @@ class ResumenEjecutivoController extends Controller
                 }
 
                 // Estimaciones (después de tener ventas reales)
-                $b_ventasPlata = $b_ventasOro * 0.3;
                 $b_ventasRemate = $b_ventas;
 
                 // ============================================
@@ -656,6 +757,9 @@ class ResumenEjecutivoController extends Controller
                     $b_costoVentasCalc += $prestamo;
                 }
 
+                // Sobrescribir ventas totales con el cálculo de avance (prestamos) del Tablero de Control
+                $b_ventasTotales = $b_ventasOro + $b_ventasPlata + $b_ventasAutos + $b_ventasVarios;
+
                 // ============================================
                 // 15.2 UTILIDAD DE CRÉDITO (CORREGIDO)
                 // ============================================
@@ -735,8 +839,13 @@ class ResumenEjecutivoController extends Controller
                 $totalEgresos += $b_egresos_totales;
                 $totalGastosOperativos += $b_egresos;
 
-                $empenosData['contratos'] += (int) ($empenosResult->contratos ?? 0);
-                $empenosData['prestamo'] += (float) ($empenosResult->prestamo ?? 0);
+                $empenosData['contratos'] += $b_empenosContratos;
+                $empenosData['prestamo'] += $b_empenosPrestamo;
+
+                $empenosVarios += $b_empenosVarios;
+                $empenosOro += $b_empenosOro;
+                $empenosPlata += $b_empenosPlata;
+                $empenosAutos += $b_empenosAutos;
 
                 $carteraVigente += $b_carteraVigente;
                 $carteraVencida += $b_carteraVencida;
@@ -746,6 +855,8 @@ class ResumenEjecutivoController extends Controller
                 $ventasRemate += $b_ventasRemate;
                 $ventasPlata += $b_ventasPlata;
                 $ventasAutos += $b_ventasAutos;
+                $ventasDirectasAvance += $b_ventasDirectasAvance;
+                $apartadosLiquidadosAvance += $b_apartadosLiquidadosAvance;
 
                 $totalTransaccionesVentas += $b_transaccionesVentas;
                 $totalContratosApartados += $b_contratosApartados;
@@ -767,6 +878,7 @@ class ResumenEjecutivoController extends Controller
                 $prestamoVentasGlobal += $b_prestamoVentasTotal;
                 $costoVentasGlobal += $b_costoVentasCalc;
                 $fundicionGlobal += $b_fundicion;
+                $fundicionRegistrosGlobal += $b_fundicionRegistros;
 
                 // ============================================
                 // 21. METAS Y SEMÁFORO
@@ -826,10 +938,14 @@ class ResumenEjecutivoController extends Controller
                         'certificado_confianza' => $b_certificadoConfianza,
                         'utilidad_creditos' => $b_utilidadCreditos,
                         'ventas_totales' => $b_ventasTotales,
+                        'ventas_directas_avance' => $b_ventasDirectasAvance,
+                        'apartados_liquidados_avance' => $b_apartadosLiquidadosAvance,
                         'prestamo_ventas' => $b_prestamoVentasTotal,
                         'costo_ventas' => $b_costoVentasCalc,
                         'transacciones_ventas' => $b_transaccionesVentas,
                         'contratos_apartados' => $b_contratosApartados,
+                        'fundicion' => $b_fundicion,
+                        'fundicion_registros' => $b_fundicionRegistros,
                     ]
                 ];
 
@@ -895,6 +1011,7 @@ class ResumenEjecutivoController extends Controller
             'margenNetoConsolidado' => $margenNetoConsolidado,
             'costoVentas' => $costoVentasGlobal,
             'fundicion' => $fundicionGlobal,
+            'fundicionRegistros' => $fundicionRegistrosGlobal,
             'carteraVigente' => $carteraVigente,
             'carteraVencida' => $carteraVencida,
             'carteraTotal' => $carteraVigente + $carteraVencida,
@@ -914,6 +1031,12 @@ class ResumenEjecutivoController extends Controller
             'ventasPlata' => $ventasPlata,
             'ventasAutos' => $ventasAutos,
             'ventasTotales' => $ventasTotalesGlobal,  // AHORA USA LA MISMA LÓGICA QUE VENTASCONTROLLER
+            'ventasDirectasAvance' => $ventasDirectasAvance,
+            'apartadosLiquidadosAvance' => $apartadosLiquidadosAvance,
+            'empenosVarios' => $empenosVarios,
+            'empenosOro' => $empenosOro,
+            'empenosPlata' => $empenosPlata,
+            'empenosAutos' => $empenosAutos,
             'balanceGeneral' => $balanceGeneral,
             'liquidez' => $balanceGeneral['pasivo_total'] > 0 ? round($balanceGeneral['activo_total'] / $balanceGeneral['pasivo_total'], 2) : 0,
             'rentabilidad' => $totalIngresos > 0 ? round(($utilidadNetaConsolidada / $totalIngresos) * 100, 2) : 0,

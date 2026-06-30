@@ -204,7 +204,11 @@
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-secondary border-3">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Abono a Capital</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">
+                            <span class="metric-tooltip" id="tooltip-abonos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de abonos...">
+                                Abono a Capital
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-secondary text-secondary"><i class="bi bi-piggy-bank"></i></div>
                     </div>
                     <h3 class="fw-bold text-dark mb-0" id="kpi-abono-monto">$ 0.00</h3>
@@ -218,7 +222,11 @@
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-success border-3">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Desempeños</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">
+                            <span class="metric-tooltip" id="tooltip-desempenos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de desempeños...">
+                                Desempeños
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-success"><i class="bi bi-box-arrow-right"></i></div>
                     </div>
                     <h3 class="fw-bold text-dark mb-0" id="kpi-desempenos-monto">$ 0.00</h3>
@@ -283,7 +291,10 @@
             <div class="card shadow-sm border-0 rounded-3 h-100">
                 <div class="card-body p-4">
                     <h5 class="card-title fw-bold mb-4">Distribución de Cartera por Días de Atraso</h5>
-                    <div style="height: 300px;">
+                    <div id="moraHeatmapContainer" class="table-responsive" style="height: 200px; overflow-y: auto;">
+                        <!-- El mapa de calor se renderizará aquí -->
+                    </div>
+                    <div class="mt-3" style="height: 100px;">
                         <canvas id="moraChart"></canvas>
                     </div>
                 </div>
@@ -355,6 +366,39 @@
             </div>
         </div>
     </div>
+    
+    <!-- Modal de Marcas -->
+    <div class="modal fade" id="modalMarcas" tabindex="-1" aria-labelledby="modalMarcasLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 rounded-3">
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold" id="modalMarcasLabel">
+                        <i class="bi bi-tag-fill me-2"></i> Top 10 Marcas
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3 text-muted" id="modal-subtitle" style="font-size: 0.9rem;">
+                        Mostrando las marcas más operadas para este artículo.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-uppercase text-muted small fw-bold">Marca</th>
+                                    <th class="text-uppercase text-muted small fw-bold text-center">Operaciones</th>
+                                    <th class="text-uppercase text-muted small fw-bold text-end">Monto Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-marcas-top">
+                                <!-- Filas dinámicas -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -411,7 +455,7 @@
             if(el) el.innerHTML = value;
         }
 
-        function buildTableRows(tableId, dataList) {
+        function buildTableRows(tableId, dataList, tipoMovimiento) {
             const tbody = document.getElementById(tableId);
             if (!tbody) return;
             tbody.innerHTML = '';
@@ -423,11 +467,28 @@
 
             dataList.forEach(item => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-truncate" style="max-width: 250px;" title="${item.articulo}">${item.articulo}</td>
-                    <td class="text-center fw-bold">${item.total}</td>
-                    <td class="text-end text-primary fw-bold">${formatter.format(item.monto)}</td>
-                `;
+                const codPrenda = item.cod_prenda;
+                
+                if (codPrenda) {
+                    tr.className = 'cursor-pointer';
+                    tr.title = 'Haz clic para ver marcas';
+                    tr.innerHTML = `
+                        <td class="text-truncate fw-semibold text-dark" style="max-width: 250px;" title="${item.articulo}">
+                            <i class="bi bi-info-circle text-primary me-1"></i> ${item.articulo}
+                        </td>
+                        <td class="text-center fw-bold">${item.total}</td>
+                        <td class="text-end text-primary fw-bold">${formatter.format(item.monto)}</td>
+                    `;
+                    tr.addEventListener('click', function() {
+                        mostrarMarcas(codPrenda, item.articulo, tipoMovimiento);
+                    });
+                } else {
+                    tr.innerHTML = `
+                        <td class="text-truncate" style="max-width: 250px;" title="${item.articulo}">${item.articulo}</td>
+                        <td class="text-center fw-bold">${item.total}</td>
+                        <td class="text-end text-primary fw-bold">${formatter.format(item.monto)}</td>
+                    `;
+                }
                 tbody.appendChild(tr);
             });
         }
@@ -550,6 +611,92 @@
                 new bootstrap.Tooltip(tooltipEmpenosEl, { html: true, placement: 'top' });
             }
 
+            // Tooltip Abono a Capital (NUEVO)
+            const tooltipAbonosEl = document.getElementById('tooltip-abonos');
+            if (tooltipAbonosEl && typeof bootstrap !== 'undefined') {
+                const cats = (data.abonos_capital && data.abonos_capital.categorias) || {};
+                let tooltipHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Abono a Capital:</strong>
+                `;
+                
+                const catLabels = {
+                    'ORO': 'Oro',
+                    'PLATA': 'Plata',
+                    'AUTOS': 'Autos',
+                    'OTROS METALES': 'Otros Metales',
+                    'MERCANCIA GENERAL': 'Mercancía General',
+                    'SIN CATEGORIA': 'Sin Categoría'
+                };
+
+                Object.keys(catLabels).forEach(key => {
+                    const val = cats[key] || { contratos: 0, monto: 0 };
+                    if (val.monto > 0 || val.contratos > 0) {
+                        tooltipHtml += `
+                            <div class="d-flex justify-content-between">
+                                <span>${catLabels[key]} (${val.contratos}):</span>
+                                <span class="fw-bold">${formatter.format(val.monto)}</span>
+                            </div>
+                        `;
+                    }
+                });
+
+                const abonosMontoVal = data.abonos_capital ? (data.abonos_capital.monto || 0) : 0;
+                tooltipHtml += `
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>TOTAL ABONOS</span> <span class="text-primary">${formatter.format(abonosMontoVal)}</span></div>
+                    </div>
+                `;
+                const existingTooltip = bootstrap.Tooltip.getInstance(tooltipAbonosEl);
+                if (existingTooltip) existingTooltip.dispose();
+                tooltipAbonosEl.setAttribute('data-bs-original-title', tooltipHtml);
+                tooltipAbonosEl.setAttribute('title', tooltipHtml);
+                new bootstrap.Tooltip(tooltipAbonosEl, { html: true, placement: 'top' });
+            }
+
+            // Tooltip Desempeños (NUEVO)
+            const tooltipDesempenosEl = document.getElementById('tooltip-desempenos');
+            if (tooltipDesempenosEl && typeof bootstrap !== 'undefined') {
+                const cats = (data.desempenos && data.desempenos.categorias) || {};
+                let tooltipHtml = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Desempeños:</strong>
+                `;
+                
+                const catLabels = {
+                    'ORO': 'Oro',
+                    'PLATA': 'Plata',
+                    'AUTOS': 'Autos',
+                    'OTROS METALES': 'Otros Metales',
+                    'MERCANCIA GENERAL': 'Mercancía General',
+                    'SIN CATEGORIA': 'Sin Categoría'
+                };
+
+                Object.keys(catLabels).forEach(key => {
+                    const val = cats[key] || { contratos: 0, monto: 0 };
+                    if (val.monto > 0 || val.contratos > 0) {
+                        tooltipHtml += `
+                            <div class="d-flex justify-content-between">
+                                <span>${catLabels[key]} (${val.contratos}):</span>
+                                <span class="fw-bold">${formatter.format(val.monto)}</span>
+                            </div>
+                        `;
+                    }
+                });
+
+                const desempenosMontoVal = data.desempenos ? (data.desempenos.monto || 0) : 0;
+                tooltipHtml += `
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>TOTAL DESEMPEÑOS</span> <span class="text-primary">${formatter.format(desempenosMontoVal)}</span></div>
+                    </div>
+                `;
+                const existingTooltip = bootstrap.Tooltip.getInstance(tooltipDesempenosEl);
+                if (existingTooltip) existingTooltip.dispose();
+                tooltipDesempenosEl.setAttribute('data-bs-original-title', tooltipHtml);
+                tooltipDesempenosEl.setAttribute('title', tooltipHtml);
+                new bootstrap.Tooltip(tooltipDesempenosEl, { html: true, placement: 'top' });
+            }
+
             // Main KPIs
             updateElement('kpi-empenos-monto', formatter.format(data.empenos.monto_total));
             updateElement('kpi-empenos-contratos', `${data.empenos.total_contratos} Contratos`);
@@ -579,61 +726,153 @@
             updateElement('kpi-sobreavaluo', `${numberFormatter.format(data.empenos.sobreavaluo_pct)}%`);
 
             // Tables
-            buildTableRows('tbody-empenados', data.rankings.articulos_empenados);
-            buildTableRows('tbody-desempenados', data.rankings.articulos_desempenados);
+            buildTableRows('tbody-empenados', data.rankings.articulos_empenados, 1);
+            buildTableRows('tbody-desempenados', data.rankings.articulos_desempenados, 4);
 
-            // Chart: Mora
+            // Heatmap: Mora
+            renderMoraHeatmap(data.mora_detallado, data.mora);
+
+            // Chart: Mora Summary
             renderMoraChart(data.mora);
 
             // Chart: Cartera Tipo
             renderCarteraTipoChart(data.cartera);
         }
 
-        function renderMoraChart(moraData) {
-            const ctx = document.getElementById('moraChart').getContext('2d');
-            if (moraChartInstance) { moraChartInstance.destroy(); }
+        function renderMoraHeatmap(moraDetallado, generalMora) {
+            const container = document.getElementById('moraHeatmapContainer');
+            if (!container) return;
 
-            moraChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['0-30 Días', '31-60 Días', '61-90 Días', '+90 Días'],
-                    datasets: [{
-                        label: 'Monto en Mora ($)',
-                        data: [
-                            moraData['0_30'], 
-                            moraData['31_60'], 
-                            moraData['61_90'], 
-                            moraData['mas_90']
-                        ],
-                        backgroundColor: [
-                            'rgba(13, 202, 240, 0.7)', // info
-                            'rgba(255, 193, 7, 0.7)',  // warning
-                            'rgba(253, 126, 20, 0.7)', // orange
-                            'rgba(220, 53, 69, 0.7)'   // danger
-                        ],
-                        borderWidth: 0,
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { 
-                            beginAtZero: true, 
-                            ticks: { callback: function(value) { return '$' + Intl.NumberFormat('es-MX', { notation: "compact" }).format(value); } }
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) { return ' ' + formatter.format(context.raw); }
-                            }
-                        }
-                    }
-                }
+            if (!moraDetallado || Object.keys(moraDetallado).length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-exclamation-circle me-2"></i>No hay datos de mora disponibles</div>';
+                return;
+            }
+
+            // Encontrar el valor máximo para calcular la intensidad del color
+            let maxValue = 0;
+            Object.values(moraDetallado).forEach(sucMora => {
+                const vals = [sucMora['0_30'] || 0, sucMora['31_60'] || 0, sucMora['61_90'] || 0, sucMora['mas_90'] || 0];
+                vals.forEach(val => {
+                    if (val > maxValue) maxValue = val;
+                });
             });
+            if (maxValue === 0) maxValue = 1; // Evitar división por cero
+
+            // CSS personalizado para que el diseño del Heatmap sea excelente
+            const styleId = 'mora-heatmap-styles';
+            if (!document.getElementById(styleId)) {
+                const style = document.createElement('style');
+                style.id = styleId;
+                style.textContent = `
+                    .heatmap-table th {
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        font-size: 0.75rem;
+                        letter-spacing: 0.5px;
+                        background-color: #f8f9fa;
+                        color: #555;
+                    }
+                    .heatmap-table td {
+                        font-size: 0.85rem;
+                        vertical-align: middle;
+                    }
+                    .heatmap-cell:hover {
+                        transform: scale(1.02);
+                        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+                        z-index: 8;
+                        cursor: help;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            let html = `
+                <table class="table table-bordered heatmap-table text-center align-middle mb-0" style="border-color: rgba(0,0,0,0.06);">
+                    <thead>
+                        <tr>
+                            <th class="text-start" style="min-width: 140px; background-color: #f8f9fa; position: sticky; left: 0; z-index: 10;">Sucursal</th>
+                            <th style="min-width: 110px;">0-30 Días</th>
+                            <th style="min-width: 110px;">31-60 Días</th>
+                            <th style="min-width: 110px;">61-90 Días</th>
+                            <th style="min-width: 110px;">+90 Días</th>
+                            <th style="min-width: 125px; background-color: #f8f9fa; font-weight: bold;">Total Mora</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Construir filas para cada sucursal
+            Object.entries(moraDetallado).forEach(([sucName, sucMora]) => {
+                const m0_30 = sucMora['0_30'] || 0;
+                const m31_60 = sucMora['31_60'] || 0;
+                const m61_90 = sucMora['61_90'] || 0;
+                const mMas90 = sucMora['mas_90'] || 0;
+                const rowTotal = m0_30 + m31_60 + m61_90 + mMas90;
+
+                const getCellHtml = (val) => {
+                    const ratio = val / maxValue;
+                    let bgStyle = '';
+                    let textStyle = 'color: #212529;';
+                    
+                    if (val > 0) {
+                        // Gradiente de rojo/naranja basado en intensidad
+                        bgStyle = `background-color: rgba(220, 53, 69, ${0.08 + ratio * 0.82}) !important;`;
+                        if (ratio > 0.45) {
+                            textStyle = 'color: #fff; font-weight: bold;';
+                        } else {
+                            textStyle = 'color: #212529; font-weight: 600;';
+                        }
+                    } else {
+                        bgStyle = 'background-color: #fafafa !important; opacity: 0.6;';
+                        textStyle = 'color: #adb5bd;';
+                    }
+
+                    return `<td class="heatmap-cell" style="${bgStyle} ${textStyle} transition: all 0.2s;" data-bs-toggle="tooltip" data-bs-placement="top" title="${formatter.format(val)}">${formatter.format(val)}</td>`;
+                };
+
+                html += `
+                    <tr>
+                        <td class="text-start fw-bold" style="background-color: #fff; position: sticky; left: 0; z-index: 5; border-right: 2px solid rgba(0,0,0,0.05);">${sucName}</td>
+                        ${getCellHtml(m0_30)}
+                        ${getCellHtml(m31_60)}
+                        ${getCellHtml(m61_90)}
+                        ${getCellHtml(mMas90)}
+                        <td class="fw-bold bg-light" style="border-left: 2px solid rgba(0,0,0,0.05);">${formatter.format(rowTotal)}</td>
+                    </tr>
+                `;
+            });
+
+            // Si hay más de una sucursal, agregar fila de Total General
+            const numSucursales = Object.keys(moraDetallado).length;
+            if (numSucursales > 1 && generalMora) {
+                const gt0_30 = generalMora['0_30'] || 0;
+                const gt31_60 = generalMora['31_60'] || 0;
+                const gt61_90 = generalMora['61_90'] || 0;
+                const gtMas90 = generalMora['mas_90'] || 0;
+                const grandTotal = gt0_30 + gt31_60 + gt61_90 + gtMas90;
+
+                html += `
+                    <tr class="table-light fw-bold" style="border-top: 2px solid rgba(0,0,0,0.1); position: sticky; bottom: 0; z-index: 10;">
+                        <td class="text-start" style="background-color: #f8f9fa; position: sticky; left: 0; z-index: 12;">TOTAL GENERAL</td>
+                        <td style="background-color: #f8f9fa;">${formatter.format(gt0_30)}</td>
+                        <td style="background-color: #f8f9fa;">${formatter.format(gt31_60)}</td>
+                        <td style="background-color: #f8f9fa;">${formatter.format(gt61_90)}</td>
+                        <td style="background-color: #f8f9fa;">${formatter.format(gtMas90)}</td>
+                        <td style="background-color: #e9ecef; font-size: 0.9rem;">${formatter.format(grandTotal)}</td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = html;
+
+            // Inicializar tooltips de Bootstrap en las celdas del heatmap
+            const tooltips = container.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltips.forEach(t => new bootstrap.Tooltip(t));
         }
 
         function renderCarteraTipoChart(carteraData) {
@@ -672,6 +911,120 @@
                     }
                 }
             });
+        }
+
+        function renderMoraChart(moraData) {
+            const ctx = document.getElementById('moraChart').getContext('2d');
+            if (moraChartInstance) { moraChartInstance.destroy(); }
+
+            moraChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['0-30 Días', '31-60 Días', '61-90 Días', '+90 Días'],
+                    datasets: [{
+                        label: 'Monto en Mora ($)',
+                        data: [
+                            moraData['0_30'], 
+                            moraData['31_60'], 
+                            moraData['61_90'], 
+                            moraData['mas_90']
+                        ],
+                        backgroundColor: [
+                            'rgba(13, 202, 240, 0.7)', // info
+                            'rgba(255, 193, 7, 0.7)',  // warning
+                            'rgba(253, 126, 20, 0.7)', // orange
+                            'rgba(220, 53, 69, 0.7)'   // danger
+                        ],
+                        borderWidth: 0,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { 
+                                callback: function(value) { 
+                                    return '$' + Intl.NumberFormat('es-MX', { notation: "compact" }).format(value); 
+                                } 
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return ' ' + formatter.format(context.raw); }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function mostrarMarcas(codPrenda, articulo, tipoMovimiento) {
+            if (!codPrenda) {
+                return;
+            }
+            const modalElement = document.getElementById('modalMarcas');
+            const tbody = document.getElementById('tbody-marcas-top');
+            const subtitle = document.getElementById('modal-subtitle');
+            const label = document.getElementById('modalMarcasLabel');
+            
+            if (!modalElement || !tbody) return;
+
+            label.innerHTML = `<i class="bi bi-tag-fill me-2"></i> Top 10 Marcas: ${articulo}`;
+            subtitle.innerText = `Mostrando las marcas con más ${tipoMovimiento == 1 ? 'empeños' : 'desempeños'} en el período.`;
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando...</td></tr>';
+            
+            // Mostrar modal
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+
+            const sucursalId = document.getElementById('sucursal_id').value;
+            const fechaInicio = document.getElementById('fecha_inicio').value;
+            const fechaFin = document.getElementById('fecha_fin').value;
+
+            const params = new URLSearchParams({
+                cod_prenda: codPrenda,
+                tipo_movimiento: tipoMovimiento,
+                sucursal_id: sucursalId,
+                fecha_inicio: fechaInicio,
+                fecha_fin: fechaFin
+            }).toString();
+
+            fetch(`{{ route('operaciones-cartera.top-marcas') }}?${params}`)
+                .then(r => r.json())
+                .then(data => {
+                    tbody.innerHTML = '';
+                    if (!data || data.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-4">No se encontraron marcas registradas para este artículo.</td></tr>`;
+                        return;
+                    }
+                    data.forEach((item, index) => {
+                        const tr = document.createElement('tr');
+                        let badgeClass = 'bg-secondary';
+                        if (index === 0) badgeClass = 'bg-warning text-dark';
+                        else if (index === 1) badgeClass = 'bg-light text-dark border';
+                        else if (index === 2) badgeClass = 'bg-danger text-white';
+                        
+                        tr.innerHTML = `
+                            <td>
+                                <span class="badge ${badgeClass} rounded-pill me-2" style="width: 24px; display: inline-block; text-align: center;">${index + 1}</span>
+                                <span class="fw-semibold text-dark">${item.marca}</span>
+                            </td>
+                            <td class="text-center fw-bold">${item.total}</td>
+                            <td class="text-end text-primary fw-bold">${formatter.format(item.monto)}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(err => {
+                    console.error("Error cargando marcas:", err);
+                    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-4">Error al cargar marcas</td></tr>`;
+                });
         }
     });
 </script>

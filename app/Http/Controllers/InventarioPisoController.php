@@ -28,7 +28,7 @@ class InventarioPisoController extends Controller
         $sucursalId = $request->input('sucursal_id');
 
         $sucursalesSeleccionadas = $sucursalId
-            ? $sucursales->where('id_valora_mas', $sucursalId)
+            ? $sucursales->filter(fn($s) => (string)$s->id_valora_mas === (string)$sucursalId)
             : $sucursales;
 
         $baseConfig = Config::get('database.connections.mysql');
@@ -42,6 +42,8 @@ class InventarioPisoController extends Controller
         // Nuevos acumuladores para Flujo de Piso de Venta
         $globalInventarioInicial = 0;
         $globalDotaciones = 0;
+        $globalDotacionesSourcing = 0;
+        $globalDotacionesCompraDirecta = 0;
         $globalDepositaria = 0;
         $globalDevolucion = 0;
         $globalRemate = 0;
@@ -91,11 +93,12 @@ class InventarioPisoController extends Controller
                         'alhajas' as tipo,
                         pre.prenda as id,
                         a.prestamo,
-                        con.f_contrato as fecha,
+                        COALESCE(a.p_venta, con.f_contrato) as fecha,
                         CASE 
                             WHEN a.kilataje BETWEEN 8 AND 26 THEN 'Oro'
                             ELSE 'Varios'
-                        END as categoria
+                        END as categoria,
+                        pre.cod_prenda
                     FROM alhajas a
                     INNER JOIN prendas pre ON pre.cod_prenda = a.cod_prenda AND pre.cod_tipo_prenda = 1
                     LEFT JOIN contratos con ON con.cod_contrato = a.cod_contrato
@@ -104,11 +107,12 @@ class InventarioPisoController extends Controller
                     UNION ALL
 
                     SELECT 
-                        'varios',
-                        pre.prenda,
+                        'varios' as tipo,
+                        pre.prenda as id,
                         v.prestamo,
-                        con.f_contrato as fecha,
-                        'Varios'
+                        COALESCE(v.p_venta, con.f_contrato) as fecha,
+                        'Varios' as categoria,
+                        pre.cod_prenda
                     FROM varios v
                     INNER JOIN prendas pre ON pre.cod_prenda = v.cod_prenda AND pre.cod_tipo_prenda = 3
                     LEFT JOIN contratos con ON con.cod_contrato = v.cod_contrato
@@ -117,11 +121,12 @@ class InventarioPisoController extends Controller
                     UNION ALL
 
                     SELECT 
-                        'autos',
-                        pre.prenda,
+                        'autos' as tipo,
+                        pre.prenda as id,
                         au.prestamo,
-                        con.f_contrato as fecha,
-                        'Varios'
+                        COALESCE(au.p_venta, con.f_contrato) as fecha,
+                        'Varios' as categoria,
+                        pre.cod_prenda
                     FROM autos au
                     INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
                     LEFT JOIN contratos con ON con.cod_contrato = au.cod_contrato
@@ -143,7 +148,10 @@ class InventarioPisoController extends Controller
                 $sucCount = 0;
 
                 foreach ($items as $item) {
-                    $dias = now()->diffInDays($item->fecha);
+                    $dias = 0;
+                    if ($item->fecha) {
+                        $dias = (int) now()->diffInDays(\Carbon\Carbon::parse($item->fecha), true);
+                    }
                     $valor = (float)$item->prestamo;
 
                     $valorTotalInventario += $valor;
@@ -187,6 +195,7 @@ class InventarioPisoController extends Controller
                     // Top artículos
                     $topArticulos[] = [
                         'articulo' => $item->id,
+                        'cod_prenda' => $item->cod_prenda,
                         'sucursal' => $sucursal->nombre,
                         'familia' => $item->categoria,
                         'dias' => $dias,
@@ -470,5 +479,82 @@ class InventarioPisoController extends Controller
 
             'topArticulosAnejos' => $topArticulos
         ]);
+    }
+
+    public function topMarcas(Request $request)
+    {
+        $codPrenda = $request->input('cod_prenda');
+        $sucursalId = $request->input('sucursal_id');
+
+        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        if ($sucursalId) {
+            $sucursalesSeleccionadas = $sucursales->filter(fn($s) => (string)$s->id_valora_mas === (string)$sucursalId);
+        } else {
+            $sucursalesSeleccionadas = $sucursales;
+        }
+
+        $baseConfig = Config::get('database.connections.mysql');
+        $rankingsMarcas = [];
+
+        foreach ($sucursalesSeleccionadas as $sucursal) {
+            $dbName = 'sistema_prendario_' . $sucursal->id_valora_mas;
+            $connectionName = 'dynamic_kpi_marcas_piso_' . $sucursal->id_valora_mas;
+
+            try {
+                if ($baseConfig) {
+                    $config = $baseConfig;
+                    $config['database'] = $dbName;
+                    Config::set("database.connections.{$connectionName}", $config);
+                    DB::purge($connectionName);
+                } else {
+                    throw new \Exception("Base MySQL configuration not found.");
+                }
+
+                // Query for varios and autos in status 9 (Piso de Venta)
+                $topMarcasQ = DB::connection($connectionName)->select("
+                    SELECT mar.marca, SUM(t.total_movs) as total_movs, SUM(t.monto) as monto
+                    FROM (
+                        SELECT va.cod_marca, COUNT(va.cod_varios) as total_movs, SUM(va.prestamo) as monto
+                        FROM varios va
+                        WHERE va.cod_estatus_prenda = 9
+                          AND va.cod_prenda = :codPrenda1
+                        GROUP BY va.cod_marca
+                        
+                        UNION ALL
+                        
+                        SELECT au.cod_marca, COUNT(au.cod_auto) as total_movs, SUM(au.prestamo) as monto
+                        FROM autos au
+                        WHERE au.cod_estatus_prenda = 9
+                          AND au.cod_prenda = :codPrenda2
+                        GROUP BY au.cod_marca
+                    ) as t
+                    INNER JOIN marcas mar ON mar.cod_marca = t.cod_marca
+                    GROUP BY mar.marca
+                    ORDER BY total_movs DESC
+                ", [
+                    ':codPrenda1' => $codPrenda,
+                    ':codPrenda2' => $codPrenda
+                ]);
+
+                foreach ($topMarcasQ as $row) {
+                    $key = $row->marca;
+                    if (!isset($rankingsMarcas[$key])) {
+                        $rankingsMarcas[$key] = ['marca' => $key, 'total' => 0, 'monto' => 0];
+                    }
+                    $rankingsMarcas[$key]['total'] += (int)$row->total_movs;
+                    $rankingsMarcas[$key]['monto'] += (float)$row->monto;
+                }
+
+            } catch (\Exception $e) {
+                Log::error("Error top marcas piso sucursal {$sucursal->nombre}: " . $e->getMessage());
+                continue;
+            }
+        }
+
+        // Ordenar y limitar al top 10
+        usort($rankingsMarcas, function($a, $b) { return $b['total'] <=> $a['total']; });
+        $rankingsMarcas = array_slice($rankingsMarcas, 0, 10);
+
+        return response()->json($rankingsMarcas);
     }
 }
