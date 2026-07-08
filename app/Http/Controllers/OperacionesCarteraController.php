@@ -121,6 +121,7 @@ class OperacionesCarteraController extends Controller
         // Recolectores para promedios y rankings globales
         $rankingsEmpenados = [];
         $rankingsDesempenados = [];
+        $rankingsRefrendados = [];
 
         foreach ($sucursalesSeleccionadas as $sucursal) {
             $dbName = 'sistema_prendario_' . $sucursal->id_valora_mas;
@@ -702,6 +703,69 @@ class OperacionesCarteraController extends Controller
                     $rankingsDesempenados[$key]['monto'] += (float)$des->monto;
                 }
 
+                // ============================================
+                // 9.1 RANKINGS DE ARTÍCULOS MÁS REFRENDADOS
+                // ============================================
+                $topRefQ = DB::connection($connectionName)->select("
+                    SELECT cod_prenda, articulo, SUM(total_movs) as total_movs, SUM(monto) as monto
+                    FROM (
+                        SELECT pre.cod_prenda, pre.prenda as articulo, COUNT(DISTINCT mo.cod_movimiento) as total_movs, SUM(mo.monto10) as monto
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento
+                        INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda AND pre.cod_tipo_prenda = 1
+                        WHERE mo.cod_tipo_movimiento = 2
+                          AND mo.f_cancela IS NULL 
+                          AND con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 1
+                          AND mo.f_alta BETWEEN :fIni1 AND :fFin1
+                        GROUP BY pre.cod_prenda, pre.prenda
+                        
+                        UNION ALL
+                        
+                        SELECT pre.cod_prenda, pre.prenda as articulo, COUNT(DISTINCT mo.cod_movimiento) as total_movs, SUM(mo.monto10) as monto
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
+                        INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
+                        WHERE mo.cod_tipo_movimiento = 2
+                          AND mo.f_cancela IS NULL 
+                          AND con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 2
+                          AND mo.f_alta BETWEEN :fIni2 AND :fFin2
+                        GROUP BY pre.cod_prenda, pre.prenda
+                        
+                        UNION ALL
+                        
+                        SELECT pre.cod_prenda, pre.prenda as articulo, COUNT(DISTINCT mo.cod_movimiento) as total_movs, SUM(mo.monto10) as monto
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
+                        INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda AND pre.cod_tipo_prenda = 3
+                        WHERE mo.cod_tipo_movimiento = 2
+                          AND mo.f_cancela IS NULL 
+                          AND con.f_cancelacion IS NULL 
+                          AND con.cod_tipo_prenda = 3
+                          AND mo.f_alta BETWEEN :fIni3 AND :fFin3
+                        GROUP BY pre.cod_prenda, pre.prenda
+                    ) as t
+                    GROUP BY cod_prenda, articulo
+                    ORDER BY total_movs DESC
+                ", [
+                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFinQuery,
+                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFinQuery,
+                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFinQuery
+                ]);
+
+                foreach ($topRefQ as $ref) {
+                    $key = $ref->articulo;
+                    if (!isset($rankingsRefrendados[$key])) {
+                        $rankingsRefrendados[$key] = ['cod_prenda' => $ref->cod_prenda, 'articulo' => $key, 'total' => 0, 'monto' => 0];
+                    }
+                    $rankingsRefrendados[$key]['total'] += (int)$ref->total_movs;
+                    $rankingsRefrendados[$key]['monto'] += (float)$ref->monto;
+                }
+
             } catch (\Exception $e) {
                 Log::error("Error procesando sucursal {$sucursal->nombre} ({$dbName}) en OperacionesCartera: " . $e->getMessage());
                 continue;
@@ -711,9 +775,11 @@ class OperacionesCarteraController extends Controller
         // Ordenar y limitar rankings a los top 5
         usort($rankingsEmpenados, function($a, $b) { return $b['total'] <=> $a['total']; });
         usort($rankingsDesempenados, function($a, $b) { return $b['total'] <=> $a['total']; });
+        usort($rankingsRefrendados, function($a, $b) { return $b['total'] <=> $a['total']; });
         
         $data['rankings']['articulos_empenados'] = array_slice($rankingsEmpenados, 0, 5);
         $data['rankings']['articulos_desempenados'] = array_slice($rankingsDesempenados, 0, 5);
+        $data['rankings']['articulos_refrendados'] = array_slice($rankingsRefrendados, 0, 5);
 
         // Promedios derivados
         $data['empenos']['prestamo_promedio'] = $data['empenos']['total_contratos'] > 0 ? 

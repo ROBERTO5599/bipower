@@ -1447,6 +1447,12 @@
                 return;
             }
 
+            const semaforoColors = (chartData.semaforos || []).map(s => {
+                if (s === 'verde') return 'rgba(40, 167, 69, 0.7)';
+                if (s === 'amarillo') return 'rgba(255, 193, 7, 0.7)';
+                return 'rgba(220, 53, 69, 0.7)';
+            });
+
             branchChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -1469,7 +1475,7 @@
                         {
                             label: 'Avance Meta %',
                             data: chartData.cumplimientos || [],
-                            backgroundColor: 'rgba(255, 193, 7, 0.6)',
+                            backgroundColor: semaforoColors,
                             borderRadius: 4,
                             yAxisID: 'y1'
                         }

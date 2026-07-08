@@ -221,6 +221,9 @@
                 <a href="{{ route('tablero-control.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-speedometer2 me-2"></i>Tablero de Control
                 </a>
+                <a href="{{ route('graficas.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-pie-chart-fill me-2"></i>Dashboard de Gráficas
+                </a>
                 <a class="list-group-item list-group-item-action" href="{{ route('logout') }}" onclick="event.preventDefault();
                                  document.getElementById('logout-form').submit();">
                     <i class="bi bi-door-open-fill me-2" aria-hidden="true"></i>Salir

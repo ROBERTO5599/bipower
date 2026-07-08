@@ -56,6 +56,18 @@ class MetasForecastController extends Controller
         $metaG_interesesTotales = 0;
         $metaG_utilidadOperativa = 0;
 
+        // Metas Automáticas Globales
+        $autoG_ventas = 0;
+        $autoG_empenos = 0;
+        $autoG_intereses = 0;
+        $autoG_utilidad = 0;
+
+        // Metas Manuales Globales
+        $manualG_ventas = 0;
+        $manualG_empenos = 0;
+        $manualG_intereses = 0;
+        $manualG_utilidad = 0;
+
         // Histórico por mes global para la gráfica de línea
         $historiaMesesLabels = [];
         $historiaVentasAcumuladas = [];
@@ -184,7 +196,6 @@ class MetasForecastController extends Controller
                 $keyActual = sprintf("%04d-%02d", $anioObjetivo, $mesObjetivo);
                 $utilidadActualVta = $branchData['history'][$keyActual]['utilidad_vta'] ?? 0;
                 $branchData['real_utilidad_operativa'] = ($utilidadActualVta + $branchData['real_intereses']) - $gastoActual;
-
                 // ============================================
                 // CÁLCULO DE METAS ESTADÍSTICAS AUTOMÁTICAS
                 // ============================================
@@ -192,6 +203,11 @@ class MetasForecastController extends Controller
                 $objEmpenos = $this->calcularMeta($branchData['history'], 'empenos', $mesObjetivo, $mesesHistorico, $crecimientoFactor, $anioObjetivo, $mesObjetivo);
                 $objIntereses = $this->calcularMeta($branchData['history'], 'intereses', $mesObjetivo, $mesesHistorico, $crecimientoFactor, $anioObjetivo, $mesObjetivo);
                 $objUtilidadOperativa = $this->calcularMetaUtilidad($branchData['history'], $mesObjetivo, $mesesHistorico, $crecimientoFactor, $anioObjetivo, $mesObjetivo);
+
+                $autoV = $objVentas;
+                $autoE = $objEmpenos;
+                $autoI = $objIntereses;
+                $autoU = $objUtilidadOperativa;
 
                 // ============================================
                 // BÚSQUEDA DE METAS MANUALES (Sobreescritura)
@@ -225,28 +241,49 @@ class MetasForecastController extends Controller
                     // Si la tabla no existe en esta db particular, se ignora y se usan las automáticas
                 }
 
+                $autoG_ventas += $autoV;
+                $autoG_empenos += $autoE;
+                $autoG_intereses += $autoI;
+                $autoG_utilidad += $autoU;
+
+                $manualG_ventas += $isManualVentas ? $objVentas : 0;
+                $manualG_empenos += $isManualEmpenos ? $objEmpenos : 0;
+                $manualG_intereses += $isManualIntereses ? $objIntereses : 0;
+                $manualG_utilidad += $isManualUtilidad ? $objUtilidadOperativa : 0;
+
                 $isManualBranch = ($isManualVentas || $isManualEmpenos || $isManualIntereses || $isManualUtilidad);
 
+                $pctVentas = $objVentas > 0 ? ($branchData['real_ventas'] / $objVentas) * 100 : 0;
+                $pctEmpenos = $objEmpenos > 0 ? ($branchData['real_empenos'] / $objEmpenos) * 100 : 0;
+                $pctIntereses = $objIntereses > 0 ? ($branchData['real_intereses'] / $objIntereses) * 100 : 0;
+                $pctUtilidad = $objUtilidadOperativa > 0 ? ($branchData['real_utilidad_operativa'] / $objUtilidadOperativa) * 100 : 0;
+
                 $branchKPIs[$sucursal->nombre] = [
-                    'id' => $sucursal->id_valora_mas,
+                    'id' => $sucursal->nombre,
+                    'id_valora_mas' => $sucursal->id_valora_mas,
                     'is_manual' => $isManualBranch,
+                    
                     'real_ventas' => $branchData['real_ventas'],
                     'meta_ventas' => $objVentas,
-                    'pct_ventas' => $objVentas > 0 ? ($branchData['real_ventas'] / $objVentas) * 100 : 0,
+                    'pct_ventas' => $pctVentas,
+                    'semaforo_ventas' => $this->getSemaforo($pctVentas),
 
                     'real_empenos' => $branchData['real_empenos'],
                     'meta_empenos' => $objEmpenos,
-                    'pct_empenos' => $objEmpenos > 0 ? ($branchData['real_empenos'] / $objEmpenos) * 100 : 0,
+                    'pct_empenos' => $pctEmpenos,
+                    'semaforo_empenos' => $this->getSemaforo($pctEmpenos),
 
                     'real_intereses' => $branchData['real_intereses'],
                     'meta_intereses' => $objIntereses,
-                    'pct_intereses' => $objIntereses > 0 ? ($branchData['real_intereses'] / $objIntereses) * 100 : 0,
+                    'pct_intereses' => $pctIntereses,
+                    'semaforo_intereses' => $this->getSemaforo($pctIntereses),
 
                     'real_utilidad' => $branchData['real_utilidad_operativa'],
                     'meta_utilidad' => $objUtilidadOperativa,
-                    'pct_utilidad' => $objUtilidadOperativa > 0 ? ($branchData['real_utilidad_operativa'] / $objUtilidadOperativa) * 100 : 0,
+                    'pct_utilidad' => $pctUtilidad,
+                    'semaforo_utilidad' => $this->getSemaforo($pctUtilidad),
                     
-                    'semaforo' => $this->getSemaforo( ($objVentas > 0 ? ($branchData['real_ventas'] / $objVentas) * 100 : 0) )
+                    'semaforo' => $this->getSemaforo($pctVentas)
                 ];
 
                 // Agregar los vectores históricos a la super matriz global
@@ -316,6 +353,105 @@ class MetasForecastController extends Controller
         $pctGIntereses = $globalMetaIntereses > 0 ? ($real_interesesTotales / $globalMetaIntereses) * 100 : 0;
         $pctGUtilidad = $globalMetaUtilidad > 0 ? ($real_utilidadOperativa / $globalMetaUtilidad) * 100 : 0;
 
+        // ============================================
+        // CÁLCULO DE ÍNDICES DE ESTACIONALIDAD MENSUALES
+        // ============================================
+        $estacionalidad = [
+            'ventas' => array_fill(1, 12, 1.0),
+            'empenos' => array_fill(1, 12, 1.0),
+            'intereses' => array_fill(1, 12, 1.0),
+            'utilidad' => array_fill(1, 12, 1.0)
+        ];
+
+        $totalH_ventas = 0; $totalH_empenos = 0; $totalH_intereses = 0; $totalH_utilidad = 0;
+        $countH_meses = 0;
+
+        $mesesPorcentaje = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $mesesPorcentaje[$m] = ['ventas' => [], 'empenos' => [], 'intereses' => [], 'utilidad' => []];
+        }
+
+        foreach ($global_history as $k => $h) {
+            $partes = explode('-', $k);
+            $mesAnio = (int)$partes[1];
+            
+            $vVal = (float)$h['ventas'];
+            $eVal = (float)$h['empenos'];
+            $iVal = (float)$h['intereses'];
+            $uVal = ((float)($h['utilidad_vta'] ?? 0) + $iVal) - (float)$h['gastos'];
+
+            $totalH_ventas += $vVal;
+            $totalH_empenos += $eVal;
+            $totalH_intereses += $iVal;
+            $totalH_utilidad += $uVal;
+            $countH_meses++;
+
+            $mesesPorcentaje[$mesAnio]['ventas'][] = $vVal;
+            $mesesPorcentaje[$mesAnio]['empenos'][] = $eVal;
+            $mesesPorcentaje[$mesAnio]['intereses'][] = $iVal;
+            $mesesPorcentaje[$mesAnio]['utilidad'][] = $uVal;
+        }
+
+        if ($countH_meses > 0) {
+            $promG_ventas = $totalH_ventas / $countH_meses;
+            $promG_empenos = $totalH_empenos / $countH_meses;
+            $promG_intereses = $totalH_intereses / $countH_meses;
+            $promG_utilidad = $totalH_utilidad / $countH_meses;
+
+            for ($m = 1; $m <= 12; $m++) {
+                $avgV = count($mesesPorcentaje[$m]['ventas']) > 0 ? array_sum($mesesPorcentaje[$m]['ventas']) / count($mesesPorcentaje[$m]['ventas']) : $promG_ventas;
+                $avgE = count($mesesPorcentaje[$m]['empenos']) > 0 ? array_sum($mesesPorcentaje[$m]['empenos']) / count($mesesPorcentaje[$m]['empenos']) : $promG_empenos;
+                $avgI = count($mesesPorcentaje[$m]['intereses']) > 0 ? array_sum($mesesPorcentaje[$m]['intereses']) / count($mesesPorcentaje[$m]['intereses']) : $promG_intereses;
+                $avgU = count($mesesPorcentaje[$m]['utilidad']) > 0 ? array_sum($mesesPorcentaje[$m]['utilidad']) / count($mesesPorcentaje[$m]['utilidad']) : $promG_utilidad;
+
+                $estacionalidad['ventas'][$m] = $promG_ventas > 0 ? $avgV / $promG_ventas : 1.0;
+                $estacionalidad['empenos'][$m] = $promG_empenos > 0 ? $avgE / $promG_empenos : 1.0;
+                $estacionalidad['intereses'][$m] = $promG_intereses > 0 ? $avgI / $promG_intereses : 1.0;
+                $estacionalidad['utilidad'][$m] = $promG_utilidad > 0 ? $avgU / $promG_utilidad : 1.0;
+            }
+        }
+
+        $estacionalidadPlanos = [
+            'ventas' => array_values($estacionalidad['ventas']),
+            'empenos' => array_values($estacionalidad['empenos']),
+            'intereses' => array_values($estacionalidad['intereses']),
+            'utilidad' => array_values($estacionalidad['utilidad']),
+        ];
+
+        // ============================================
+        // COMPARATIVA DE METAS (AUTOMÁTICA VS MANUAL)
+        // ============================================
+        $comparativaMetas = [
+            [
+                'indicador' => 'Ventas',
+                'meta_automatica' => $autoG_ventas,
+                'meta_manual' => $manualG_ventas,
+                'meta_aplicada' => $globalMetaVentas,
+                'tipo_meta' => $manualG_ventas > 0 ? 'Manual' : 'Automática'
+            ],
+            [
+                'indicador' => 'Empeños',
+                'meta_automatica' => $autoG_empenos,
+                'meta_manual' => $manualG_empenos,
+                'meta_aplicada' => $globalMetaEmpenos,
+                'tipo_meta' => $manualG_empenos > 0 ? 'Manual' : 'Automática'
+            ],
+            [
+                'indicador' => 'Intereses',
+                'meta_automatica' => $autoG_intereses,
+                'meta_manual' => $manualG_intereses,
+                'meta_aplicada' => $globalMetaIntereses,
+                'tipo_meta' => $manualG_intereses > 0 ? 'Manual' : 'Automática'
+            ],
+            [
+                'indicador' => 'Utilidad Operativa',
+                'meta_automatica' => $autoG_utilidad,
+                'meta_manual' => $manualG_utilidad,
+                'meta_aplicada' => $globalMetaUtilidad,
+                'tipo_meta' => $manualG_utilidad > 0 ? 'Manual' : 'Automática'
+            ]
+        ];
+
         return response()->json([
             'globals' => [
                 'ventas' => ['real' => $real_ventasTotales, 'meta' => $globalMetaVentas, 'pct' => $pctGVentas, 'diff' => $real_ventasTotales - $globalMetaVentas],
@@ -329,6 +465,8 @@ class MetasForecastController extends Controller
                 'ly' => $globalVentasLy,
                 'tendencia' => $globalTendenciaVentas
             ],
+            'estacionalidad' => $estacionalidadPlanos,
+            'comparativaMetas' => $comparativaMetas,
             'branchKPIs' => array_values($branchKPIs)
         ]);
     }

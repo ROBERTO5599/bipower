@@ -317,7 +317,7 @@
     <!-- TABLES -->
     <div class="row mb-4">
         <!-- Ranking Empeños -->
-        <div class="col-12 col-lg-6 mb-4">
+        <div class="col-12 col-lg-4 mb-4">
             <div class="card shadow-sm border-0 rounded-3 h-100">
                 <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
                     <h5 class="fw-bold"><i class="bi bi-star-fill text-warning me-2"></i> Top 5 Artículos más Empeñados</h5>
@@ -341,8 +341,33 @@
             </div>
         </div>
 
+        <!-- Ranking Refrendos -->
+        <div class="col-12 col-lg-4 mb-4">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                    <h5 class="fw-bold"><i class="bi bi-arrow-repeat text-info me-2"></i> Top 5 Artículos más Refrendados</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-ranking mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Artículo</th>
+                                    <th class="text-center">Operaciones</th>
+                                    <th class="text-end">Monto Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-refrendados">
+                                <!-- Filas dinámicas -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Ranking Desempeños -->
-        <div class="col-12 col-lg-6 mb-4">
+        <div class="col-12 col-lg-4 mb-4">
             <div class="card shadow-sm border-0 rounded-3 h-100">
                 <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
                     <h5 class="fw-bold"><i class="bi bi-box-arrow-right text-success me-2"></i> Top 5 Artículos más Desempeñados</h5>
@@ -727,6 +752,7 @@
 
             // Tables
             buildTableRows('tbody-empenados', data.rankings.articulos_empenados, 1);
+            buildTableRows('tbody-refrendados', data.rankings.articulos_refrendados, 2);
             buildTableRows('tbody-desempenados', data.rankings.articulos_desempenados, 4);
 
             // Heatmap: Mora
@@ -976,7 +1002,7 @@
             if (!modalElement || !tbody) return;
 
             label.innerHTML = `<i class="bi bi-tag-fill me-2"></i> Top 10 Marcas: ${articulo}`;
-            subtitle.innerText = `Mostrando las marcas con más ${tipoMovimiento == 1 ? 'empeños' : 'desempeños'} en el período.`;
+            subtitle.innerText = `Mostrando las marcas con más ${tipoMovimiento == 1 ? 'empeños' : (tipoMovimiento == 2 ? 'refrendos' : 'desempeños')} en el período.`;
             tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando...</td></tr>';
             
             // Mostrar modal

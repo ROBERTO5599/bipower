@@ -127,16 +127,82 @@
         </div>
     </div>
 
-    <!-- Tendencia Histórica y Proyección -->
+    <!-- Gráficos de Proyección y Estacionalidad -->
     <div class="row mb-4">
-        <div class="col-12">
+        <!-- Tendencia Histórica -->
+        <div class="col-12 col-lg-6 mb-4">
             <div class="card shadow-sm border-0 h-100 rounded-3">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold mb-0">Comportamiento Predictivo de Ventas Globales</h5>
-                    <span class="badge bg-light text-primary">Tendencia + Crecimiento.</span>
+                    <span class="badge bg-light text-primary">Tendencia + Crecimiento</span>
                 </div>
                 <div class="card-body p-4">
-                    <canvas id="ventasTimelineChart" height="300"></canvas>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="ventasTimelineChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Índice de Estacionalidad Mensual -->
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 h-100 rounded-3">
+                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">Índice de Estacionalidad Mensual (12 Meses)</h5>
+                    <span class="badge bg-light text-info">Baseline = 1.0 (Sin Estacionalidad)</span>
+                </div>
+                <div class="card-body p-4">
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="estacionalidadChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparativa de Metas (Automática vs Manual) -->
+    <div class="row mb-4">
+        <div class="col-12 col-lg-7 mb-4">
+            <div class="card shadow-sm border-0 h-100 rounded-3">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-shuffle text-primary me-2"></i> Comparativa de Metas: Automática vs Manual</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 text-center">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4 py-3 text-uppercase text-muted small fw-bold text-start">Indicador</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">Meta Automática</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">Meta Manual</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">Meta Aplicada</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">Diferencia</th>
+                                    <th class="pe-4 py-3 text-uppercase text-muted small fw-bold">Origen (tipo_meta)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-comparativa-body">
+                                <tr><td colspan="6" class="text-center text-muted py-4">Cargando comparativa...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-5 mb-4">
+            <div class="card shadow-sm border-0 h-100 rounded-3 text-dark" style="background-color: #f0f5ff; border-left: 5px solid #0d6efd !important;">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-info-circle-fill text-primary"></i> Lógica del Motor Predictivo</h5>
+                    <p class="small mb-3">
+                        El sistema infiere las metas mensuales del período objetivo combinando dos capas analíticas:
+                    </p>
+                    <ul class="small ps-3 mb-3">
+                        <li class="mb-2"><strong>Regresión Lineal Dinámica:</strong> Detecta la tendencia de crecimiento o desaceleración según la profundidad histórica elegida.</li>
+                        <li class="mb-2"><strong>Índice de Estacionalidad:</strong> Multiplica el valor por la desviación típica histórica del mes (por ejemplo, picos de empeño en la cuesta de enero o picos de ventas en diciembre).</li>
+                    </ul>
+                    <p class="small mb-0">
+                        <span class="badge bg-primary">Override Manual:</span> Si hay metas manuales cargadas en la base de datos de la sucursal (tabla <code>metas</code>), éstas sobrescriben automáticamente el modelo estadístico y se reflejan como origen <strong>Manual</strong>.
+                    </p>
                 </div>
             </div>
         </div>
@@ -151,21 +217,35 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 text-center">
+                        <table class="table table-hover align-middle mb-0 text-center table-bordered">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="ps-4 py-3 text-uppercase text-muted small fw-bold text-start">Sucursal</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Cumpl. General</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Ventas</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Meta Venta</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Empeños</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Meta Empeño</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Utilidad Op.</th>
-                                    <th class="pe-4 py-3 text-uppercase text-muted small fw-bold">Meta Utilidad</th>
+                                    <th rowspan="2" class="ps-4 py-3 text-uppercase text-muted small fw-bold text-start align-middle">Sucursal</th>
+                                    <th colspan="3" class="py-2 text-uppercase text-muted small fw-bold border-start border-end">Ventas</th>
+                                    <th colspan="3" class="py-2 text-uppercase text-muted small fw-bold border-end">Empeños</th>
+                                    <th colspan="3" class="py-2 text-uppercase text-muted small fw-bold border-end">Intereses</th>
+                                    <th colspan="3" class="py-2 text-uppercase text-muted small fw-bold pe-4">Utilidad Op.</th>
+                                </tr>
+                                <tr>
+                                    <th class="py-2 text-uppercase text-muted small fw-bold border-start">Real</th>
+                                    <th class="py-2 text-uppercase text-muted small fw-bold">Meta</th>
+                                    <th class="py-2 text-uppercase text-muted small fw-bold border-end">%</th>
+                                    
+                                    <th class="py-2 text-uppercase text-muted small fw-bold">Real</th>
+                                    <th class="py-2 text-uppercase text-muted small fw-bold">Meta</th>
+                                    <th class="py-2 text-uppercase text-muted small fw-bold border-end">%</th>
+
+                                    <th class="py-2 text-uppercase text-muted small fw-bold">Real</th>
+                                    <th class="py-2 text-uppercase text-muted small fw-bold">Meta</th>
+                                    <th class="py-2 text-uppercase text-muted small fw-bold border-end">%</th>
+
+                                    <th class="py-2 text-uppercase text-muted small fw-bold">Real</th>
+                                    <th class="py-2 text-uppercase text-muted small fw-bold">Meta</th>
+                                    <th class="py-2 text-uppercase text-muted small fw-bold pe-4">%</th>
                                 </tr>
                             </thead>
                             <tbody id="tabla-sucursales-body">
-                                <tr><td colspan="8" class="text-center text-muted py-4">Cargando...</td></tr>
+                                <tr><td colspan="13" class="text-center text-muted py-4">Cargando...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -187,6 +267,7 @@
         'use strict';
 
         let ventasTimelineChart = null;
+        let estacionalidadChart = null;
         let gauges = {};
 
         const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
@@ -291,8 +372,52 @@
             // Chart Timeline
             updateTimelineChart(data.chartTimeline);
 
+            // Chart Estacionalidad
+            updateEstacionalidadChart(data.estacionalidad);
+
+            // Render Comparativa Table
+            renderComparativa(data.comparativaMetas);
+
             // Render Table
             renderTable(data.branchKPIs);
+        }
+
+        function renderComparativa(comparativa) {
+            const tbody = document.getElementById('tabla-comparativa-body');
+            tbody.innerHTML = '';
+            
+            comparativa.forEach(item => {
+                const diffVal = item.meta_aplicada - item.meta_automatica;
+                const diffPct = item.meta_automatica !== 0 ? (diffVal / Math.abs(item.meta_automatica)) * 100 : 0;
+                
+                let diffText = '';
+                let diffClass = '';
+                if (diffVal > 0.01) {
+                    diffText = `+${formatter.format(diffVal)} (+${diffPct.toFixed(1)}%)`;
+                    diffClass = 'text-success fw-bold';
+                } else if (diffVal < -0.01) {
+                    diffText = `${formatter.format(diffVal)} (${diffPct.toFixed(1)}%)`;
+                    diffClass = 'text-danger fw-bold';
+                } else {
+                    diffText = 'Sin cambios';
+                    diffClass = 'text-muted';
+                }
+                
+                let badgeClass = item.tipo_meta === 'Manual' ? 'bg-primary' : 'bg-secondary';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="ps-4 py-3 fw-bold text-dark text-start">${item.indicador}</td>
+                        <td class="py-3 text-muted">${formatter.format(item.meta_automatica)}</td>
+                        <td class="py-3 text-muted">${item.meta_manual > 0 ? formatter.format(item.meta_manual) : 'N/D'}</td>
+                        <td class="py-3 fw-bold text-dark">${formatter.format(item.meta_aplicada)}</td>
+                        <td class="py-3 ${diffClass}">${diffText}</td>
+                        <td class="pe-4 py-3">
+                            <span class="badge ${badgeClass} px-3 py-2">${item.tipo_meta}</span>
+                        </td>
+                    </tr>
+                `;
+            });
         }
 
         function renderTable(kpis) {
@@ -300,31 +425,47 @@
             tbody.innerHTML = '';
             
             kpis.forEach(kpi => {
-                let colorClass = kpi.semaforo === 'verde' ? 'bg-verde' : (kpi.semaforo === 'amarillo' ? 'bg-amarillo' : 'bg-rojo');
+                let badgeV = kpi.semaforo_ventas === 'verde' ? 'bg-verde' : (kpi.semaforo_ventas === 'amarillo' ? 'bg-amarillo' : 'bg-rojo');
+                let badgeE = kpi.semaforo_empenos === 'verde' ? 'bg-verde' : (kpi.semaforo_empenos === 'amarillo' ? 'bg-amarillo' : 'bg-rojo');
+                let badgeI = kpi.semaforo_intereses === 'verde' ? 'bg-verde' : (kpi.semaforo_intereses === 'amarillo' ? 'bg-amarillo' : 'bg-rojo');
+                let badgeU = kpi.semaforo_utilidad === 'verde' ? 'bg-verde' : (kpi.semaforo_utilidad === 'amarillo' ? 'bg-amarillo' : 'bg-rojo');
                 
                 tbody.innerHTML += `
                     <tr>
-                        <td class="ps-4 py-3 fw-bold text-dark text-start">
+                        <td class="ps-4 py-3 fw-bold text-dark text-start align-middle border-end">
                             ${kpi.id} 
                             ${kpi.is_manual ? '<i class="bi bi-person-fill ms-1 text-primary" title="Meta Manual"></i>' : '<i class="bi bi-robot ms-1 text-muted" title="Meta Automática"></i>'}
                         </td>
-                        <td class="py-3">
-                            <span class="badge ${colorClass} px-3 py-2">${kpi.pct_ventas.toFixed(1)}%</span>
-                        </td>
-                        <td class="py-3 fw-bold text-primary">${formatter.format(kpi.real_ventas)}</td>
-                        <td class="py-3 text-muted border-end">${formatter.format(kpi.meta_ventas)}</td>
                         
-                        <td class="py-3 fw-bold text-dark">${formatter.format(kpi.real_empenos)}</td>
-                        <td class="py-3 text-muted border-end">${formatter.format(kpi.meta_empenos)}</td>
+                        <td class="py-3 text-primary fw-semibold">${formatter.format(kpi.real_ventas)}</td>
+                        <td class="py-3 text-muted">${formatter.format(kpi.meta_ventas)}</td>
+                        <td class="py-3 border-end">
+                            <span class="badge ${badgeV} px-2 py-1" style="font-size: 0.8rem;">${kpi.pct_ventas.toFixed(1)}%</span>
+                        </td>
+                        
+                        <td class="py-3 text-dark fw-semibold">${formatter.format(kpi.real_empenos)}</td>
+                        <td class="py-3 text-muted">${formatter.format(kpi.meta_empenos)}</td>
+                        <td class="py-3 border-end">
+                            <span class="badge ${badgeE} px-2 py-1" style="font-size: 0.8rem;">${kpi.pct_empenos.toFixed(1)}%</span>
+                        </td>
 
-                        <td class="py-3 fw-bold text-success">${formatter.format(kpi.real_utilidad)}</td>
-                        <td class="pe-4 py-3 text-muted">${formatter.format(kpi.meta_utilidad)}</td>
+                        <td class="py-3 fw-semibold" style="color: #b25e00;">${formatter.format(kpi.real_intereses)}</td>
+                        <td class="py-3 text-muted">${formatter.format(kpi.meta_intereses)}</td>
+                        <td class="py-3 border-end">
+                            <span class="badge ${badgeI} px-2 py-1" style="font-size: 0.8rem;">${kpi.pct_intereses.toFixed(1)}%</span>
+                        </td>
+
+                        <td class="py-3 text-success fw-semibold">${formatter.format(kpi.real_utilidad)}</td>
+                        <td class="py-3 text-muted">${formatter.format(kpi.meta_utilidad)}</td>
+                        <td class="pe-4 py-3">
+                            <span class="badge ${badgeU} px-2 py-1" style="font-size: 0.8rem;">${kpi.pct_utilidad.toFixed(1)}%</span>
+                        </td>
                     </tr>
                 `;
             });
 
             if (kpis.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">Sin datos de sucursales</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="text-center py-4">Sin datos de sucursales</td></tr>';
             }
         }
 
@@ -380,6 +521,76 @@
                         y: {
                             beginAtZero: true,
                             ticks: { callback: value => formatter.format(value) }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateEstacionalidadChart(chartData) {
+            const ctx = document.getElementById('estacionalidadChart');
+            if (estacionalidadChart) estacionalidadChart.destroy();
+
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+            estacionalidadChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: meses,
+                    datasets: [
+                        {
+                            label: 'Ventas',
+                            data: chartData.ventas,
+                            borderColor: '#0d6efd',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Empeños',
+                            data: chartData.empenos,
+                            borderColor: '#fd7e14',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Intereses',
+                            data: chartData.intereses,
+                            borderColor: '#ffc107',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Utilidad',
+                            data: chartData.utilidad,
+                            borderColor: '#198754',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return context.dataset.label + ': ' + context.raw.toFixed(2); }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            suggestedMin: 0.5,
+                            suggestedMax: 1.5,
+                            ticks: { callback: value => value.toFixed(1) },
+                            title: {
+                                display: true,
+                                text: 'Índice de Estacionalidad'
+                            }
                         }
                     }
                 }

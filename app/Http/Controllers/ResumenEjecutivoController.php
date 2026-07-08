@@ -48,6 +48,34 @@ class ResumenEjecutivoController extends Controller
             $sucursalesSeleccionadas = $sucursales;
         }
 
+        // Rango para la línea de tiempo (últimos 6 meses por defecto o el rango seleccionado si es mayor)
+        $startTimeline = \Carbon\Carbon::parse($fechaInicio)->startOfMonth();
+        $endTimeline = \Carbon\Carbon::parse($fechaFin)->endOfMonth();
+        $diffInMonths = $startTimeline->diffInMonths($endTimeline) + 1;
+        if ($diffInMonths < 3) {
+            // Mostrar últimos 6 meses
+            $startTimeline = $endTimeline->copy()->subMonths(5)->startOfMonth();
+        }
+        $startTimelineStr = $startTimeline->toDateString() . ' 00:00:00';
+        $endTimelineStr = $endTimeline->toDateString() . ' 23:59:59';
+
+        // Generar lista de meses en formato Y-m
+        $mesesTimeline = [];
+        $tempDate = $startTimeline->copy();
+        while ($tempDate <= $endTimeline && count($mesesTimeline) < 12) {
+            $mesesTimeline[] = $tempDate->format('Y-m');
+            $tempDate->addMonth();
+        }
+
+        // Estructura para acumular la tendencia global de meses
+        $globalTimelineData = [];
+        foreach ($mesesTimeline as $m) {
+            $globalTimelineData[$m] = [
+                'ingresos' => 0,
+                'egresos' => 0
+            ];
+        }
+
         $baseConfig = Config::get('database.connections.mysql');
 
         // Variables Globales
@@ -179,6 +207,40 @@ class ResumenEjecutivoController extends Controller
                     $config['database'] = $dbName;
                     Config::set("database.connections.{$connectionName}", $config);
                     DB::purge($connectionName);
+                
+                // Timeline chart
+                // Estructura final del gráfico de tendencia mensual (Timeline)
+                $timelineLabels = [];
+                $timelineIngresos = [];
+                $timelineUtilidades = [];
+                $timelineFlujo = [];
+
+                $mesesNombres = [
+                    1 => 'Ene', 2 => 'Feb', 3 => 'Mar', 4 => 'Abr', 5 => 'May', 6 => 'Jun',
+                    7 => 'Jul', 8 => 'Ago', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dic'
+                ];
+
+                foreach ($mesesTimeline as $m) {
+                    $parts = explode('-', $m);
+                    $yearShort = substr($parts[0], 2);
+                    $monthName = $mesesNombres[(int)$parts[1]];
+                    $timelineLabels[] = "{$monthName} {$yearShort}";
+
+                    $ing = $globalTimelineData[$m]['ingresos'];
+                    $egr = $globalTimelineData[$m]['egresos'];
+                    $util = $ing - $egr; // Utilidad Neta / Flujo Neto
+
+                    $timelineIngresos[] = $ing;
+                    $timelineUtilidades[] = $util;
+                    $timelineFlujo[] = $util;
+                }
+
+                $chartTimeline = [
+                    'labels' => $timelineLabels,
+                    'ingresos' => $timelineIngresos,
+                    'utilidades' => $timelineUtilidades,
+                    'flujo' => $timelineFlujo
+                ];
                 } else {
                     throw new \Exception("Base MySQL configuration not found.");
                 }
@@ -807,7 +869,7 @@ class ResumenEjecutivoController extends Controller
                 // ============================================
                 // 18. UTILIDAD NETA Y EGRESOS TOTALES
                 // ============================================
-                $b_egresos_totales = $b_egresos + (float) ($empenosResult->prestamo ?? 0);
+                $b_egresos_totales = $b_egresos + $b_empenosPrestamo;
                 $b_utilidadNeta = $b_ingresos - $b_egresos_totales;
 
                 // ============================================
@@ -949,6 +1011,253 @@ class ResumenEjecutivoController extends Controller
                     ]
                 ];
 
+                // ============================================
+                // LÍNEA DE TIEMPO MENSUAL (HISTÓRICO)
+                // ============================================
+                $tGastos = DB::connection($connectionName)->select("
+                    SELECT 
+                        YEAR(gas.f_solicitado) as anio,
+                        MONTH(gas.f_solicitado) as mes,
+                        SUM(CASE WHEN gas.cod_estatus = 5 THEN 0 ELSE gas.solicitado END) as total
+                    FROM gastos gas
+                    WHERE gas.activo = 1
+                      AND gas.f_solicitado BETWEEN ? AND ?
+                    GROUP BY YEAR(gas.f_solicitado), MONTH(gas.f_solicitado)
+                ", [$startTimelineStr, $endTimelineStr]);
+
+                $tVentas = DB::connection($connectionName)->select("
+                   SELECT 
+                        YEAR(mo.f_alta) as anio,
+                        MONTH(mo.f_alta) as mes,
+                        SUM(mo.monto10) as total
+                    FROM movimientos mo
+                    INNER JOIN ventas ve ON ve.cod_movimiento = mo.cod_movimiento  
+                    WHERE mo.cod_estatus = 2 
+                      AND mo.cod_tipo_movimiento IN (5, 6)
+                      AND mo.f_alta BETWEEN ? AND ?
+                    GROUP BY YEAR(mo.f_alta), MONTH(mo.f_alta)
+                ", [$startTimelineStr, $endTimelineStr]);
+
+                $tApartadosLiquidados = DB::connection($connectionName)->select("
+                    SELECT 
+                        YEAR(apg.f_pago) as anio,
+                        MONTH(apg.f_pago) as mes,
+                        SUM(mo.monto10) as total
+                    FROM apartado_pagos apg 
+                    INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado 
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento
+                    WHERE apg.f_cancela IS NULL 
+                      AND mo.cod_tipo_movimiento = 12
+                      AND apg.f_pago BETWEEN ? AND ?
+                    GROUP BY YEAR(apg.f_pago), MONTH(apg.f_pago)
+                ", [$startTimelineStr, $endTimelineStr]);
+
+                $tAbonoApartado = DB::connection($connectionName)->select("
+                    SELECT 
+                        YEAR(apg.f_pago) as anio,
+                        MONTH(apg.f_pago) as mes,
+                        SUM(mo.monto10) as total
+                    FROM apartado_pagos apg 
+                    INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado 
+                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento
+                    WHERE apg.f_cancela IS NULL 
+                      AND mo.cod_tipo_movimiento = 8
+                      AND apg.f_pago BETWEEN ? AND ?
+                    GROUP BY YEAR(apg.f_pago), MONTH(apg.f_pago)
+                ", [$startTimelineStr, $endTimelineStr]);
+
+                $tAbonoCapital = DB::connection($connectionName)->select("
+                    SELECT 
+                        YEAR(f_alta) as anio,
+                        MONTH(f_alta) as mes,
+                        SUM(abono_capital) as total
+                    FROM (
+                        SELECT 
+                            mo.f_alta,
+                            COALESCE((SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior ORDER BY f_contrato DESC LIMIT 1), 0) AS abono_capital
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        WHERE con.f_cancelacion IS NULL
+                          AND mo.cod_tipo_movimiento = 3
+                          AND mo.f_cancela IS NULL
+                          AND mo.f_alta BETWEEN ? AND ?
+                    ) AS t
+                    WHERE abono_capital > 0
+                    GROUP BY YEAR(f_alta), MONTH(f_alta)
+                ", [$startTimelineStr, $endTimelineStr]);
+
+                $tIntereses = DB::connection($connectionName)->select("
+                    SELECT 
+                        YEAR(mo.f_alta) as anio,
+                        MONTH(mo.f_alta) as mes,
+                        SUM(
+                            CASE 
+                                WHEN mo.cod_tipo_movimiento = 2 THEN IF(mo.monto10 < 20, 20.0, mo.monto10)
+                                WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
+                                WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - COALESCE((SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior), 0)
+                                ELSE 0 
+                            END
+                        ) AS total
+                    FROM movimientos mo 
+                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                    WHERE con.f_cancelacion IS NULL AND con.cod_tipo_prenda IN (1, 2, 3)
+                      AND mo.f_alta BETWEEN ? AND ?
+                      AND mo.cod_tipo_movimiento IN (2, 3, 4)
+                    GROUP BY YEAR(mo.f_alta), MONTH(mo.f_alta)
+                ", [$startTimelineStr, $endTimelineStr]);
+
+                $tDesempenos = DB::connection($connectionName)->select("
+                    SELECT 
+                        YEAR(f_alta) as anio,
+                        MONTH(f_alta) as mes,
+                        SUM(prestamo_desempenio) AS total
+                    FROM (
+                        SELECT 
+                            mo.f_alta,
+                            COALESCE(CASE
+                                WHEN con.cod_tipo_prenda = 1 THEN al.prestamo
+                                WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
+                                WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
+                            END, 0) AS prestamo_desempenio
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato   = mo.cod_contrato
+                        LEFT  JOIN alhajas al   ON al.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 1
+                        LEFT  JOIN autos   au   ON au.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 2
+                        LEFT  JOIN varios  va   ON va.cod_contrato     = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                        WHERE con.f_cancelacion IS NULL
+                          AND mo.cod_tipo_movimiento = 4
+                          AND mo.f_cancela IS NULL
+                          AND mo.f_alta BETWEEN ? AND ?
+                    ) AS t
+                    WHERE prestamo_desempenio > 0
+                    GROUP BY YEAR(f_alta), MONTH(f_alta)
+                ", [$startTimelineStr, $endTimelineStr]);
+
+                $tCreditos = DB::connection($connectionName)->select("
+                    SELECT 
+                        YEAR(mo.f_alta) as anio,
+                        MONTH(mo.f_alta) as mes,
+                        SUM(CASE WHEN mo.cod_tipo_movimiento = 19 THEN mo.monto10 ELSE 0 END) as total_enganche,
+                        SUM(CASE WHEN mo.cod_tipo_movimiento = 20 THEN mo.monto10 ELSE 0 END) as total_abono,
+                        SUM(CASE WHEN mo.cod_tipo_movimiento = 21 THEN mo.monto10 ELSE 0 END) as total_liquidacion
+                    FROM movimientos mo
+                    WHERE mo.cod_tipo_movimiento IN (19, 20, 21)
+                      AND mo.f_cancela IS NULL
+                      AND mo.cod_estatus IN (1, 2)
+                      AND mo.f_alta BETWEEN ? AND ?
+                    GROUP BY YEAR(mo.f_alta), MONTH(mo.f_alta)
+                ", [$startTimelineStr, $endTimelineStr]);
+
+                $tCertificados = DB::connection($connectionName)->select("
+                    SELECT 
+                        YEAR(ga.f_alta) as anio,
+                        MONTH(ga.f_alta) as mes,
+                        SUM(ga.monto_garantia) as total
+                    FROM garantias ga
+                    WHERE ga.f_alta BETWEEN ? AND ?
+                      AND ga.f_cancelacion IS NULL
+                      AND ga.cod_estatus <> 3
+                    GROUP BY YEAR(ga.f_alta), MONTH(ga.f_alta)
+                ", [$startTimelineStr, $endTimelineStr]);
+
+                $tEmpenos = DB::connection($connectionName)->select("
+                    SELECT 
+                        YEAR(mo.f_alta) as anio,
+                        MONTH(mo.f_alta) as mes,
+                        SUM(con.prestamo) as total
+                    FROM movimientos mo
+                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                    WHERE con.f_cancelacion IS NULL
+                      AND mo.cod_tipo_movimiento = 1
+                      AND mo.f_cancela IS NULL
+                      AND mo.f_alta BETWEEN ? AND ?
+                    GROUP BY YEAR(mo.f_alta), MONTH(mo.f_alta)
+                ", [$startTimelineStr, $endTimelineStr]);
+
+                // Procesar e integrar a la matriz global
+                $branchTimeline = [];
+                foreach ($mesesTimeline as $m) {
+                    $branchTimeline[$m] = [
+                        'ingresos' => 0,
+                        'egresos' => 0,
+                    ];
+                }
+
+                foreach ($tGastos as $row) {
+                    $key = sprintf("%04d-%02d", $row->anio, $row->mes);
+                    if (isset($branchTimeline[$key])) {
+                        $branchTimeline[$key]['egresos'] += (float)$row->total;
+                    }
+                }
+
+                foreach ($tEmpenos as $row) {
+                    $key = sprintf("%04d-%02d", $row->anio, $row->mes);
+                    if (isset($branchTimeline[$key])) {
+                        $branchTimeline[$key]['egresos'] += (float)$row->total;
+                    }
+                }
+
+                foreach ($tVentas as $row) {
+                    $key = sprintf("%04d-%02d", $row->anio, $row->mes);
+                    if (isset($branchTimeline[$key])) {
+                        $branchTimeline[$key]['ingresos'] += (float)$row->total;
+                    }
+                }
+
+                foreach ($tApartadosLiquidados as $row) {
+                    $key = sprintf("%04d-%02d", $row->anio, $row->mes);
+                    if (isset($branchTimeline[$key])) {
+                        $branchTimeline[$key]['ingresos'] += (float)$row->total;
+                    }
+                }
+
+                foreach ($tAbonoApartado as $row) {
+                    $key = sprintf("%04d-%02d", $row->anio, $row->mes);
+                    if (isset($branchTimeline[$key])) {
+                        $branchTimeline[$key]['ingresos'] += (float)$row->total;
+                    }
+                }
+
+                foreach ($tAbonoCapital as $row) {
+                    $key = sprintf("%04d-%02d", $row->anio, $row->mes);
+                    if (isset($branchTimeline[$key])) {
+                        $branchTimeline[$key]['ingresos'] += (float)$row->total;
+                    }
+                }
+
+                foreach ($tIntereses as $row) {
+                    $key = sprintf("%04d-%02d", $row->anio, $row->mes);
+                    if (isset($branchTimeline[$key])) {
+                        $branchTimeline[$key]['ingresos'] += (float)$row->total;
+                    }
+                }
+
+                foreach ($tDesempenos as $row) {
+                    $key = sprintf("%04d-%02d", $row->anio, $row->mes);
+                    if (isset($branchTimeline[$key])) {
+                        $branchTimeline[$key]['ingresos'] += (float)$row->total;
+                    }
+                }
+
+                foreach ($tCreditos as $row) {
+                    $key = sprintf("%04d-%02d", $row->anio, $row->mes);
+                    if (isset($branchTimeline[$key])) {
+                        $branchTimeline[$key]['ingresos'] += (float)$row->total_enganche + (float)$row->total_abono + (float)$row->total_liquidacion;
+                    }
+                }
+
+                foreach ($tCertificados as $row) {
+                    $key = sprintf("%04d-%02d", $row->anio, $row->mes);
+                    if (isset($branchTimeline[$key])) {
+                        $branchTimeline[$key]['ingresos'] += (float)$row->total;
+                    }
+                }
+
+                foreach ($mesesTimeline as $m) {
+                    $globalTimelineData[$m]['ingresos'] += $branchTimeline[$m]['ingresos'];
+                    $globalTimelineData[$m]['egresos'] += $branchTimeline[$m]['egresos'];
+                }
+
 
             } catch (\Exception $e) {
                 Log::error("Error procesando sucursal {$sucursal->nombre} ({$dbName}): " . $e->getMessage());
@@ -1064,7 +1373,8 @@ class ResumenEjecutivoController extends Controller
             'chartInventario' => $chartInventario,
             'chartVentasCategoria' => $chartVentasCategoria,
             'chartCartera' => $chartCartera,
-            'chartSucursales' => $chartSucursales
+            'chartSucursales' => $chartSucursales,
+            'chartTimeline' => $chartTimeline
         ]);
     }
 
