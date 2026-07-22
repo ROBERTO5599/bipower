@@ -72,7 +72,7 @@
     <div class="card shadow-sm border-0 mb-4 rounded-3">
         <div class="card-body p-4">
             <form id="filter-form" class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label fw-semibold">Sucursal</label>
                     <select name="sucursal_id" id="sucursal_id" class="form-select">
                         <option value="">-- Todas las Sucursales Consolidadas --</option>
@@ -84,10 +84,16 @@
                     </select>
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label fw-semibold">Ordenar Ranking Por</label>
+                    <select name="ordenar_por" id="ordenar_por" class="form-select">
+                        <option value="todos">Todos los Movimientos</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <label class="form-label fw-semibold">Fecha Desde</label>
                     <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ $fechaInicio }}" class="form-control">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-semibold">Fecha Hasta</label>
                     <input type="date" name="fecha_fin" id="fecha_fin" value="{{ substr($fechaFin, 0, 10) }}" class="form-control">
                 </div>
@@ -220,10 +226,10 @@
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light">
-                                <tr>
+                                <tr id="ranking-empleados-header-row">
                                     <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Colaborador</th>
                                     <th class="py-3 text-uppercase text-muted small fw-bold">Sucursal</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-center">Operaciones</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-center text-primary">Total Ops</th>
                                     <th class="py-3 text-uppercase text-muted small fw-bold text-end">Ventas ($)</th>
                                     <th class="py-3 text-uppercase text-muted small fw-bold text-end text-success">Utilidad Bruta</th>
                                     <th class="py-3 text-uppercase text-muted small fw-bold text-end text-danger">Costo Est.</th>
@@ -254,6 +260,7 @@
         let operacionesChart = null;
 
         const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+        const compactFormatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
         const numberFormatter = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
         const overlay = document.getElementById('loading-overlay');
@@ -315,6 +322,39 @@
             updateElementText('kpi-mov-total', numberFormatter.format(data.movimientosTotales || 0));
             updateElementText('kpi-mov-promedio', numberFormatter.format(data.movimientosPromedioEmpleado || 0));
 
+            // Dinámicamente poblar el select de ordenamiento si está vacío (sólo tiene la opción todos)
+            const selectEl = document.getElementById('ordenar_por');
+            if (selectEl && data.movimientosList && selectEl.children.length <= 1) {
+                const currentVal = selectEl.value;
+                selectEl.innerHTML = '<option value="todos">Todos los Movimientos</option>';
+                Object.keys(data.movimientosList).forEach(code => {
+                    selectEl.innerHTML += `<option value="m_${code}">${data.movimientosList[code].label}</option>`;
+                });
+                selectEl.value = currentVal;
+            }
+
+            // Build headers dynamically
+            const headerRow = document.getElementById('ranking-empleados-header-row');
+            if (headerRow && data.movimientosList) {
+                let headersHtml = `
+                    <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Colaborador</th>
+                    <th class="py-3 text-uppercase text-muted small fw-bold">Sucursal</th>
+                `;
+                
+                Object.keys(data.movimientosList).forEach(code => {
+                    headersHtml += `<th class="py-3 text-uppercase text-muted small fw-bold text-center">${data.movimientosList[code].label}</th>`;
+                });
+
+                headersHtml += `
+                    <th class="py-3 text-uppercase text-muted small fw-bold text-center text-primary">Total Ops</th>
+                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Ventas ($)</th>
+                    <th class="py-3 text-uppercase text-muted small fw-bold text-end text-success">Utilidad Bruta</th>
+                    <th class="py-3 text-uppercase text-muted small fw-bold text-end text-danger">Costo Est.</th>
+                    <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-center" title="Ratio UB / Costo">Retorno (ROI)</th>
+                `;
+                headerRow.innerHTML = headersHtml;
+            }
+
             // Tablas
             const tbody = document.getElementById('ranking-empleados-body');
             tbody.innerHTML = '';
@@ -322,17 +362,33 @@
             if (data.rankingColaboradores && data.rankingColaboradores.length > 0) {
                 data.rankingColaboradores.forEach(row => {
                     const ratio = data.costoPromedioEmpleado > 0 ? (row.utilidad_bruta / data.costoPromedioEmpleado).toFixed(1) : '∞';
-                    tbody.innerHTML += `
+                    let rowHtml = `
                         <tr>
                             <td class="ps-4 fw-bold">${row.empleado || 'Vendedor Sistema'}</td>
                             <td class="fw-normal text-muted small">${row.sucursal}</td>
-                            <td class="text-center fw-bold">${numberFormatter.format(row.tickets_totales)}</td>
-                            <td class="text-end fw-bold">${formatter.format(row.ventas_monto)}</td>
-                            <td class="text-end text-success fw-bold">${formatter.format(row.utilidad_bruta)}</td>
-                            <td class="text-end text-danger fw-bold">${formatter.format(data.costoPromedioEmpleado)}</td>
+                    `;
+
+                    // Dynamic movement counts (cantidad = $monto)
+                    Object.keys(data.movimientosList).forEach(code => {
+                        const mov = row.movimientos && row.movimientos[code] ? row.movimientos[code] : null;
+                        const count = mov ? mov.tickets : 0;
+                        const monto = mov ? mov.monto : 0;
+                        if (count > 0) {
+                            rowHtml += `<td class="text-center fw-bold text-nowrap" style="font-size: 0.85rem;">${numberFormatter.format(count)} = <span class="text-success">${compactFormatter.format(monto)}</span></td>`;
+                        } else {
+                            rowHtml += `<td class="text-center text-muted">0</td>`;
+                        }
+                    });
+
+                    rowHtml += `
+                            <td class="text-center fw-bold text-primary text-nowrap" style="font-size: 0.85rem;">${numberFormatter.format(row.tickets_totales || 0)} = ${compactFormatter.format(row.monto_total || 0)}</td>
+                            <td class="text-end fw-bold">${formatter.format(row.ventas_monto || 0)}</td>
+                            <td class="text-end text-success fw-bold">${formatter.format(row.utilidad_bruta || 0)}</td>
+                            <td class="text-end text-danger fw-bold">${formatter.format(data.costoPromedioEmpleado || 0)}</td>
                             <td class="pe-4 text-center fw-bold">${ratio}x</td>
                         </tr>
                     `;
+                    tbody.innerHTML += rowHtml;
                 });
 
                 // Top 5 Empleados
@@ -345,7 +401,8 @@
                 updateBarChart(chartData);
 
             } else {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Aún no hay datos para mostrar</td></tr>';
+                const totalCols = 7 + (data.movimientosList ? Object.keys(data.movimientosList).length : 0);
+                tbody.innerHTML = `<tr><td colspan="${totalCols}" class="text-center text-muted">Aún no hay datos para mostrar</td></tr>`;
             }
 
             // Gráficos
