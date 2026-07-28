@@ -212,6 +212,9 @@
                 <a href="{{ route('bancos.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-bank2 me-2"></i>Bancos y Flujos
                 </a>
+                <a href="{{ route('reporte-pagos-tarjeta.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-credit-card me-2"></i>Reporte Pagos con Tarjeta
+                </a>
                 <a href="{{ route('colaboradores.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-people-fill me-2"></i>Productividad Personal
                 </a>

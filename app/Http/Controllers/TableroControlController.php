@@ -44,6 +44,7 @@ class TableroControlController extends Controller
         $categories = ['MERCANCIA GENERAL', 'ORO', 'PLATA', 'AUTOS'];
         $standardIndicators = [
             "INVENTARIO", "Empeño", "Refrendos", "Desempeño", "Ventas",
+            "Ventas Directas", "Apartados Liquidados",
             "Intereses", "Remate", "Bazar",
             "Utilidad del Mes Por venta", "Interés + Util Vta",
             "Gastos del Mes", "Utilidad Neta del Mes",
@@ -123,7 +124,7 @@ class TableroControlController extends Controller
                     SELECT indicador, categoria, SUM(avance) AS avance
                     FROM (
                         -- Ventas Directas
-                        SELECT 'Ventas' AS indicador,
+                        SELECT 'Ventas Directas' AS indicador,
                             CASE
                                 WHEN ve.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8  AND 26  THEN 'ORO'
                                 WHEN ve.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
@@ -151,7 +152,7 @@ class TableroControlController extends Controller
                         UNION ALL
 
                         -- Ventas Apartados Liquidados
-                        SELECT 'Ventas' AS indicador,
+                        SELECT 'Apartados Liquidados' AS indicador,
                             CASE
                                 WHEN ap.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8  AND 26  THEN 'ORO'
                                 WHEN ap.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
@@ -294,6 +295,11 @@ class TableroControlController extends Controller
                     $val = (float)$row->avance;
                     if (isset($tablero[$ind]) && isset($tablero[$ind][$cat])) {
                         $tablero[$ind][$cat]['avance'] += $val;
+                    }
+                    if ($ind === 'Ventas Directas' || $ind === 'Apartados Liquidados') {
+                        if (isset($tablero['Ventas'][$cat])) {
+                            $tablero['Ventas'][$cat]['avance'] += $val;
+                        }
                     }
                 }
 
@@ -907,20 +913,22 @@ class TableroControlController extends Controller
             // Interés + Util Vta
             $intereses = $tablero['Intereses'][$cat]['avance'];
             $utilVenta = $tablero['Utilidad del Mes Por venta'][$cat]['avance'];
-            $tablero['Interés + Util Vta'][$cat]['avance'] = $intereses + $utilVenta;
+            $utilCredito = $tablero['Utilidad del Crédito'][$cat]['avance'] ?? 0;
+            $tablero['Interés + Util Vta'][$cat]['avance'] = $intereses + $utilVenta + $utilCredito;
 
             // Interés + Util Vta Meta
             $interesesMeta = $tablero['Intereses'][$cat]['meta'];
             $utilVentaMeta = $tablero['Utilidad del Mes Por venta'][$cat]['meta'];
-            $tablero['Interés + Util Vta'][$cat]['meta'] = $interesesMeta + $utilVentaMeta;
+            $utilCreditoMeta = $tablero['Utilidad del Crédito'][$cat]['meta'] ?? 0;
+            $tablero['Interés + Util Vta'][$cat]['meta'] = $interesesMeta + $utilVentaMeta + $utilCreditoMeta;
 
             // Utilidad Neta del Mes
             $gastos = $tablero['Gastos del Mes'][$cat]['avance'];
-            $tablero['Utilidad Neta del Mes'][$cat]['avance'] = ($intereses + $utilVenta) - $gastos;
+            $tablero['Utilidad Neta del Mes'][$cat]['avance'] = ($intereses + $utilVenta + $utilCredito) - $gastos;
 
             // Utilidad Neta del Mes Meta
             $gastosMeta = $tablero['Gastos del Mes'][$cat]['meta'];
-            $tablero['Utilidad Neta del Mes'][$cat]['meta'] = ($interesesMeta + $utilVentaMeta) - $gastosMeta;
+            $tablero['Utilidad Neta del Mes'][$cat]['meta'] = ($interesesMeta + $utilVentaMeta + $utilCreditoMeta) - $gastosMeta;
         }
 
         return response()->json($tablero);

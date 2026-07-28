@@ -18,6 +18,7 @@ use App\Http\Controllers\ColaboradoresController;
 use App\Http\Controllers\MetasForecastController;
 use App\Http\Controllers\TableroControlController;
 use App\Http\Controllers\GraficasController;
+use App\Http\Controllers\ReportePagosTarjetaController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
 
@@ -80,6 +81,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/tablero-control/data', [TableroControlController::class, 'data'])->name('tablero-control.data');
 
     Route::get('/graficas', [GraficasController::class, 'index'])->name('graficas.index');
+
+    Route::get('/reporte-pagos-tarjeta', [ReportePagosTarjetaController::class, 'index'])->name('reporte-pagos-tarjeta.index');
+    Route::get('/reporte-pagos-tarjeta/data', [ReportePagosTarjetaController::class, 'data'])->name('reporte-pagos-tarjeta.data');
 });
 
 require __DIR__.'/auth.php';

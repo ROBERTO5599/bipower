@@ -174,6 +174,17 @@
     .font-monospace-custom {
         font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
+    .row-blue td {
+        background-color: #cfe2ff !important;
+    }
+    .row-white td {
+        background-color: #ffffff !important;
+    }
+    /* Custom elegant tooltips */
+    .metric-tooltip {
+        border-bottom: 1px dotted #6c757d;
+        cursor: help;
+    }
 </style>
 @endsection
 
@@ -247,7 +258,9 @@
             <div class="card card-kpi kpi-blue h-100 p-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-xs font-weight-bold text-primary text-uppercase mb-1">Ventas Consolidadas</h6>
+                        <h6 class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            <span class="metric-tooltip" id="tooltip-ventas-kpi" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">Ventas Consolidadas</span>
+                        </h6>
                         <h4 class="h4 mb-0 fw-bold text-gray-800 font-monospace-custom" id="summary-ventas-avance">$ 0.00</h4>
                         <div class="text-xs text-muted mt-2">
                             Meta: <span id="summary-ventas-meta" class="font-monospace-custom">$ 0.00</span>
@@ -266,7 +279,9 @@
             <div class="card card-kpi kpi-green h-100 p-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-xs font-weight-bold text-success text-uppercase mb-1">Empeños Consolidados</h6>
+                        <h6 class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            <span class="metric-tooltip" id="tooltip-empenos-kpi" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">Empeños Consolizados</span>
+                        </h6>
                         <h4 class="h4 mb-0 fw-bold text-gray-800 font-monospace-custom" id="summary-empenos-avance">$ 0.00</h4>
                         <div class="text-xs text-muted mt-2">
                             Meta: <span id="summary-empenos-meta" class="font-monospace-custom">$ 0.00</span>
@@ -285,7 +300,9 @@
             <div class="card card-kpi kpi-yellow h-100 p-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-xs font-weight-bold text-warning text-uppercase mb-1">Interés + Util Vta</h6>
+                        <h6 class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            <span class="metric-tooltip" id="tooltip-interesutil-kpi" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">Interés + Util Vta</span>
+                        </h6>
                         <h4 class="h4 mb-0 fw-bold text-gray-800 font-monospace-custom" id="summary-interesutil-avance">$ 0.00</h4>
                         <div class="text-xs text-muted mt-2">
                             Meta: <span id="summary-interesutil-meta" class="font-monospace-custom">$ 0.00</span>
@@ -304,7 +321,8 @@
             <div class="card card-kpi kpi-red h-100 p-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-xs font-weight-bold text-danger text-uppercase mb-1">Utilidad Neta Estimada</h6>
+                        <h6 class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            <span class="metric-tooltip" id="tooltip-neta-kpi" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose...">Utilidad Neta Estimada</span>
                         <h4 class="h4 mb-0 fw-bold text-gray-800 font-monospace-custom" id="summary-neta-avance">$ 0.00</h4>
                         <div class="text-xs text-muted mt-2">
                             Meta: <span id="summary-neta-meta" class="font-monospace-custom">$ 0.00</span>
@@ -358,6 +376,14 @@
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
+
+        // Initialize tooltips statically if any exist on page load
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function(tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
 
         const loadingOverlay = document.getElementById('loading-overlay');
         const dashboardContent = document.getElementById('dashboard-content');
@@ -514,6 +540,22 @@
             return "badge-progress-danger";
         }
 
+        // Helper to set custom HTML tooltip safely
+        const setHtmlTooltip = (id, htmlContent) => {
+            const tooltipEl = document.getElementById(id);
+            if (tooltipEl) {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                    const existingTooltip = bootstrap.Tooltip.getInstance(tooltipEl);
+                    if (existingTooltip) {
+                        existingTooltip.dispose();
+                    }
+                    tooltipEl.setAttribute('data-bs-original-title', htmlContent);
+                    tooltipEl.setAttribute('title', htmlContent);
+                    new bootstrap.Tooltip(tooltipEl, { html: true, placement: 'top' });
+                }
+            }
+        };
+
         function renderSummaryKPIs(data) {
             // Helper function to consolidate key metrics across all categories
             const consolidateKey = (indicatorKey) => {
@@ -532,17 +574,38 @@
             const empenosSum = consolidateKey("Empeño");
             const interestutilSum = consolidateKey("Interés + Util Vta");
             const netaSum = consolidateKey("Utilidad Neta del Mes");
+            const liquidacionCreditosSum = consolidateKey("Liquidación de Créditos");
 
-            // Ventas
-            document.getElementById('summary-ventas-avance').innerText = formatter.format(ventasSum.avance);
-            document.getElementById('summary-ventas-meta').innerText = formatter.format(ventasSum.meta);
-            const ventasPct = calculatePercentage(ventasSum.avance, ventasSum.meta);
+            // Also get separate components of Sales
+            const ventasDirectasSum = consolidateKey("Ventas Directas");
+            const apartadosLiquidadosSum = consolidateKey("Apartados Liquidados");
+
+            // 1. Ventas Consolidadas Card (Ventas + Liquidación de Créditos)
+            const totalVentasAvance = ventasSum.avance + liquidacionCreditosSum.avance;
+            const totalVentasMeta = ventasSum.meta + liquidacionCreditosSum.meta;
+
+            document.getElementById('summary-ventas-avance').innerText = formatter.format(totalVentasAvance);
+            document.getElementById('summary-ventas-meta').innerText = formatter.format(totalVentasMeta);
+            const ventasPct = calculatePercentage(totalVentasAvance, totalVentasMeta);
             document.getElementById('summary-ventas-percent').innerText = `${Math.round(ventasPct)}%`;
             document.getElementById('summary-ventas-percent').className = `kpi-icon ${getBadgeColorClass(ventasPct)}`;
             document.getElementById('summary-ventas-progress-bar').style.width = `${Math.min(ventasPct, 100)}%`;
             document.getElementById('summary-ventas-progress-bar').className = `cell-progress-fill ${getProgressColorClass(ventasPct)}`;
 
-            // Empeños
+            const tooltipVentasHtml = `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Ventas Consolidadas:</strong>
+                    <div class="d-flex justify-content-between"><span>Ventas Directas:</span> <span class="fw-bold">${formatter.format(ventasDirectasSum.avance)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Apartados Liquidados:</span> <span class="fw-bold">${formatter.format(apartadosLiquidadosSum.avance)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Liquidación de Créditos:</span> <span class="fw-bold">${formatter.format(liquidacionCreditosSum.avance)}</span></div>
+                    <div class="border-top my-1"></div>
+                    <div class="d-flex justify-content-between text-primary"><strong>Total Avance:</strong> <span class="fw-bold">${formatter.format(totalVentasAvance)}</span></div>
+                    <div class="d-flex justify-content-between text-muted"><strong>Total Meta:</strong> <span class="fw-bold">${formatter.format(totalVentasMeta)}</span></div>
+                </div>
+            `;
+            setHtmlTooltip('tooltip-ventas-kpi', tooltipVentasHtml);
+
+            // 2. Empeños Consolizados Card
             document.getElementById('summary-empenos-avance').innerText = formatter.format(empenosSum.avance);
             document.getElementById('summary-empenos-meta').innerText = formatter.format(empenosSum.meta);
             const empenosPct = calculatePercentage(empenosSum.avance, empenosSum.meta);
@@ -551,7 +614,29 @@
             document.getElementById('summary-empenos-progress-bar').style.width = `${Math.min(empenosPct, 100)}%`;
             document.getElementById('summary-empenos-progress-bar').className = `cell-progress-fill ${getProgressColorClass(empenosPct)}`;
 
-            // Interés + Util Vta
+            let empenosMGen = 0, empenosOro = 0, empenosPlata = 0, empenosAutos = 0;
+            if (data["Empeño"]) {
+                empenosMGen = data["Empeño"]["MERCANCIA GENERAL"]?.avance || 0;
+                empenosOro = data["Empeño"]["ORO"]?.avance || 0;
+                empenosPlata = data["Empeño"]["PLATA"]?.avance || 0;
+                empenosAutos = data["Empeño"]["AUTOS"]?.avance || 0;
+            }
+
+            const tooltipEmpenosHtml = `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Empeños por Categoría:</strong>
+                    <div class="d-flex justify-content-between"><span>Mercancía General:</span> <span class="fw-bold">${formatter.format(empenosMGen)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Oro:</span> <span class="fw-bold">${formatter.format(empenosOro)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Plata:</span> <span class="fw-bold">${formatter.format(empenosPlata)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Autos:</span> <span class="fw-bold">${formatter.format(empenosAutos)}</span></div>
+                    <div class="border-top my-1"></div>
+                    <div class="d-flex justify-content-between text-success"><strong>Total Avance:</strong> <span class="fw-bold">${formatter.format(empenosSum.avance)}</span></div>
+                    <div class="d-flex justify-content-between text-muted"><strong>Total Meta:</strong> <span class="fw-bold">${formatter.format(empenosSum.meta)}</span></div>
+                </div>
+            `;
+            setHtmlTooltip('tooltip-empenos-kpi', tooltipEmpenosHtml);
+
+            // 3. Interés + Util Vta Card
             document.getElementById('summary-interesutil-avance').innerText = formatter.format(interestutilSum.avance);
             document.getElementById('summary-interesutil-meta').innerText = formatter.format(interestutilSum.meta);
             const interestutilPct = calculatePercentage(interestutilSum.avance, interestutilSum.meta);
@@ -560,7 +645,24 @@
             document.getElementById('summary-interesutil-progress-bar').style.width = `${Math.min(interestutilPct, 100)}%`;
             document.getElementById('summary-interesutil-progress-bar').className = `cell-progress-fill ${getProgressColorClass(interestutilPct)}`;
 
-            // Utilidad Neta
+            const interesesSum = consolidateKey("Intereses");
+            const utilVentaSum = consolidateKey("Utilidad del Mes Por venta");
+            const utilCreditoSum = consolidateKey("Utilidad del Crédito");
+
+            const tooltipInteresUtilHtml = `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Interés + Utilidades:</strong>
+                    <div class="d-flex justify-content-between"><span>Intereses Cobrados:</span> <span class="fw-bold">${formatter.format(interesesSum.avance)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Utilidad por Venta:</span> <span class="fw-bold">${formatter.format(utilVentaSum.avance)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Utilidad de Crédito:</span> <span class="fw-bold">${formatter.format(utilCreditoSum.avance)}</span></div>
+                    <div class="border-top my-1"></div>
+                    <div class="d-flex justify-content-between text-warning text-dark"><strong>Total Avance:</strong> <span class="fw-bold">${formatter.format(interestutilSum.avance)}</span></div>
+                    <div class="d-flex justify-content-between text-muted"><strong>Total Meta:</strong> <span class="fw-bold">${formatter.format(interestutilSum.meta)}</span></div>
+                </div>
+            `;
+            setHtmlTooltip('tooltip-interesutil-kpi', tooltipInteresUtilHtml);
+
+            // 4. Utilidad Neta Card
             document.getElementById('summary-neta-avance').innerText = formatter.format(netaSum.avance);
             document.getElementById('summary-neta-meta').innerText = formatter.format(netaSum.meta);
             const netaPct = calculatePercentage(netaSum.avance, netaSum.meta);
@@ -568,6 +670,20 @@
             document.getElementById('summary-neta-percent').className = `kpi-icon ${getBadgeColorClass(netaPct)}`;
             document.getElementById('summary-neta-progress-bar').style.width = `${Math.min(netaPct, 100)}%`;
             document.getElementById('summary-neta-progress-bar').className = `cell-progress-fill ${getProgressColorClass(netaPct)}`;
+
+            const gastosSum = consolidateKey("Gastos del Mes");
+
+            const tooltipNetaHtml = `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Utilidad Neta:</strong>
+                    <div class="d-flex justify-content-between text-success"><span>(+) Interés + Util Vta:</span> <span class="fw-bold">${formatter.format(interestutilSum.avance)}</span></div>
+                    <div class="d-flex justify-content-between text-danger"><span>(-) Gastos del Mes:</span> <span class="fw-bold">${formatter.format(gastosSum.avance)}</span></div>
+                    <div class="border-top my-1"></div>
+                    <div class="d-flex justify-content-between text-primary"><strong>Utilidad Neta:</strong> <span class="fw-bold">${netaSum.avance >= 0 ? formatter.format(netaSum.avance) : '-' + formatter.format(Math.abs(netaSum.avance))}</span></div>
+                    <div class="d-flex justify-content-between text-muted"><strong>Total Meta:</strong> <span class="fw-bold">${formatter.format(netaSum.meta)}</span></div>
+                </div>
+            `;
+            setHtmlTooltip('tooltip-neta-kpi', tooltipNetaHtml);
         }
 
         function renderTablero(data) {
@@ -583,6 +699,8 @@
                         </td>
                     </tr>
                 `;
+
+                let indicatorIndex = 0;
 
                 section.indicators.forEach(ind => {
                     // Check if we have data for this indicator key
@@ -661,11 +779,17 @@
                         `;
                     }
 
-                    // Highlight line style if applicable
-                    const highlightClass = ind.highlight ? 'fw-bold table-primary' : '';
+                    // Determine background row class
+                    let rowBgClass = '';
+                    if (ind.highlight) {
+                        rowBgClass = 'fw-bold table-primary';
+                    } else {
+                        rowBgClass = (indicatorIndex % 2 === 0) ? 'row-blue' : 'row-white';
+                        indicatorIndex++;
+                    }
 
                     tbody.innerHTML += `
-                        <tr class="${highlightClass}">
+                        <tr class="${rowBgClass}">
                             <td class="text-start ps-4 fw-semibold text-dark">
                                 <i class="bi ${ind.icon} text-primary me-2"></i>${ind.name}
                             </td>
