@@ -19,6 +19,7 @@ use App\Http\Controllers\MetasForecastController;
 use App\Http\Controllers\TableroControlController;
 use App\Http\Controllers\GraficasController;
 use App\Http\Controllers\ReportePagosTarjetaController;
+use App\Http\Controllers\ControlCajaArqueosController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
 
@@ -84,6 +85,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/reporte-pagos-tarjeta', [ReportePagosTarjetaController::class, 'index'])->name('reporte-pagos-tarjeta.index');
     Route::get('/reporte-pagos-tarjeta/data', [ReportePagosTarjetaController::class, 'data'])->name('reporte-pagos-tarjeta.data');
+
+    Route::get('/control-caja-arqueos', [ControlCajaArqueosController::class, 'index'])->name('control-caja-arqueos.index');
+    Route::get('/control-caja-arqueos/data', [ControlCajaArqueosController::class, 'data'])->name('control-caja-arqueos.data');
 });
 
 require __DIR__.'/auth.php';

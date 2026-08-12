@@ -215,6 +215,9 @@
                 <a href="{{ route('reporte-pagos-tarjeta.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-credit-card me-2"></i>Reporte Pagos con Tarjeta
                 </a>
+                <a href="{{ route('control-caja-arqueos.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-cash-coin me-2"></i>Control de Caja y Arqueos
+                </a>
                 <a href="{{ route('colaboradores.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-people-fill me-2"></i>Productividad Personal
                 </a>

@@ -643,7 +643,7 @@ class ResumenEjecutivoController extends Controller
                         cod_estatus_prenda,
                         COALESCE(SUM(prestamo), 0) as total_prestamo
                     FROM alhajas 
-                    WHERE cod_estatus_prenda IN (1, 9, 4, 12) 
+                    WHERE cod_estatus_prenda IN (1, 2, 9, 4, 12) 
                     GROUP BY CategoriaMetal, cod_estatus_prenda
                     
                     UNION ALL
@@ -654,7 +654,7 @@ class ResumenEjecutivoController extends Controller
                         cod_estatus_prenda, 
                         COALESCE(SUM(prestamo), 0) as total_prestamo
                     FROM varios 
-                    WHERE cod_estatus_prenda IN (1, 9, 4, 12) 
+                    WHERE cod_estatus_prenda IN (1, 2, 9, 4, 12) 
                     GROUP BY cod_estatus_prenda
                     
                     UNION ALL
@@ -665,7 +665,7 @@ class ResumenEjecutivoController extends Controller
                         cod_estatus_prenda, 
                         COALESCE(SUM(prestamo), 0) as total_prestamo
                     FROM autos 
-                    WHERE cod_estatus_prenda IN (1, 9, 4, 12) 
+                    WHERE cod_estatus_prenda IN (1, 2, 9, 4, 12) 
                     GROUP BY cod_estatus_prenda
                 ");
 
@@ -679,6 +679,8 @@ class ResumenEjecutivoController extends Controller
 
                     if ($invRow->cod_estatus_prenda == 1) {
                         $b_carteraVigente += $monto;
+                    } elseif ($invRow->cod_estatus_prenda == 2) {
+                        $b_carteraVencida += $monto;
                     } elseif ($invRow->cod_estatus_prenda == 9) {
                         $b_invPisoVenta += $monto;
                         $inventarioPisoVentaTotal += $monto;
@@ -698,7 +700,6 @@ class ResumenEjecutivoController extends Controller
 
                     if ($invRow->CategoriaMetal === 'Oro') {
                         $invOro += $monto;
-                        $b_carteraVencida += $monto * 0.05;
                     }
                     if ($invRow->CategoriaMetal === 'Plata')
                         $invPlata += $monto;
