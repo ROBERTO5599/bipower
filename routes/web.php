@@ -20,6 +20,7 @@ use App\Http\Controllers\TableroControlController;
 use App\Http\Controllers\GraficasController;
 use App\Http\Controllers\ReportePagosTarjetaController;
 use App\Http\Controllers\ControlCajaArqueosController;
+use App\Http\Controllers\BonosComisionesController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
 
@@ -88,6 +89,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/control-caja-arqueos', [ControlCajaArqueosController::class, 'index'])->name('control-caja-arqueos.index');
     Route::get('/control-caja-arqueos/data', [ControlCajaArqueosController::class, 'data'])->name('control-caja-arqueos.data');
+
+    Route::get('/bonos-comisiones', [BonosComisionesController::class, 'index'])->name('bonos-comisiones.index');
+    Route::get('/bonos-comisiones/data', [BonosComisionesController::class, 'data'])->name('bonos-comisiones.data');
 });
 
 require __DIR__.'/auth.php';

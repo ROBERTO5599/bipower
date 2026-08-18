@@ -221,6 +221,9 @@
                 <a href="{{ route('colaboradores.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-people-fill me-2"></i>Productividad Personal
                 </a>
+                <a href="{{ route('bonos-comisiones.index') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-award-fill me-2"></i>Bonos y Comisiones
+                </a>
                 <a href="{{ route('metas-forecast.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-bullseye me-2"></i>Metas y Forecast
                 </a>
