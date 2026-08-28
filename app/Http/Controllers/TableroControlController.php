@@ -107,7 +107,7 @@ class TableroControlController extends Controller
 
                 foreach ($metasQuery as $metaRow) {
                     $dbInd = $metaRow->indicador;
-                    $dbCat = $metaRow->categoria;
+                    $dbCat = $this->normalizeCategory($metaRow->categoria);
                     $metaVal = (float)$metaRow->total_meta;
 
                     foreach ($standardIndicators as $stdInd) {
@@ -936,28 +936,91 @@ class TableroControlController extends Controller
 
     private function matchMeta($dbIndicator, $standardIndicator)
     {
-        $dbInd = trim(strtolower($dbIndicator));
-        $stdInd = trim(strtolower($standardIndicator));
+        $dbInd = $this->normalizeString($dbIndicator);
+        $stdInd = $this->normalizeString($standardIndicator);
         
         if ($dbInd === $stdInd) {
             return true;
         }
+
+        $cleanDb = preg_replace('/[()\-]/', ' ', $dbInd);
+        $cleanDb = preg_replace('/\s+/', ' ', trim($cleanDb));
         
+        $cleanStd = preg_replace('/[()\-]/', ' ', $stdInd);
+        $cleanStd = preg_replace('/\s+/', ' ', trim($cleanStd));
+
+        if ($cleanDb === $cleanStd) {
+            return true;
+        }
+
+        if (strpos($stdInd, 'utilidad del mes por ven') === 0 && strpos($dbInd, 'utilidad del mes por ven') === 0) {
+            return true;
+        }
+
+        $aliases = [
+            'creditos vigentes' => ['credito vigente', 'creditos vigentes', 'vigentes'],
+            'creditos colocados' => ['credito colocado', 'creditos colocados', 'colocacion', 'creditos colocados colocacion'],
+            'pago credito/abono a creditos' => ['pago a creditos', 'pago credito', 'pago a creditos cobranza', 'cobranza', 'abono a creditos', 'pago credito abono a creditos'],
+            'liquidacion de creditos' => ['liquidacion creditos', 'liquidacion de creditos', 'liquidacion de credito'],
+            'utilidad del credito' => ['utilidad credito', 'utilidad del credito'],
+            'credito vencido mensual - prestamo' => ['credito vencido mensual prestamo'],
+            'credito vencido mensual - cantidad pagada' => ['credito vencido mensual cobrado', 'credito vencido mensual cantidad pagada'],
+            'credito vencido mensual - adeudo' => ['credito vencido mensual adeudo'],
+            'credito vencido global - prestamo' => ['credito vencido global prestamo'],
+            'credito vencido global - cantidad pagada' => ['credito vencido global cobrado', 'credito vencido global cantidad pagada'],
+            'credito vencido global - adeudo' => ['credito vencido global adeudo'],
+            'garantias - ventas' => ['garantias de ventas', 'garantias ventas'],
+            'garantias - apartados liquidados' => ['garantias de apartados liquidados', 'garantias apartados liquidados'],
+            'garantias - enganche credito' => ['garantias de enganche credito', 'garantias de enganche de credito', 'garantias enganche credito'],
+        ];
+
+        if (isset($aliases[$stdInd])) {
+            foreach ($aliases[$stdInd] as $alias) {
+                if ($cleanDb === $alias || strpos($cleanDb, $alias) !== false) {
+                    return true;
+                }
+            }
+        }
+
         if (strpos($stdInd, ' - ') !== false) {
             $partes = explode(' - ', $stdInd, 2);
             $izquierda = trim($partes[0]);
             $derecha = trim($partes[1]);
             
-            if (strpos($stdInd, 'garantías') === 0) {
-                if ($dbInd === 'garantías - ' . $derecha || $dbInd === $derecha) {
+            if (strpos($stdInd, 'garantias') === 0) {
+                if ($dbInd === 'garantias - ' . $derecha || $dbInd === $derecha || strpos($dbInd, $derecha) !== false) {
                     return true;
                 }
             } else {
-                if ($dbInd === $izquierda) {
+                if ($dbInd === $izquierda || strpos($dbInd, $izquierda) !== false) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    private function normalizeCategory($category)
+    {
+        $catNorm = strtoupper($this->normalizeString($category));
+        if (strpos($catNorm, 'MERCANCIA') !== false || strpos($catNorm, 'VARIOS') !== false) {
+            return 'MERCANCIA GENERAL';
+        }
+        return $catNorm;
+    }
+
+    private function normalizeString($string)
+    {
+        if (empty($string)) return '';
+        $string = trim($string);
+        $unwanted = [
+            'Á'=>'A', 'À'=>'A', 'Â'=>'A', 'Ä'=>'A', 'Ã'=>'A', 'Å'=>'A', 'á'=>'a', 'à'=>'a', 'â'=>'a', 'ä'=>'a', 'ã'=>'a', 'å'=>'a',
+            'É'=>'E', 'È'=>'E', 'Ê'=>'E', 'Ë'=>'E', 'é'=>'e', 'è'=>'e', 'ê'=>'e', 'ë'=>'e',
+            'Í'=>'I', 'Ì'=>'I', 'Î'=>'I', 'Ï'=>'I', 'í'=>'i', 'ì'=>'i', 'î'=>'i', 'ï'=>'i',
+            'Ó'=>'O', 'Ò'=>'O', 'Ô'=>'O', 'Ö'=>'O', 'Õ'=>'O', 'ó'=>'o', 'ò'=>'o', 'ô'=>'o', 'ö'=>'o', 'õ'=>'o',
+            'Ú'=>'U', 'Ù'=>'U', 'Û'=>'U', 'Ü'=>'U', 'ú'=>'u', 'ù'=>'u', 'û'=>'u', 'ü'=>'u',
+            'Ñ'=>'N', 'ñ'=>'n', 'Ç'=>'C', 'ç'=>'c'
+        ];
+        return strtolower(strtr($string, $unwanted));
     }
 }
