@@ -72,6 +72,63 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
+
+        /* Tooltip Personalizado */
+        .tooltip .tooltip-inner {
+            max-width: 320px;
+            padding: 12px 16px;
+            background-color: #0f172a;
+            color: #f8fafc;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            font-size: 0.85rem;
+            text-align: left;
+            line-height: 1.5;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .tooltip .tooltip-inner code {
+            background: rgba(255, 255, 255, 0.15);
+            color: #38bdf8;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .tooltip-title {
+            font-weight: 700;
+            color: #38bdf8;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tooltip-formula-badge {
+            background: rgba(14, 165, 233, 0.18);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #7dd3fc;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.78rem;
+            margin: 6px 0 2px 0;
+            display: block;
+            word-break: break-word;
+        }
+        .help-icon {
+            cursor: help;
+            color: #94a3b8;
+            font-size: 0.85em;
+            margin-left: 3px;
+            transition: all 0.2s ease;
+        }
+        .help-icon:hover {
+            color: #3b82f6 !important;
+            transform: scale(1.2);
+        }
+        .has-tooltip {
+            cursor: help;
+        }
     </style>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -160,11 +217,13 @@
     <div class="row g-4 mb-4">
         <!-- KPI 140: Total Bonos y Comisiones Pagados -->
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 card-hover h-100">
+            <div class="card border-0 shadow-sm rounded-4 card-hover h-100"
+                 data-bs-toggle="tooltip" data-bs-html="true"
+                 data-bs-title="<div class='tooltip-title'><i class='bi-cash-stack'></i> Total Pagado (KPI 140)</div>Suma total de incentivos variables generados por comisiones y bonos de meta.<div class='tooltip-formula-badge'>Comisiones Totales + Bonos de Meta</div>">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div>
-                            <span class="text-muted fw-semibold small text-uppercase">Total Pagado (KPI 140)</span>
+                            <span class="text-muted fw-semibold small text-uppercase">Total Pagado (KPI 140) <i class="bi bi-info-circle help-icon"></i></span>
                             <h3 class="fw-bold text-dark mt-2 mb-0" id="kpi-total-pagado">$0.00</h3>
                         </div>
                         <div class="icon-shape-lg bg-soft-primary text-primary">
@@ -181,11 +240,13 @@
 
         <!-- KPI 142: % Bono Alcanzado vs Meta Individual -->
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 card-hover h-100">
+            <div class="card border-0 shadow-sm rounded-4 card-hover h-100"
+                 data-bs-toggle="tooltip" data-bs-html="true"
+                 data-bs-title="<div class='tooltip-title'><i class='bi-bullseye'></i> Avance vs Meta (KPI 142)</div>Promedio del porcentaje alcanzado por el personal respecto a su meta de ventas ($30,000 MXN).<div class='tooltip-formula-badge'>Promedio( (Ventas / $30,000) × 100 )</div>">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div>
-                            <span class="text-muted fw-semibold small text-uppercase">Avance vs Meta (KPI 142)</span>
+                            <span class="text-muted fw-semibold small text-uppercase">Avance vs Meta (KPI 142) <i class="bi bi-info-circle help-icon"></i></span>
                             <h3 class="fw-bold text-dark mt-2 mb-0" id="kpi-cumplimiento-meta">0.0%</h3>
                         </div>
                         <div class="icon-shape-lg bg-soft-success text-success">
@@ -205,11 +266,13 @@
 
         <!-- KPI 145: Relación Bonos+Comisiones vs Utilidad Bruta -->
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 card-hover h-100">
+            <div class="card border-0 shadow-sm rounded-4 card-hover h-100"
+                 data-bs-toggle="tooltip" data-bs-html="true"
+                 data-bs-title="<div class='tooltip-title'><i class='bi-percent'></i> % Costo Variable (KPI 145)</div>Porcentaje del margen bruto total de la empresa repartido en bonos y comisiones.<div class='tooltip-formula-badge'>( (Bonos + Comisiones) / Utilidad Bruta ) × 100</div>">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div>
-                            <span class="text-muted fw-semibold small text-uppercase">% Costo Variable (KPI 145)</span>
+                            <span class="text-muted fw-semibold small text-uppercase">% Costo Variable (KPI 145) <i class="bi bi-info-circle help-icon"></i></span>
                             <h3 class="fw-bold text-dark mt-2 mb-0" id="kpi-costo-variable">0.00%</h3>
                         </div>
                         <div class="icon-shape-lg bg-soft-warning text-warning">
@@ -225,11 +288,13 @@
 
         <!-- KPI 149: Costo Total Bonos/Comisiones % de Nómina -->
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 card-hover h-100">
+            <div class="card border-0 shadow-sm rounded-4 card-hover h-100"
+                 data-bs-toggle="tooltip" data-bs-html="true"
+                 data-bs-title="<div class='tooltip-title'><i class='bi-calculator'></i> Costo vs Nómina (KPI 149)</div>Proporción del gasto variable respecto al costo de sueldo fijo pactado (Nómina Base).<div class='tooltip-formula-badge'>( (Bonos + Comisiones) / Nómina Base Total ) × 100</div>">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div>
-                            <span class="text-muted fw-semibold small text-uppercase">Costo vs Nómina (KPI 149)</span>
+                            <span class="text-muted fw-semibold small text-uppercase">Costo vs Nómina (KPI 149) <i class="bi bi-info-circle help-icon"></i></span>
                             <h3 class="fw-bold text-dark mt-2 mb-0" id="kpi-costo-nomina">0.00%</h3>
                         </div>
                         <div class="icon-shape-lg bg-soft-info text-info">
@@ -319,17 +384,17 @@
                         <table class="table table-hover align-middle mb-0" id="tabla-desglose">
                             <thead class="table-light text-secondary small text-uppercase">
                                 <tr>
-                                    <th>Empleado</th>
-                                    <th>Sucursal</th>
-                                    <th>Puesto</th>
-                                    <th>Nivel</th>
-                                    <th class="text-end">Ventas Totales</th>
-                                    <th class="text-end">Utilidad Bruta</th>
-                                    <th class="text-end">Nómina Base</th>
-                                    <th class="text-end text-primary">Comisión</th>
-                                    <th class="text-end text-success">Bono Meta</th>
-                                    <th class="text-end fw-bold">Comp. Total</th>
-                                    <th class="text-center">% Meta</th>
+                                    <th data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-person-fill'></i> Empleado</div>Nombre del colaborador.<div class='tooltip-formula-badge'>Identificador Único</div>">Empleado <i class="bi bi-info-circle help-icon"></i></th>
+                                    <th data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-building'></i> Sucursal</div>Sucursal donde opera el colaborador.<div class='tooltip-formula-badge'>Ubicación Operativa</div>">Sucursal <i class="bi bi-info-circle help-icon"></i></th>
+                                    <th data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-briefcase-fill'></i> Puesto Base</div>Cargo o función asignada.<div class='tooltip-formula-badge'>Perfil Contratado</div>">Puesto <i class="bi bi-info-circle help-icon"></i></th>
+                                    <th data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-award-fill'></i> Nivel Alcanzado</div>Categoría por ventas Varios acumuladas:<br>• <b>Junior:</b> &lt; $15k (5%)<br>• <b>Senior:</b> $15k-$25k (7%)<br>• <b>Master:</b> &gt; $25k (9%)<div class='tooltip-formula-badge'>Ventas Varios Acumuladas</div>">Nivel <i class="bi bi-info-circle help-icon"></i></th>
+                                    <th class="text-end" data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-cart-check-fill'></i> Ventas Totales</div>Suma de operaciones de venta realizadas.<div class='tooltip-formula-badge'>V.Varios + V.Metal + V.Liquidados + Créditos</div>">Ventas Totales <i class="bi bi-info-circle help-icon"></i></th>
+                                    <th class="text-end" data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-graph-up'></i> Utilidad Bruta</div>Margen bruto generado por ventas.<div class='tooltip-formula-badge'>Ventas - Costo Adquisición / Préstamo</div>">Utilidad Bruta <i class="bi bi-info-circle help-icon"></i></th>
+                                    <th class="text-end" data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-wallet2'></i> Nómina Base</div>Sueldo fijo ordinario pactado por contrato.<div class='tooltip-formula-badge'>Gasto Sueldo en Sistema ($12k Encargado / $8k Base)</div>">Nómina Base <i class="bi bi-info-circle help-icon"></i></th>
+                                    <th class="text-end text-primary" data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-percent'></i> Comisión Total</div>Suma de comisiones variables ganadas.<div class='tooltip-formula-badge'>Comision Varios + 7% Metal + 4% Liquidados + 2% Crédito</div>">Comisión <i class="bi bi-info-circle help-icon"></i></th>
+                                    <th class="text-end text-success" data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-trophy-fill'></i> Bono por Meta</div>Premio adicional por cumplir objetivo ($30,000):<br>• <b>≥120%:</b> $2,500<br>• <b>≥100%:</b> $1,500<br>• <b>≥85%:</b> $800<div class='tooltip-formula-badge'>Evaluación % Meta</div>">Bono Meta <i class="bi bi-info-circle help-icon"></i></th>
+                                    <th class="text-end fw-bold" data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-piggy-bank-fill'></i> Compensación Total</div>Pago total acumulado percibido.<div class='tooltip-formula-badge'>Nómina Base + Comisiones + Bono Meta</div>">Comp. Total <i class="bi bi-info-circle help-icon"></i></th>
+                                    <th class="text-center" data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-speedometer2'></i> % Cumplimiento Meta</div>Porcentaje logrado sobre la meta de $30,000.<div class='tooltip-formula-badge'>(Ventas Totales / $30,000) × 100</div>">% Meta <i class="bi bi-info-circle help-icon"></i></th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-desglose">
@@ -508,6 +573,7 @@
 
             document.getElementById('loading-overlay').style.display = 'none';
             document.getElementById('dashboard-content').style.display = 'block';
+            setTimeout(initTooltips, 150);
         })
         .catch(error => {
             console.error('Error al cargar datos:', error);
@@ -599,6 +665,12 @@
         empleados.forEach(emp => {
             const badgeClass = emp.perfil_alcanzado === 'Master' ? 'badge-master' : (emp.perfil_alcanzado === 'Senior' ? 'badge-senior' : 'badge-junior');
             const tr = document.createElement('tr');
+
+            const ttNomina = `data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-wallet2'></i> Nómina Base: ${formatCurrency(emp.nomina_base)}</div>Sueldo fijo ordinario pactado por contrato.<div class='tooltip-formula-badge'>Pago Garantizado</div>"`;
+            const ttComision = `data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-percent'></i> Comisiones: ${formatCurrency(emp.comisiones_total)}</div>Comisiones acumuladas en Varios, Metal, Liquidados y Créditos.<div class='tooltip-formula-badge'>Comisión Variable</div>"`;
+            const ttBono = `data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-trophy-fill'></i> Bono por Meta: ${formatCurrency(emp.bono_meta)}</div>Incentivo por alcanzar el ${emp.porcentaje_cumplimiento_meta}% de su meta ($30,000).<div class='tooltip-formula-badge'>Bono por Cumplimiento</div>"`;
+            const ttCompTotal = `data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="<div class='tooltip-title'><i class='bi-piggy-bank-fill'></i> Compensación Total</div>Ingreso final percibido por el colaborador.<div class='tooltip-formula-badge'>${formatCurrency(emp.nomina_base)} (Base) + ${formatCurrency(emp.comisiones_total)} (Com) + ${formatCurrency(emp.bono_meta)} (Bono) = ${formatCurrency(emp.compensacion_total)}</div>"`;
+
             tr.innerHTML = `
                 <td class="fw-bold text-dark">${emp.empleado}</td>
                 <td><span class="badge bg-light text-dark border">${emp.sucursal}</span></td>
@@ -606,10 +678,10 @@
                 <td><span class="badge ${badgeClass}">${emp.perfil_alcanzado}</span></td>
                 <td class="text-end">${formatCurrency(emp.ventas_total)}</td>
                 <td class="text-end">${formatCurrency(emp.utilidad_total)}</td>
-                <td class="text-end">${formatCurrency(emp.nomina_base)}</td>
-                <td class="text-end text-primary fw-bold">${formatCurrency(emp.comisiones_total)}</td>
-                <td class="text-end text-success fw-bold">${formatCurrency(emp.bono_meta)}</td>
-                <td class="text-end fw-bold text-dark">${formatCurrency(emp.compensacion_total)}</td>
+                <td class="text-end has-tooltip" ${ttNomina}>${formatCurrency(emp.nomina_base)}</td>
+                <td class="text-end text-primary fw-bold has-tooltip" ${ttComision}>${formatCurrency(emp.comisiones_total)}</td>
+                <td class="text-end text-success fw-bold has-tooltip" ${ttBono}>${formatCurrency(emp.bono_meta)}</td>
+                <td class="text-end fw-bold text-dark has-tooltip" ${ttCompTotal}>${formatCurrency(emp.compensacion_total)}</td>
                 <td class="text-center">
                     <span class="badge ${emp.porcentaje_cumplimiento_meta >= 100 ? 'bg-success' : 'bg-secondary'}">
                         ${emp.porcentaje_cumplimiento_meta}%
@@ -706,6 +778,16 @@
             style: 'currency',
             currency: 'MXN'
         }).format(amount || 0);
+    }
+
+    function initTooltips() {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                const instance = bootstrap.Tooltip.getInstance(el);
+                if (instance) instance.dispose();
+                new bootstrap.Tooltip(el, { container: 'body' });
+            });
+        }
     }
 
     function exportarExcel() {

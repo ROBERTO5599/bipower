@@ -106,8 +106,10 @@ class VentasController extends Controller
         $sucVentasVarios = [];
         $sucVentasAutos = [];
 
-        // Tabla Top Artículos
-        $articulosData = [];
+        // Tablas Top Artículos por Categoría
+        $articulosMetalData = [];
+        $articulosVariosData = [];
+        $articulosAutosData = [];
 
         foreach ($sucursales as $sucursal) {
 
@@ -279,22 +281,42 @@ class VentasController extends Controller
                         $desgloseFamilias[$familiaStr]['tarjeta'] += $tarjetaItem;
                     }
 
-                    // Acumular para Top Artículos
+                    // Acumular para Top Artículos divididos por categorías (Metal, Varios, Autos)
                     $nombrePrenda = $r->prenda ? $r->prenda : 'Item no registrado';
-                    if (!isset($articulosData[$nombrePrenda])) {
-                        $articulosData[$nombrePrenda] = [
-                            'nombre' => $nombrePrenda,
-                            'cod_prenda' => $r->cod_prenda,
-                            'cantidad' => 0,
-                            'ventas' => 0,
-                            'utilidad' => 0,
-                            'descuento' => 0
-                        ];
+                    $prendaItem = [
+                        'nombre' => $nombrePrenda,
+                        'cod_prenda' => $r->cod_prenda,
+                        'cantidad' => 0,
+                        'ventas' => 0,
+                        'utilidad' => 0,
+                        'descuento' => 0
+                    ];
+
+                    if ($r->cod_tipo_prenda == 1) { // Metal (Oro / Plata)
+                        if (!isset($articulosMetalData[$nombrePrenda])) {
+                            $articulosMetalData[$nombrePrenda] = $prendaItem;
+                        }
+                        $articulosMetalData[$nombrePrenda]['cantidad']++;
+                        $articulosMetalData[$nombrePrenda]['ventas'] += $vtaReal;
+                        $articulosMetalData[$nombrePrenda]['utilidad'] += $utilidadItem;
+                        $articulosMetalData[$nombrePrenda]['descuento'] += $descuento;
+                    } elseif ($r->cod_tipo_prenda == 2) { // Autos
+                        if (!isset($articulosAutosData[$nombrePrenda])) {
+                            $articulosAutosData[$nombrePrenda] = $prendaItem;
+                        }
+                        $articulosAutosData[$nombrePrenda]['cantidad']++;
+                        $articulosAutosData[$nombrePrenda]['ventas'] += $vtaReal;
+                        $articulosAutosData[$nombrePrenda]['utilidad'] += $utilidadItem;
+                        $articulosAutosData[$nombrePrenda]['descuento'] += $descuento;
+                    } else { // Varios / Mercancía General
+                        if (!isset($articulosVariosData[$nombrePrenda])) {
+                            $articulosVariosData[$nombrePrenda] = $prendaItem;
+                        }
+                        $articulosVariosData[$nombrePrenda]['cantidad']++;
+                        $articulosVariosData[$nombrePrenda]['ventas'] += $vtaReal;
+                        $articulosVariosData[$nombrePrenda]['utilidad'] += $utilidadItem;
+                        $articulosVariosData[$nombrePrenda]['descuento'] += $descuento;
                     }
-                    $articulosData[$nombrePrenda]['cantidad']++;
-                    $articulosData[$nombrePrenda]['ventas'] += $vtaReal;
-                    $articulosData[$nombrePrenda]['utilidad'] += $utilidadItem;
-                    $articulosData[$nombrePrenda]['descuento'] += $descuento;
                 }
 
                 // Información consolidada para la sucursal actual
@@ -322,20 +344,32 @@ class VentasController extends Controller
         $porcentajeEfectivo = $ventasPagosTotales > 0 ? ($totalEfectivo / $ventasPagosTotales) * 100 : 0;
         $montoComisionTPV = $totalTarjeta * $comisionTPV;
 
-        // Limpiar ranking para calcular margenes
-        foreach ($articulosData as $k => $item) {
-            $articulosData[$k]['margen_prc'] = $item['ventas'] > 0 ? ($item['utilidad'] / $item['ventas']) * 100 : 0;
+        // Top 10 Metal Más Vendidos
+        $topArticulosMetal = array_values($articulosMetalData);
+        usort($topArticulosMetal, fn($a, $b) => $b['ventas'] <=> $a['ventas']);
+        $topArticulosMetal = array_slice($topArticulosMetal, 0, 10);
+
+        // Top 10 Varios Más Vendidos
+        $topArticulosVarios = array_values($articulosVariosData);
+        usort($topArticulosVarios, fn($a, $b) => $b['ventas'] <=> $a['ventas']);
+        $topArticulosVarios = array_slice($topArticulosVarios, 0, 10);
+
+        // Top 10 Autos Más Vendidos
+        $topArticulosAutos = array_values($articulosAutosData);
+        usort($topArticulosAutos, fn($a, $b) => $b['ventas'] <=> $a['ventas']);
+        $topArticulosAutos = array_slice($topArticulosAutos, 0, 10);
+
+        // Top 10 Mayor Margen %
+        $allArticulos = array_merge(
+            array_values($articulosMetalData),
+            array_values($articulosVariosData),
+            array_values($articulosAutosData)
+        );
+        foreach ($allArticulos as $k => $item) {
+            $allArticulos[$k]['margen_prc'] = $item['ventas'] > 0 ? ($item['utilidad'] / $item['ventas']) * 100 : 0;
         }
-
-        // Top 10 por Ventas o Importe
-        $topArticulosImporte = array_values($articulosData);
-        usort($topArticulosImporte, fn($a, $b) => $b['ventas'] <=> $a['ventas']);
-        $topArticulosImporte = array_slice($topArticulosImporte, 0, 10);
-
-        // Top 10 por Margen %
-        $topArticulosMargen = array_values($articulosData);
-        usort($topArticulosMargen, fn($a, $b) => $b['margen_prc'] <=> $a['margen_prc']);
-        $topArticulosMargen = array_slice($topArticulosMargen, 0, 10);
+        usort($allArticulos, fn($a, $b) => $b['margen_prc'] <=> $a['margen_prc']);
+        $topArticulosMargen = array_slice($allArticulos, 0, 10);
 
         return response()->json([
             // KPIs Principales
@@ -366,9 +400,12 @@ class VentasController extends Controller
             'desgloseVentas' => $desgloseVentas,
             'desgloseFamilias' => $desgloseFamilias,
 
-            // Tablas / Rankings
-            'topArticulosImporte' => $topArticulosImporte,
-            'topArticulosMargen' => $topArticulosMargen,
+            // Tablas / Rankings (3 Top 10 Más Vendidos por Categoría)
+            'topArticulosMetal' => $topArticulosMetal,
+            'topArticulosVarios' => $topArticulosVarios,
+            'topArticulosAutos' => $topArticulosAutos,
+            'topArticulosImporte' => $topArticulosVarios,
+            'topArticulosMargen' => $topArticulosMetal,
 
             // Chart Familia (Apilada vs Utilidad)
             'chartVentasFamilia' => [

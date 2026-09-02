@@ -181,9 +181,78 @@
         background-color: #ffffff !important;
     }
     /* Custom elegant tooltips */
-    .metric-tooltip {
-        border-bottom: 1px dotted #6c757d;
-        cursor: help;
+    /* Custom MySonda Cards Styling */
+    .mysonda-card {
+        border: none;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        margin-bottom: 1.25rem;
+        background-color: #ffffff;
+    }
+
+    .mysonda-header {
+        background-color: #370e4d;
+        color: #ffffff;
+        padding: 0.6rem 1rem;
+        font-weight: 800;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .mysonda-table {
+        width: 100%;
+        margin-bottom: 0;
+        border-collapse: collapse;
+    }
+
+    .mysonda-table td {
+        padding: 0.45rem 0.85rem;
+        font-size: 0.82rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .mysonda-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .mysonda-table td.label-col {
+        background-color: #f2eedb;
+        font-weight: 700;
+        color: #212529;
+        text-transform: uppercase;
+        width: 55%;
+    }
+
+    .mysonda-table td.val-col {
+        background-color: #ffffff;
+        font-weight: 700;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        text-align: right;
+        color: #212529;
+    }
+
+    .mysonda-val-blue { color: #1976d2 !important; }
+    .mysonda-val-green { color: #2e7d32 !important; }
+    .mysonda-val-teal { color: #00897b !important; }
+    .mysonda-val-red { color: #d32f2f !important; }
+
+    /* System Tabs Custom Styling */
+    .system-tab-btn {
+        color: #000000 !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        transition: all 0.2s ease-in-out;
+    }
+    .system-tab-btn:hover {
+        color: #000000 !important;
+        background-color: #e9ecef !important;
+    }
+    .system-tab-btn.active {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
     }
 </style>
 @endsection
@@ -208,6 +277,28 @@
         </div>
         <div class="col-md-6 text-md-end mt-3 mt-md-0">
             <span class="badge bg-primary px-3 py-2 fs-7" id="active-range-badge">Rango Activo: Cargando...</span>
+        </div>
+    </div>
+    <!-- Pestañas Integración de Sistemas -->
+    <div class="row mb-4 mx-0">
+        <div class="col-12 px-0">
+            <ul class="nav nav-pills bg-white p-2 rounded-4 shadow-sm border" id="sistema-tabs" role="tablist">
+                <li class="nav-item me-2" role="presentation">
+                    <button class="nav-link active fw-bold px-4 py-2 system-tab-btn" data-sistema="varamas" type="button">
+                        <i class="bi bi-cpu-fill me-2"></i>Pestaña Principal (Sistema Varamas)
+                    </button>
+                </li>
+                <li class="nav-item me-2" role="presentation">
+                    <button class="nav-link fw-bold px-4 py-2 system-tab-btn" data-sistema="mysonda" type="button">
+                        <i class="bi bi-hdd-network-fill me-2"></i>Pestaña MySonda
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold px-4 py-2 system-tab-btn" data-sistema="todas" type="button">
+                        <i class="bi bi-layers-fill me-2"></i>Pestaña Todas (Consolidado)
+                    </button>
+                </li>
+            </ul>
         </div>
     </div>
 
@@ -252,7 +343,7 @@
     </div>
 
     <!-- KPIs Cards Summary Row -->
-    <div class="row mb-4">
+    <div class="row mb-4" id="summary-kpis-row">
         <!-- Ventas Summary Card -->
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card card-kpi kpi-blue h-100 p-3">
@@ -338,7 +429,7 @@
     </div>
 
     <!-- Main Grid / Matrix Table -->
-    <div class="row">
+    <div class="row" id="tablero-main-table-row">
         <div class="col-12">
             <div class="tablero-table-container">
                 <div class="table-responsive">
@@ -357,6 +448,300 @@
                             <!-- Rows will be injected dynamically via JS -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MySonda Breakdown Cards Container -->
+    <div id="mysonda-cards-container" class="mt-2" style="display: none;">
+        <div class="row g-4 mb-4">
+            <!-- 1. EMPEÑOS -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card mysonda-card">
+                    <div class="mysonda-header">EMPEÑOS</div>
+                    <table class="mysonda-table">
+                        <tr>
+                            <td class="label-col">CONTRATOS:</td>
+                            <td class="val-col" id="ms-empenos-contratos">0</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRENDAS:</td>
+                            <td class="val-col" id="ms-empenos-prendas">0</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRESTAMO:</td>
+                            <td class="val-col mysonda-val-blue" id="ms-empenos-prestamo">$0.00</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 2. REFRENDOS -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card mysonda-card">
+                    <div class="mysonda-header">REFRENDOS</div>
+                    <table class="mysonda-table">
+                        <tr>
+                            <td class="label-col">CONTRATOS:</td>
+                            <td class="val-col" id="ms-refrendos-contratos">0</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRENDAS:</td>
+                            <td class="val-col" id="ms-refrendos-prendas">0</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRESTAMO:</td>
+                            <td class="val-col" id="ms-refrendos-prestamo">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PAGO A CUENTA:</td>
+                            <td class="val-col" id="ms-refrendos-pago-a-cuenta">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">INTERESES:</td>
+                            <td class="val-col" id="ms-refrendos-intereses">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">DESCUENTOS:</td>
+                            <td class="val-col" id="ms-refrendos-descuentos">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">IVA:</td>
+                            <td class="val-col" id="ms-refrendos-iva">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">TOTAL COBRADO:</td>
+                            <td class="val-col mysonda-val-blue" id="ms-refrendos-total-cobrado">$0.00</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. DESEMPEÑOS -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card mysonda-card">
+                    <div class="mysonda-header">DESEMPEÑOS</div>
+                    <table class="mysonda-table">
+                        <tr>
+                            <td class="label-col">CONTRATOS:</td>
+                            <td class="val-col" id="ms-desempenos-contratos">0</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRENDAS:</td>
+                            <td class="val-col" id="ms-desempenos-prendas">0</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRESTAMO:</td>
+                            <td class="val-col" id="ms-desempenos-prestamo">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">INTERESES:</td>
+                            <td class="val-col" id="ms-desempenos-intereses">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">DESCUENTOS:</td>
+                            <td class="val-col" id="ms-desempenos-descuentos">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">IVA:</td>
+                            <td class="val-col" id="ms-desempenos-iva">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">TOTAL COBRADO:</td>
+                            <td class="val-col mysonda-val-blue" id="ms-desempenos-total-cobrado">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col" style="background-color: #d4edda; color: #155724;">INTERES TOTAL:</td>
+                            <td class="val-col mysonda-val-green" id="ms-interes-total">$0.00</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4. VENTA PRENDAS -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card mysonda-card">
+                    <div class="mysonda-header">VENTA PRENDAS</div>
+                    <table class="mysonda-table">
+                        <tr>
+                            <td class="label-col">PRENDAS:</td>
+                            <td class="val-col" id="ms-venta-prendas">0</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PESO:</td>
+                            <td class="val-col" id="ms-venta-peso">0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRESTAMO:</td>
+                            <td class="val-col" id="ms-venta-prestamo">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">AVALUO:</td>
+                            <td class="val-col mysonda-val-blue" id="ms-venta-avaluo">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">VENTAS:</td>
+                            <td class="val-col mysonda-val-blue" id="ms-venta-ventas">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col" style="background-color: #d4edda; color: #155724;">VENTA TOTAL:</td>
+                            <td class="val-col mysonda-val-green" id="ms-venta-total">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col" style="background-color: #cff4fc; color: #055160;">UTILIDAD DE VENTA:</td>
+                            <td class="val-col mysonda-val-teal" id="ms-utilidad-venta">$0.00</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 5. APARTADOS LIQUIDADOS -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card mysonda-card">
+                    <div class="mysonda-header">APARTADOS LIQUIDADOS</div>
+                    <table class="mysonda-table">
+                        <tr>
+                            <td class="label-col">PRENDAS:</td>
+                            <td class="val-col" id="ms-apartados-prendas">0</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PESO:</td>
+                            <td class="val-col" id="ms-apartados-peso">0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRESTAMO:</td>
+                            <td class="val-col" id="ms-apartados-prestamo">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRECIO:</td>
+                            <td class="val-col mysonda-val-blue" id="ms-apartados-precio">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">ABONADO:</td>
+                            <td class="val-col mysonda-val-teal" id="ms-apartados-abonado">$0.00</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 6. ABONOS / APARTADOS -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card mysonda-card">
+                    <div class="mysonda-header">ABONOS / APARTADOS</div>
+                    <table class="mysonda-table">
+                        <tr>
+                            <td class="label-col">PRENDAS:</td>
+                            <td class="val-col" id="ms-abonos-prendas">0</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PESO:</td>
+                            <td class="val-col" id="ms-abonos-peso">0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRESTAMO:</td>
+                            <td class="val-col" id="ms-abonos-prestamo">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">PRECIO:</td>
+                            <td class="val-col" id="ms-abonos-precio">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">REMATADOS:</td>
+                            <td class="val-col" id="ms-abonos-rematados">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">ABONOS:</td>
+                            <td class="val-col" id="ms-abonos-abonos">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">TOTAL:</td>
+                            <td class="val-col mysonda-val-blue" id="ms-abonos-total">$0.00</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. ENTRADAS VS SALIDAS -->
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="card mysonda-card">
+                    <div class="mysonda-header">ENTRADAS VS SALIDAS</div>
+                    <div class="card-body p-0">
+                        <div class="row g-0">
+                            <!-- Left Sub-column -->
+                            <div class="col-md-6 border-end">
+                                <table class="mysonda-table">
+                                    <tr>
+                                        <td class="label-col">SALDO INICIAL BOVEDA:</td>
+                                        <td class="val-col" id="ms-saldo-inicial-boveda">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">APORTACIÓN BOVEDA:</td>
+                                        <td class="val-col" id="ms-aportacion-boveda">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">RETIROS BOVEDA:</td>
+                                        <td class="val-col" id="ms-retiros-boveda">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">DOTACION A CAJA:</td>
+                                        <td class="val-col" id="ms-dotacion-caja">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">RETIROS DE CAJA:</td>
+                                        <td class="val-col" id="ms-retiros-caja">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">COBROS TARJETA:</td>
+                                        <td class="val-col" id="ms-cobros-tarjeta">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">DEMASIAS:</td>
+                                        <td class="val-col" id="ms-demasias">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">COMPRAS VARIOS:</td>
+                                        <td class="val-col" id="ms-compras-varios">$0.00</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <!-- Right Sub-column -->
+                            <div class="col-md-6">
+                                <table class="mysonda-table">
+                                    <tr>
+                                        <td class="label-col">ENTRADAS:</td>
+                                        <td class="val-col mysonda-val-blue" id="ms-entradas">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">SALIDAS:</td>
+                                        <td class="val-col mysonda-val-red" id="ms-salidas">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">AJUSTE EFECTIVO CAJA:</td>
+                                        <td class="val-col" id="ms-ajuste-efectivo-caja">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">EFECTIVO CAJA:</td>
+                                        <td class="val-col mysonda-val-blue" id="ms-efectivo-caja">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">EFECTIVO BOVEDA:</td>
+                                        <td class="val-col mysonda-val-blue" id="ms-efectivo-boveda">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">REIMPRESIONES TOTAL:</td>
+                                        <td class="val-col" id="ms-reimpresiones-total">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-col">COMISION TARJETAS TOTAL:</td>
+                                        <td class="val-col" id="ms-comision-tarjetas-total">$0.00</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -469,6 +854,51 @@
             });
         });
 
+        let activeSistema = 'varamas';
+        const mySondaValoraMasIds = [3, 5, 1, 7, 9];
+
+        function updateSucursalSelectOptions() {
+            const select = document.getElementById('sucursal_id');
+            const currentValue = select.value;
+            const options = select.querySelectorAll('option');
+
+            options.forEach(opt => {
+                const val = opt.value;
+                if (!val) {
+                    opt.style.display = 'block';
+                    return;
+                }
+
+                const isMySondaOpt = mySondaValoraMasIds.includes(parseInt(val));
+                if (activeSistema === 'mysonda') {
+                    opt.style.display = isMySondaOpt ? 'block' : 'none';
+                } else if (activeSistema === 'varamas') {
+                    opt.style.display = !isMySondaOpt ? 'block' : 'none';
+                } else {
+                    opt.style.display = 'block';
+                }
+            });
+
+            const selectedOpt = select.querySelector(`option[value="${currentValue}"]`);
+            if (selectedOpt && selectedOpt.style.display === 'none') {
+                select.value = '';
+            }
+        }
+
+        document.querySelectorAll('.system-tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.system-tab-btn').forEach(b => {
+                    b.classList.remove('active');
+                    b.classList.add('text-secondary');
+                });
+                this.classList.add('active');
+                this.classList.remove('text-secondary');
+                activeSistema = this.dataset.sistema;
+                updateSucursalSelectOptions();
+                fetchTableroData();
+            });
+        });
+
         function formatDateString(date) {
             const y = date.getFullYear();
             const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -484,6 +914,7 @@
         });
 
         // Initialize first load
+        updateSucursalSelectOptions();
         fetchTableroData();
 
         function fetchTableroData() {
@@ -494,13 +925,15 @@
             const params = new URLSearchParams({
                 fecha_inicio: inputInicio.value,
                 fecha_fin: inputFin.value,
-                sucursal_id: sucursalId
+                sucursal_id: sucursalId,
+                sistema: activeSistema
             });
 
             // Update badge text
             const sucursalSelect = document.getElementById('sucursal_id');
             const selectedText = sucursalSelect.options[sucursalSelect.selectedIndex].text;
-            activeRangeBadge.innerText = `Rango: ${inputInicio.value} al ${inputFin.value} | ${selectedText}`;
+            const sistemaLabel = activeSistema === 'mysonda' ? 'MySonda' : (activeSistema === 'todas' ? 'Todas (Consolidado)' : 'Sistema Varamas');
+            activeRangeBadge.innerText = `[${sistemaLabel}] Rango: ${inputInicio.value} al ${inputFin.value} | ${selectedText}`;
 
             fetch(`{{ route('tablero-control.data') }}?${params.toString()}`)
                 .then(res => {
@@ -510,6 +943,7 @@
                 .then(data => {
                     renderTablero(data);
                     renderSummaryKPIs(data);
+                    renderMySondaCards(data._mysonda_detail);
                 })
                 .catch(err => {
                     console.error("Error loading tablero data:", err);
@@ -519,6 +953,115 @@
                     loadingOverlay.style.display = 'none';
                     dashboardContent.style.opacity = '1';
                 });
+        }
+
+        function renderMySondaCards(detail) {
+            const container = document.getElementById('mysonda-cards-container');
+            const mainTableRow = document.getElementById('tablero-main-table-row');
+            const summaryKpisRow = document.getElementById('summary-kpis-row');
+            
+            if (summaryKpisRow) summaryKpisRow.style.display = 'flex';
+
+            if (activeSistema === 'mysonda') {
+                if (mainTableRow) mainTableRow.style.display = 'none';
+                container.style.display = 'block';
+            } else if (activeSistema === 'todas') {
+                if (mainTableRow) mainTableRow.style.display = 'none';
+                container.style.display = 'none';
+            } else { // 'varamas'
+                if (mainTableRow) mainTableRow.style.display = 'flex';
+                container.style.display = 'none';
+                return;
+            }
+
+            if (!detail) return;
+
+            // EMPEÑOS
+            document.getElementById('ms-empenos-contratos').innerText = Number(detail.empenos_contratos || 0).toLocaleString();
+            document.getElementById('ms-empenos-prendas').innerText = Number(detail.empenos_prendas || 0).toLocaleString();
+            document.getElementById('ms-empenos-prestamo').innerText = formatter.format(detail.empenos_prestamo || 0);
+
+            // REFRENDOS
+            document.getElementById('ms-refrendos-contratos').innerText = Number(detail.refrendos_contratos || 0).toLocaleString();
+            document.getElementById('ms-refrendos-prendas').innerText = Number(detail.refrendos_prendas || 0).toLocaleString();
+            document.getElementById('ms-refrendos-prestamo').innerText = formatter.format(detail.refrendos_prestamo || 0);
+            document.getElementById('ms-refrendos-pago-a-cuenta').innerText = formatter.format(detail.refrendos_pago_a_cuenta || 0);
+            document.getElementById('ms-refrendos-intereses').innerText = formatter.format(detail.refrendos_intereses || 0);
+            document.getElementById('ms-refrendos-descuentos').innerText = formatter.format(detail.refrendos_descuentos || 0);
+            document.getElementById('ms-refrendos-iva').innerText = formatter.format(detail.refrendos_iva || 0);
+            document.getElementById('ms-refrendos-total-cobrado').innerText = formatter.format(detail.refrendos_total_cobrado || 0);
+
+            // DESEMPEÑOS
+            document.getElementById('ms-desempenos-contratos').innerText = Number(detail.desempenos_contratos || 0).toLocaleString();
+            document.getElementById('ms-desempenos-prendas').innerText = Number(detail.desempenos_prendas || 0).toLocaleString();
+            document.getElementById('ms-desempenos-prestamo').innerText = formatter.format(detail.desempenos_prestamo || 0);
+            document.getElementById('ms-desempenos-intereses').innerText = formatter.format(detail.desempenos_intereses || 0);
+            document.getElementById('ms-desempenos-descuentos').innerText = formatter.format(detail.desempenos_descuentos || 0);
+            document.getElementById('ms-desempenos-iva').innerText = formatter.format(detail.desempenos_iva || 0);
+            document.getElementById('ms-desempenos-total-cobrado').innerText = formatter.format(detail.desempenos_total_cobrado || 0);
+
+            // INTERES TOTAL = (Refrendos Intereses - Descuentos + IVA) + (Desempeños Intereses - Descuentos + IVA)
+            const refNeto = (Number(detail.refrendos_intereses || 0) - Number(detail.refrendos_descuentos || 0) + Number(detail.refrendos_iva || 0));
+            const desNeto = (Number(detail.desempenos_intereses || 0) - Number(detail.desempenos_descuentos || 0) + Number(detail.desempenos_iva || 0));
+            const interesTotalEl = document.getElementById('ms-interes-total');
+            if (interesTotalEl) {
+                interesTotalEl.innerText = formatter.format(refNeto + desNeto);
+            }
+
+            // VENTA PRENDAS
+            document.getElementById('ms-venta-prendas').innerText = Number(detail.venta_prendas_prendas || 0).toLocaleString();
+            document.getElementById('ms-venta-peso').innerText = Number(detail.venta_prendas_peso || 0).toFixed(2);
+            document.getElementById('ms-venta-prestamo').innerText = formatter.format(detail.venta_prendas_prestamo || 0);
+            document.getElementById('ms-venta-avaluo').innerText = formatter.format(detail.venta_prendas_avaluo || 0);
+            document.getElementById('ms-venta-ventas').innerText = formatter.format(detail.venta_prendas_ventas || 0);
+
+            // VENTA TOTAL = prestamo_ventas_prendas + prestamo_apartados_liquidados
+            const vtVal = (Number(detail.venta_prendas_prestamo || 0) + Number(detail.apartados_liquidados_prestamo || 0));
+            const vtEl = document.getElementById('ms-venta-total');
+            if (vtEl) {
+                vtEl.innerText = formatter.format(vtVal);
+            }
+
+            // UTILIDAD DE VENTA = (ventas_venta_prendas + precio_apartados_liquidados) - venta_total
+            const totalVentasPrecio = Number(detail.venta_prendas_ventas || 0) + Number(detail.apartados_liquidados_precio || 0);
+            const uvEl = document.getElementById('ms-utilidad-venta');
+            if (uvEl) {
+                uvEl.innerText = formatter.format(totalVentasPrecio - vtVal);
+            }
+
+            // APARTADOS LIQUIDADOS
+            document.getElementById('ms-apartados-prendas').innerText = Number(detail.apartados_liquidados_prendas || 0).toLocaleString();
+            document.getElementById('ms-apartados-peso').innerText = Number(detail.apartados_liquidados_peso || 0).toFixed(2);
+            document.getElementById('ms-apartados-prestamo').innerText = formatter.format(detail.apartados_liquidados_prestamo || 0);
+            document.getElementById('ms-apartados-precio').innerText = formatter.format(detail.apartados_liquidados_precio || 0);
+            document.getElementById('ms-apartados-abonado').innerText = formatter.format(detail.apartados_liquidados_abonado || 0);
+
+            // ABONOS / APARTADOS
+            document.getElementById('ms-abonos-prendas').innerText = Number(detail.abonos_apartados_prendas || 0).toLocaleString();
+            document.getElementById('ms-abonos-peso').innerText = Number(detail.abonos_apartados_peso || 0).toFixed(2);
+            document.getElementById('ms-abonos-prestamo').innerText = formatter.format(detail.abonos_apartados_prestamo || 0);
+            document.getElementById('ms-abonos-precio').innerText = formatter.format(detail.abonos_apartados_precio || 0);
+            document.getElementById('ms-abonos-rematados').innerText = formatter.format(detail.abonos_apartados_rematados || 0);
+            document.getElementById('ms-abonos-abonos').innerText = formatter.format(detail.abonos_apartados_abonos || 0);
+            document.getElementById('ms-abonos-total').innerText = formatter.format(detail.abonos_apartados_total || 0);
+
+            // ENTRADAS VS SALIDAS
+            document.getElementById('ms-saldo-inicial-boveda').innerText = formatter.format(detail.saldo_inicial_boveda || 0);
+            document.getElementById('ms-aportacion-boveda').innerText = formatter.format(detail.aportacion_boveda || 0);
+            document.getElementById('ms-retiros-boveda').innerText = formatter.format(detail.retiros_boveda || 0);
+            document.getElementById('ms-dotacion-caja').innerText = formatter.format(detail.dotacion_a_caja || 0);
+            document.getElementById('ms-retiros-caja').innerText = formatter.format(detail.retiros_de_caja || 0);
+            document.getElementById('ms-cobros-tarjeta').innerText = formatter.format(detail.cobros_tarjeta || 0);
+            document.getElementById('ms-demasias').innerText = formatter.format(detail.demasias || 0);
+            document.getElementById('ms-compras-varios').innerText = formatter.format(detail.compras_varios || 0);
+
+            document.getElementById('ms-entradas').innerText = formatter.format(detail.entradas || 0);
+            document.getElementById('ms-salidas').innerText = formatter.format(detail.salidas || 0);
+            document.getElementById('ms-ajuste-efectivo-caja').innerText = formatter.format(detail.ajuste_efectivo_caja || 0);
+            document.getElementById('ms-efectivo-caja').innerText = formatter.format(detail.efectivo_caja || 0);
+            document.getElementById('ms-efectivo-boveda').innerText = formatter.format(detail.efectivo_boveda || 0);
+            document.getElementById('ms-reimpresiones-total').innerText = formatter.format(detail.reimpresiones_total || 0);
+            document.getElementById('ms-comision-tarjetas-total').innerText = formatter.format(detail.comision_tarjetas_total || 0);
         }
 
         function calculatePercentage(avance, meta) {
@@ -606,6 +1149,11 @@
             setHtmlTooltip('tooltip-ventas-kpi', tooltipVentasHtml);
 
             // 2. Empeños Consolizados Card
+            const empenosTitleEl = document.getElementById('tooltip-empenos-kpi');
+            if (empenosTitleEl) {
+                empenosTitleEl.innerText = activeSistema === 'mysonda' ? 'Empeños Totales' : 'Empeños Consolidados';
+            }
+
             document.getElementById('summary-empenos-avance').innerText = formatter.format(empenosSum.avance);
             document.getElementById('summary-empenos-meta').innerText = formatter.format(empenosSum.meta);
             const empenosPct = calculatePercentage(empenosSum.avance, empenosSum.meta);

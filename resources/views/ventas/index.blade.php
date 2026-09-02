@@ -415,28 +415,30 @@
             </div>
         </div>
 
-        <!-- Tablas Top N Artículos -->
+        <!-- Tablas Top 10 Artículos Dividido por Metal, Varios y Autos (Más Vendidos) -->
         <div class="row mb-4">
-            <!-- Top por Importe (Venta) -->
-            <div class="col-md-6 mb-3">
+            <!-- 1. Top 10 Metal -->
+            <div class="col-lg-4 col-md-12 mb-3">
                 <div class="card shadow-sm border-0 rounded-3 h-100">
-                    <div class="card-header bg-white border-0 pt-4 px-4">
-                        <h5 class="fw-bold mb-0">Top 10 Artículos (Más Vendidos)</h5>
+                    <div class="card-header bg-white border-0 pt-3 px-3 d-flex align-items-center">
+                        <div class="icon-shape bg-light-warning text-warning me-2" style="width:34px; height:34px; font-size:1rem;">
+                            <i class="bi bi-gem"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Top 10 Metal <span class="text-muted fw-normal small">(Más Vendidos)</span></h6>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="bg-light">
                                     <tr>
-                                        <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Artículo</th>
-                                        <th class="py-3 text-uppercase text-muted small fw-bold text-end">Vendidos</th>
-                                        <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">Ingreso Bruto
-                                        </th>
+                                        <th class="ps-3 py-2 text-uppercase text-muted small fw-bold">Artículo</th>
+                                        <th class="py-2 text-uppercase text-muted small fw-bold text-end">Vendidos</th>
+                                        <th class="pe-3 py-2 text-uppercase text-muted small fw-bold text-end">Venta Total</th>
                                     </tr>
                                 </thead>
-                                <tbody id="top-articulos-importe">
+                                <tbody id="top-articulos-metal">
                                     <tr>
-                                        <td colspan="3" class="text-center text-muted py-3">Cargando datos...</td>
+                                        <td colspan="3" class="text-center text-muted py-3 small">Cargando datos...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -445,25 +447,90 @@
                 </div>
             </div>
 
-            <!-- Top por Margen -->
-            <div class="col-md-6 mb-3">
+            <!-- 2. Top 10 Varios -->
+            <div class="col-lg-4 col-md-12 mb-3">
                 <div class="card shadow-sm border-0 rounded-3 h-100">
-                    <div class="card-header bg-white border-0 pt-4 px-4">
-                        <h5 class="fw-bold mb-0">Top 10 Artículos (Mayor Margen %)</h5>
+                    <div class="card-header bg-white border-0 pt-3 px-3 d-flex align-items-center">
+                        <div class="icon-shape bg-light-primary text-primary me-2" style="width:34px; height:34px; font-size:1rem;">
+                            <i class="bi bi-box-seam-fill"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Top 10 Varios <span class="text-muted fw-normal small">(Más Vendidos)</span></h6>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="bg-light">
                                     <tr>
-                                        <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Artículo</th>
-                                        <th class="py-3 text-uppercase text-muted small fw-bold text-end">Utilidad Neta</th>
-                                        <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">% Margen</th>
+                                        <th class="ps-3 py-2 text-uppercase text-muted small fw-bold">Artículo</th>
+                                        <th class="py-2 text-uppercase text-muted small fw-bold text-end">Vendidos</th>
+                                        <th class="pe-3 py-2 text-uppercase text-muted small fw-bold text-end">Venta Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="top-articulos-varios">
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted py-3 small">Cargando datos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Top 10 Autos -->
+            <div class="col-lg-4 col-md-12 mb-3">
+                <div class="card shadow-sm border-0 rounded-3 h-100">
+                    <div class="card-header bg-white border-0 pt-3 px-3 d-flex align-items-center">
+                        <div class="icon-shape bg-light-success text-success me-2" style="width:34px; height:34px; font-size:1rem;">
+                            <i class="bi bi-car-front-fill"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Top 10 Autos <span class="text-muted fw-normal small">(Más Vendidos)</span></h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th class="ps-3 py-2 text-uppercase text-muted small fw-bold">Artículo</th>
+                                        <th class="py-2 text-uppercase text-muted small fw-bold text-end">Vendidos</th>
+                                        <th class="pe-3 py-2 text-uppercase text-muted small fw-bold text-end">Venta Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="top-articulos-autos">
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted py-3 small">Cargando datos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Top 10 Artículos (Mayor Margen %) -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm border-0 rounded-3">
+                    <div class="card-header bg-white border-0 pt-3 px-3 d-flex align-items-center">
+                        <div class="icon-shape bg-light-info text-info me-2" style="width:34px; height:34px; font-size:1rem;">
+                            <i class="bi bi-percent"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Top 10 Artículos <span class="text-muted fw-normal small">(Mayor Margen %)</span></h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th class="ps-3 py-2 text-uppercase text-muted small fw-bold">Artículo</th>
+                                        <th class="py-2 text-uppercase text-muted small fw-bold text-end">Utilidad Neta</th>
+                                        <th class="pe-3 py-2 text-uppercase text-muted small fw-bold text-end">% Margen</th>
                                     </tr>
                                 </thead>
                                 <tbody id="top-articulos-margen">
                                     <tr>
-                                        <td colspan="3" class="text-center text-muted py-3">Cargando datos...</td>
+                                        <td colspan="3" class="text-center text-muted py-3 small">Cargando datos...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -762,75 +829,87 @@
                 `;
                 updateTooltip('tooltip-pagos-metodos', pagosHtml);
 
-                // Tablas Top Artículos - Importe
-                const tbodyImporte = document.getElementById('top-articulos-importe');
-                tbodyImporte.innerHTML = '';
-                if (data.topArticulosImporte && data.topArticulosImporte.length > 0) {
-                    data.topArticulosImporte.forEach(item => {
-                        const tr = document.createElement('tr');
-                        const codPrenda = item.cod_prenda;
-                        if (codPrenda) {
-                            tr.className = 'cursor-pointer';
-                            tr.title = 'Haz clic para ver marcas';
-                            tr.innerHTML = `
-                                <td class="ps-4 py-3 fw-bold text-dark">
-                                    <i class="bi bi-info-circle text-primary me-1"></i> ${escapeHtml(item.nombre)}
-                                </td>
-                                <td class="py-3 text-end">${numberFormatter.format(item.cantidad)}</td>
-                                <td class="pe-4 py-3 text-end fw-bold text-primary">${formatter.format(item.ventas)}</td>
-                            `;
-                            tr.addEventListener('click', function() {
-                                mostrarMarcas(codPrenda, item.nombre);
-                            });
-                        } else {
-                            tr.innerHTML = `
-                                <td class="ps-4 py-3 fw-bold text-dark">${escapeHtml(item.nombre)}</td>
-                                <td class="py-3 text-end">${numberFormatter.format(item.cantidad)}</td>
-                                <td class="pe-4 py-3 text-end fw-bold text-primary">${formatter.format(item.ventas)}</td>
-                            `;
-                        }
-                        tbodyImporte.appendChild(tr);
-                    });
-                } else {
-                    tbodyImporte.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Sin datos</td></tr>';
-                }
-
-                // Tablas Top Artículos - Margen
-                const tbodyMargen = document.getElementById('top-articulos-margen');
-                tbodyMargen.innerHTML = '';
-                if (data.topArticulosMargen && data.topArticulosMargen.length > 0) {
-                    data.topArticulosMargen.forEach(item => {
-                        const tr = document.createElement('tr');
-                        const codPrenda = item.cod_prenda;
-                        if (codPrenda) {
-                            tr.className = 'cursor-pointer';
-                            tr.title = 'Haz clic para ver marcas';
-                            tr.innerHTML = `
-                                <td class="ps-4 py-3 fw-bold text-dark">
-                                    <i class="bi bi-info-circle text-primary me-1"></i> ${escapeHtml(item.nombre)}
-                                </td>
-                                <td class="py-3 text-end text-success">${formatter.format(item.utilidad)}</td>
-                                <td class="pe-4 py-3 text-end fw-bold">${(item.margen_prc || 0).toFixed(1)}%</td>
-                            `;
-                            tr.addEventListener('click', function() {
-                                mostrarMarcas(codPrenda, item.nombre);
-                            });
-                        } else {
-                            tr.innerHTML = `
-                                <td class="ps-4 py-3 fw-bold text-dark">${escapeHtml(item.nombre)}</td>
-                                <td class="py-3 text-end text-success">${formatter.format(item.utilidad)}</td>
-                                <td class="pe-4 py-3 text-end fw-bold">${(item.margen_prc || 0).toFixed(1)}%</td>
-                            `;
-                        }
-                        tbodyMargen.appendChild(tr);
-                    });
-                } else {
-                    tbodyMargen.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Sin datos</td></tr>';
-                }
+                // Tablas 3 Top 10 Artículos (Más Vendidos por Categoría: Metal, Varios, Autos)
+                renderTopTable('top-articulos-metal', data.topArticulosMetal);
+                renderTopTable('top-articulos-varios', data.topArticulosVarios);
+                renderTopTable('top-articulos-autos', data.topArticulosAutos);
+                
+                // Tabla Top 10 Mayor Margen %
+                renderTopMargenTable('top-articulos-margen', data.topArticulosMargen);
 
                 // Gráficos
                 updateBarChart(data.chartVentasFamilia);
                 updateDoughnutChart(data.chartMetodosPago);
+            }
+
+            function renderTopMargenTable(containerId, itemsArray) {
+                const tbody = document.getElementById(containerId);
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                if (itemsArray && itemsArray.length > 0) {
+                    itemsArray.forEach(item => {
+                        const tr = document.createElement('tr');
+                        const codPrenda = item.cod_prenda;
+                        if (codPrenda) {
+                            tr.className = 'cursor-pointer';
+                            tr.title = 'Haz clic para ver marcas';
+                            tr.innerHTML = `
+                                <td class="ps-3 py-2 fw-bold text-dark small">
+                                    <i class="bi bi-info-circle text-primary me-1"></i> ${escapeHtml(item.nombre)}
+                                </td>
+                                <td class="py-2 text-end text-success small fw-semibold">${formatter.format(item.utilidad)}</td>
+                                <td class="pe-3 py-2 text-end fw-bold text-dark small">${(item.margen_prc || 0).toFixed(1)}%</td>
+                            `;
+                            tr.addEventListener('click', function() {
+                                mostrarMarcas(codPrenda, item.nombre);
+                            });
+                        } else {
+                            tr.innerHTML = `
+                                <td class="ps-3 py-2 fw-bold text-dark small">${escapeHtml(item.nombre)}</td>
+                                <td class="py-2 text-end text-success small fw-semibold">${formatter.format(item.utilidad)}</td>
+                                <td class="pe-3 py-2 text-end fw-bold text-dark small">${(item.margen_prc || 0).toFixed(1)}%</td>
+                            `;
+                        }
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4 small">Sin datos registrados</td></tr>';
+                }
+            }
+
+            function renderTopTable(containerId, itemsArray) {
+                const tbody = document.getElementById(containerId);
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                if (itemsArray && itemsArray.length > 0) {
+                    itemsArray.forEach(item => {
+                        const tr = document.createElement('tr');
+                        const codPrenda = item.cod_prenda;
+                        if (codPrenda) {
+                            tr.className = 'cursor-pointer';
+                            tr.title = 'Haz clic para ver marcas';
+                            tr.innerHTML = `
+                                <td class="ps-3 py-2 fw-bold text-dark small">
+                                    <i class="bi bi-info-circle text-primary me-1"></i> ${escapeHtml(item.nombre)}
+                                </td>
+                                <td class="py-2 text-end small">${numberFormatter.format(item.cantidad)}</td>
+                                <td class="pe-3 py-2 text-end fw-bold text-primary small">${formatter.format(item.ventas)}</td>
+                            `;
+                            tr.addEventListener('click', function() {
+                                mostrarMarcas(codPrenda, item.nombre);
+                            });
+                        } else {
+                            tr.innerHTML = `
+                                <td class="ps-3 py-2 fw-bold text-dark small">${escapeHtml(item.nombre)}</td>
+                                <td class="py-2 text-end small">${numberFormatter.format(item.cantidad)}</td>
+                                <td class="pe-3 py-2 text-end fw-bold text-primary small">${formatter.format(item.ventas)}</td>
+                            `;
+                        }
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4 small">Sin datos registrados</td></tr>';
+                }
             }
 
             function updateBarChart(chartData) {
