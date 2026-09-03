@@ -1105,9 +1105,17 @@
                 let totalAvance = 0;
                 let totalMeta = 0;
                 if (data[indicatorKey]) {
-                    Object.keys(data[indicatorKey]).forEach(cat => {
-                        totalAvance += data[indicatorKey][cat].avance || 0;
-                        totalMeta += data[indicatorKey][cat].meta || 0;
+                    if (data[indicatorKey]._total) {
+                        return {
+                            avance: Number(data[indicatorKey]._total.avance || 0),
+                            meta: Number(data[indicatorKey]._total.meta || 0)
+                        };
+                    }
+                    categories.forEach(cat => {
+                        if (data[indicatorKey][cat]) {
+                            totalAvance += Number(data[indicatorKey][cat].avance || 0);
+                            totalMeta += Number(data[indicatorKey][cat].meta || 0);
+                        }
                     });
                 }
                 return { avance: totalAvance, meta: totalMeta };
@@ -1253,15 +1261,19 @@
                 section.indicators.forEach(ind => {
                     // Check if we have data for this indicator key
                     const indData = data[ind.key] || {};
+                    const opsVal = (data._operaciones_row && data._operaciones_row[ind.key]) ? data._operaciones_row[ind.key] : null;
+                    const opsBadge = (opsVal && opsVal !== '0') ? `<span class="badge bg-light text-secondary border ms-2 font-monospace-custom" style="font-size:0.7rem;" title="Operaciones realizadas (${opsVal})">${opsVal}</span>` : '';
                     
-                    // Precompute totals
-                    let rowTotalMeta = 0;
-                    let rowTotalAvance = 0;
+                    // Precompute totals (usa _total del backend o suma categorías)
+                    let rowTotalMeta = indData._total ? indData._total.meta : 0;
+                    let rowTotalAvance = indData._total ? indData._total.avance : 0;
 
-                    categories.forEach(cat => {
-                        rowTotalMeta += indData[cat] ? indData[cat].meta : 0;
-                        rowTotalAvance += indData[cat] ? indData[cat].avance : 0;
-                    });
+                    if (!indData._total) {
+                        categories.forEach(cat => {
+                            rowTotalMeta += indData[cat] ? indData[cat].meta : 0;
+                            rowTotalAvance += indData[cat] ? indData[cat].avance : 0;
+                        });
+                    }
 
                     let rowCells = '';
                     
@@ -1273,10 +1285,21 @@
                         const progressColor = getProgressColorClass(cellPct);
                         const badgeColor = getBadgeColorClass(cellPct);
 
-                        // If all values are 0, render a clean blank cell
+                        // If all values are 0, render a clean $0.00 cell matching C# system
                         if (cellMeta === 0 && cellAvance === 0) {
                             rowCells += `
-                                <td class="text-muted text-center font-monospace-custom">—</td>
+                                <td class="text-end font-monospace-custom">
+                                    <div class="d-flex flex-column text-end cell-progress-container">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="fw-bold text-muted fs-7">$0.00</span>
+                                            <span class="badge bg-light text-muted badge-progress ms-2">0%</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between text-muted" style="font-size: 0.75rem;">
+                                            <span>Meta:</span>
+                                            <span>$0.00</span>
+                                        </div>
+                                    </div>
+                                </td>
                             `;
                         } else {
                             rowCells += `
@@ -1306,7 +1329,20 @@
 
                     let totalCell = '';
                     if (rowTotalMeta === 0 && rowTotalAvance === 0) {
-                        totalCell = `<td class="text-muted text-center font-monospace-custom pe-4">—</td>`;
+                        totalCell = `
+                            <td class="text-end font-monospace-custom bg-light-subtle pe-4" style="background-color: rgba(78, 115, 223, 0.03) !important;">
+                                <div class="d-flex flex-column text-end cell-progress-container">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold text-muted fs-7">$0.00</span>
+                                        <span class="badge bg-light text-muted badge-progress ms-2">0%</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted" style="font-size: 0.75rem;">
+                                        <span>Meta:</span>
+                                        <span>$0.00</span>
+                                    </div>
+                                </div>
+                            </td>
+                        `;
                     } else {
                         totalCell = `
                             <td class="text-end font-monospace-custom bg-light-subtle pe-4" style="background-color: rgba(78, 115, 223, 0.03) !important;">
@@ -1340,6 +1376,7 @@
                         <tr class="${rowBgClass}">
                             <td class="text-start ps-4 fw-semibold text-dark">
                                 <i class="bi ${ind.icon} text-primary me-2"></i>${ind.name}
+                                ${opsBadge}
                             </td>
                             ${rowCells}
                             ${totalCell}
