@@ -55,8 +55,10 @@ class InventarioPisoController extends Controller
 
         $valorOro = 0;
         $valorVarios = 0;
+        $valorAutos = 0;
         $countOro = 0;
         $countVarios = 0;
+        $countAutos = 0;
         $perdidasMerma = 0;
 
         $valorPorFamilia = [];
@@ -70,6 +72,7 @@ class InventarioPisoController extends Controller
 
         $rangosOro = $rangos;
         $rangosVarios = $rangos;
+        $rangosAutos = $rangos;
 
         $sucLabels = [];
         $sucValores = [];
@@ -125,7 +128,7 @@ class InventarioPisoController extends Controller
                         pre.prenda as id,
                         au.prestamo,
                         COALESCE(au.p_venta, con.f_contrato) as fecha,
-                        'Varios' as categoria,
+                        'Autos' as categoria,
                         pre.cod_prenda
                     FROM autos au
                     INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
@@ -166,6 +169,9 @@ class InventarioPisoController extends Controller
                     if ($item->categoria == 'Oro') {
                         $valorOro += $valor;
                         $countOro++;
+                    } elseif ($item->categoria == 'Autos') {
+                        $valorAutos += $valor;
+                        $countAutos++;
                     } else {
                         $valorVarios += $valor;
                         $countVarios++;
@@ -180,16 +186,24 @@ class InventarioPisoController extends Controller
                     // Rangos
                     if ($dias <= 30) {
                         $rangos['0-30']++;
-                        $item->categoria == 'Oro' ? $rangosOro['0-30']++ : $rangosVarios['0-30']++;
+                        if ($item->categoria == 'Oro') $rangosOro['0-30']++;
+                        elseif ($item->categoria == 'Autos') $rangosAutos['0-30']++;
+                        else $rangosVarios['0-30']++;
                     } elseif ($dias <= 60) {
                         $rangos['31-60']++;
-                        $item->categoria == 'Oro' ? $rangosOro['31-60']++ : $rangosVarios['31-60']++;
+                        if ($item->categoria == 'Oro') $rangosOro['31-60']++;
+                        elseif ($item->categoria == 'Autos') $rangosAutos['31-60']++;
+                        else $rangosVarios['31-60']++;
                     } elseif ($dias <= 90) {
                         $rangos['61-90']++;
-                        $item->categoria == 'Oro' ? $rangosOro['61-90']++ : $rangosVarios['61-90']++;
+                        if ($item->categoria == 'Oro') $rangosOro['61-90']++;
+                        elseif ($item->categoria == 'Autos') $rangosAutos['61-90']++;
+                        else $rangosVarios['61-90']++;
                     } else {
                         $rangos['90+']++;
-                        $item->categoria == 'Oro' ? $rangosOro['90+']++ : $rangosVarios['90+']++;
+                        if ($item->categoria == 'Oro') $rangosOro['90+']++;
+                        elseif ($item->categoria == 'Autos') $rangosAutos['90+']++;
+                        else $rangosVarios['90+']++;
                     }
 
                     // Top artículos
@@ -455,8 +469,10 @@ class InventarioPisoController extends Controller
 
             'valorOro' => $valorOro,
             'valorVarios' => $valorVarios,
+            'valorAutos' => $valorAutos,
             'countOro' => $countOro,
             'countVarios' => $countVarios,
+            'countAutos' => $countAutos,
             'valorPorFamilia' => $valorPorFamilia,
 
             'porcentajeMas30' => round($porcentajeMas30, 1),
@@ -474,7 +490,8 @@ class InventarioPisoController extends Controller
             'chartDistribucionAntiguedad' => [
                 'labels' => ['0-30', '31-60', '61-90', '90+'],
                 'data_oro' => array_values($rangosOro),
-                'data_varios' => array_values($rangosVarios)
+                'data_varios' => array_values($rangosVarios),
+                'data_autos' => array_values($rangosAutos),
             ],
 
             'topArticulosAnejos' => $topArticulos

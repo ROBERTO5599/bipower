@@ -200,9 +200,11 @@ class ControlCajaArqueosController extends Controller
 
         $ultimoSaldo = 0.0;
         $ultimoSaldoFecha = null;
+        $ultimoSaldoBoveda = 0.0;
 
         // Group by date to find latest date for the "last day balance"
         $datesData = [];
+        $datesBovedaData = [];
 
         foreach ($records as $row) {
             $sumDiferencia += $row['diferencia'];
@@ -213,10 +215,20 @@ class ControlCajaArqueosController extends Controller
             }
 
             $fecha = $row['fecha'];
+            $sucId = $row['id_valora_mas'] ?? 'default';
+
             if (!isset($datesData[$fecha])) {
                 $datesData[$fecha] = 0.0;
             }
             $datesData[$fecha] += $row['total_general'];
+
+            // Save the latest total_boveda per sucursal on that date
+            if (!isset($datesBovedaData[$fecha])) {
+                $datesBovedaData[$fecha] = [];
+            }
+            if (!isset($datesBovedaData[$fecha][$sucId])) {
+                $datesBovedaData[$fecha][$sucId] = (float)($row['total_boveda'] ?? 0);
+            }
         }
 
         $pctCuadrado = $total > 0 ? round(($cuadrados / $total) * 100, 1) : 100.0;
@@ -226,7 +238,14 @@ class ControlCajaArqueosController extends Controller
             krsort($datesData); // Sort by date descending
             $ultimoSaldoFecha = array_key_first($datesData);
             $ultimoSaldo = $datesData[$ultimoSaldoFecha];
-            $ultimoSaldoFecha = Carbon::parse($ultimoSaldoFecha)->format('d/m/Y');
+
+            if (isset($datesBovedaData[$ultimoSaldoFecha])) {
+                $ultimoSaldoBoveda = array_sum($datesBovedaData[$ultimoSaldoFecha]);
+            }
+
+            $ultimoSaldoFechaFormatted = Carbon::parse($ultimoSaldoFecha)->format('d/m/Y');
+        } else {
+            $ultimoSaldoFechaFormatted = null;
         }
 
         return [
@@ -235,7 +254,8 @@ class ControlCajaArqueosController extends Controller
             'frecuencia_diferencias' => $frecuenciaDiferencias,
             'pct_cuadrado' => $pctCuadrado,
             'ultimo_saldo' => $ultimoSaldo,
-            'ultimo_saldo_fecha' => $ultimoSaldoFecha
+            'ultimo_saldo_boveda' => $ultimoSaldoBoveda,
+            'ultimo_saldo_fecha' => $ultimoSaldoFechaFormatted
         ];
     }
 

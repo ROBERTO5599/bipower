@@ -186,14 +186,48 @@ class ReportePagosTarjetaController extends Controller
             return strtotime($b['fecha']) <=> strtotime($a['fecha']);
         });
 
+        // Extract distinct lists before filters for dropdown population
+        $bancosList = array_values(array_unique(array_filter(array_map(function($m) {
+            return ($m['cuenta_destino'] && $m['cuenta_destino'] !== '-') ? $m['cuenta_destino'] : null;
+        }, $detalleMovimientos))));
+        sort($bancosList);
+
+        $conceptosList = array_values(array_unique(array_filter(array_map(function($m) {
+            return !empty($m['concepto']) ? strtoupper($m['concepto']) : null;
+        }, $detalleMovimientos))));
+        sort($conceptosList);
+
+        $transaccionesList = array_values(array_unique(array_filter(array_map(function($m) {
+            return (!empty($m['transaccion']) && $m['transaccion'] !== 'NO DEFINIDO') ? strtoupper($m['transaccion']) : null;
+        }, $detalleMovimientos))));
+        sort($transaccionesList);
+
         // Filter by transaccion if provided
         $transaccionFilter = $request->input('transaccion');
         if (!empty($transaccionFilter)) {
             $detalleMovimientos = array_values(array_filter($detalleMovimientos, function($m) use ($transaccionFilter) {
                 return $m['transaccion'] === strtoupper($transaccionFilter);
             }));
+        }
 
-            // Recalculate totals for the filtered subset
+        // Filter by banco / cuenta_destino if provided
+        $bancoFilter = $request->input('banco');
+        if (!empty($bancoFilter)) {
+            $detalleMovimientos = array_values(array_filter($detalleMovimientos, function($m) use ($bancoFilter) {
+                return $m['cuenta_destino'] === $bancoFilter;
+            }));
+        }
+
+        // Filter by concepto if provided
+        $conceptoFilter = $request->input('concepto');
+        if (!empty($conceptoFilter)) {
+            $detalleMovimientos = array_values(array_filter($detalleMovimientos, function($m) use ($conceptoFilter) {
+                return strtoupper($m['concepto']) === strtoupper($conceptoFilter);
+            }));
+        }
+
+        // Recalculate totals if any filter was applied
+        if (!empty($transaccionFilter) || !empty($bancoFilter) || !empty($conceptoFilter)) {
             $totalMonto = 0;
             $totalComisionMeses = 0;
             $totalComision = 0;
@@ -218,6 +252,9 @@ class ReportePagosTarjetaController extends Controller
             'totalComision' => $totalComision,
             'totalIva' => $totalIva,
             'totalGeneral' => $totalGeneral,
+            'bancos' => $bancosList,
+            'conceptos' => $conceptosList,
+            'transacciones' => $transaccionesList,
         ]);
     }
 

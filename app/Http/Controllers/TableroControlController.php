@@ -952,27 +952,10 @@ class TableroControlController extends Controller
         if ($mySondaSucursales->count() > 0) {
             $mySondaIntranetIds = $mySondaSucursales->pluck('id')->toArray();
 
-            // Verificar si existen registros en el rango de fechas seleccionado
-            $hasDateMatch = DB::table('resumen_operaciones_mysonda')
-                ->whereIn('sucursal_id', $mySondaIntranetIds)
-                ->whereBetween('fecha_reporte', [$carbonInicio->toDateString(), $carbonFin->toDateString()])
-                ->exists();
-
+            // Filtrar estrictamente por el campo fecha_reporte dentro del rango seleccionado
             $mySondaQuery = DB::table('resumen_operaciones_mysonda')
-                ->whereIn('sucursal_id', $mySondaIntranetIds);
-
-            if ($hasDateMatch) {
-                $mySondaQuery->whereBetween('fecha_reporte', [$carbonInicio->toDateString(), $carbonFin->toDateString()]);
-            } else {
-                // Fallback a la fecha reportada mas reciente si la fecha elegida no tiene cargas
-                $latestDate = DB::table('resumen_operaciones_mysonda')
-                    ->whereIn('sucursal_id', $mySondaIntranetIds)
-                    ->max('fecha_reporte');
-
-                if ($latestDate) {
-                    $mySondaQuery->where('fecha_reporte', $latestDate);
-                }
-            }
+                ->whereIn('sucursal_id', $mySondaIntranetIds)
+                ->whereBetween('fecha_reporte', [$carbonInicio->toDateString(), $carbonFin->toDateString()]);
 
             $mySondaSummary = (clone $mySondaQuery)
                 ->select(

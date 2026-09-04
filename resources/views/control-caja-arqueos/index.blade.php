@@ -36,6 +36,7 @@
     }
     
     .kpi-purple::before { background: #667eea; }
+    .kpi-blue::before { background: #3b82f6; }
     .kpi-green::before { background: #1cc88a; }
     .kpi-red::before { background: #e74a3b; }
     .kpi-orange::before { background: #fd7e14; }
@@ -52,6 +53,7 @@
     }
     
     .bg-light-purple { background: rgba(102, 126, 234, 0.1); color: #667eea; }
+    .bg-light-blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
     .bg-light-green { background: rgba(28, 200, 138, 0.1); color: #1cc88a; }
     .bg-light-red { background: rgba(231, 74, 59, 0.1); color: #e74a3b; }
     .bg-light-orange { background: rgba(253, 126, 20, 0.1); color: #fd7e14; }
@@ -246,8 +248,8 @@
         <div class="tab-pane fade show active" id="cierres-pane" role="tabpanel" aria-labelledby="cierres-tab" tabindex="0">
             <!-- KPIs -->
             <div class="row mb-4">
-                <div class="col-md-4 mb-3 mb-md-0">
-                    <div class="card card-kpi kpi-purple p-3">
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card card-kpi kpi-purple p-3 h-100">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
                                 <h6 class="text-muted fw-bold text-uppercase mb-1 small">Saldo de Caja al Cierre</h6>
@@ -260,8 +262,22 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3 mb-md-0">
-                    <div class="card card-kpi kpi-orange p-3">
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card card-kpi kpi-blue p-3 h-100">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="text-muted fw-bold text-uppercase mb-1 small">Saldo en Bóveda al Cierre</h6>
+                                <h3 class="fw-bold mb-0 font-monospace-custom text-primary" id="kpi-cierre-boveda">$0.00</h3>
+                                <span class="text-muted small" id="kpi-cierre-boveda-fecha">Al último cierre</span>
+                            </div>
+                            <div class="kpi-icon bg-light-blue">
+                                <i class="bi bi-safe2-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card card-kpi kpi-orange p-3 h-100">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
                                 <h6 class="text-muted fw-bold text-uppercase mb-1 small">Diferencias Acumuladas</h6>
@@ -274,8 +290,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3 mb-md-0">
-                    <div class="card card-kpi kpi-green p-3">
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card card-kpi kpi-green p-3 h-100">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
                                 <h6 class="text-muted fw-bold text-uppercase mb-1 small">% Arqueo Cuadrado</h6>
@@ -340,8 +356,8 @@
         <div class="tab-pane fade" id="arqueos-pane" role="tabpanel" aria-labelledby="arqueos-tab" tabindex="0">
             <!-- KPIs -->
             <div class="row mb-4">
-                <div class="col-md-4 mb-3 mb-md-0">
-                    <div class="card card-kpi kpi-purple p-3">
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card card-kpi kpi-purple p-3 h-100">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
                                 <h6 class="text-muted fw-bold text-uppercase mb-1 small">Saldo de Caja en Arqueo</h6>
@@ -354,8 +370,22 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3 mb-md-0">
-                    <div class="card card-kpi kpi-orange p-3">
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card card-kpi kpi-blue p-3 h-100">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="text-muted fw-bold text-uppercase mb-1 small">Saldo en Bóveda en Arqueo</h6>
+                                <h3 class="fw-bold mb-0 font-monospace-custom text-primary" id="kpi-arqueo-boveda">$0.00</h3>
+                                <span class="text-muted small" id="kpi-arqueo-boveda-fecha">Al último arqueo</span>
+                            </div>
+                            <div class="kpi-icon bg-light-blue">
+                                <i class="bi bi-safe2-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card card-kpi kpi-orange p-3 h-100">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
                                 <h6 class="text-muted fw-bold text-uppercase mb-1 small">Diferencias Acumuladas</h6>
@@ -368,8 +398,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3 mb-md-0">
-                    <div class="card card-kpi kpi-green p-3">
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card card-kpi kpi-green p-3 h-100">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
                                 <h6 class="text-muted fw-bold text-uppercase mb-1 small">% Arqueo Cuadrado</h6>
@@ -545,12 +575,17 @@
         function updateKpis(prefix, kpis) {
             const elSaldo = document.getElementById(`kpi-${prefix}-saldo`);
             const elSaldoFecha = document.getElementById(`kpi-${prefix}-saldo-fecha`);
+            const elBoveda = document.getElementById(`kpi-${prefix}-boveda`);
+            const elBovedaFecha = document.getElementById(`kpi-${prefix}-boveda-fecha`);
             const elDiferencia = document.getElementById(`kpi-${prefix}-diferencia`);
             const elDiferenciaFrec = document.getElementById(`kpi-${prefix}-diferencia-frec`);
             const elCuadrado = document.getElementById(`kpi-${prefix}-cuadrado`);
 
             if (elSaldo) elSaldo.textContent = formatter.format(kpis.ultimo_saldo || 0.0);
-            if (elSaldoFecha) elSaldoFecha.textContent = kpis.ultimo_saldo_fecha ? `Al día ${kpis.ultimo_saldo_fecha}` : 'Sin cierres';
+            if (elSaldoFecha) elSaldoFecha.textContent = kpis.ultimo_saldo_fecha ? `Al día ${kpis.ultimo_saldo_fecha}` : 'Sin datos';
+
+            if (elBoveda) elBoveda.textContent = formatter.format(kpis.ultimo_saldo_boveda || 0.0);
+            if (elBovedaFecha) elBovedaFecha.textContent = kpis.ultimo_saldo_fecha ? `Al día ${kpis.ultimo_saldo_fecha}` : 'Sin datos';
             
             if (elDiferencia) {
                 elDiferencia.textContent = formatter.format(kpis.diferencia_acumulada || 0.0);

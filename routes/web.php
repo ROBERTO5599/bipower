@@ -54,7 +54,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/inventario-apartados/data', [InventarioApartadosController::class, 'data'])->name('inventario-apartados.data');
     Route::get('/inventario-apartados/top-marcas', [InventarioApartadosController::class, 'topMarcas'])->name('inventario-apartados.top-marcas');
 
-    Route::get('/inventario-credito', [InventarioCreditoController::class, 'index'])->name('inventario-credito.index');
+    Route::get('/inventario-credito', function () {
+        return redirect()->route('creditos.index', ['tab' => 'inventario']);
+    })->name('inventario-credito.index');
     Route::get('/inventario-credito/data', [InventarioCreditoController::class, 'data'])->name('inventario-credito.data');
     Route::get('/inventario-credito/top-marcas', [InventarioCreditoController::class, 'topMarcas'])->name('inventario-credito.top-marcas');
 

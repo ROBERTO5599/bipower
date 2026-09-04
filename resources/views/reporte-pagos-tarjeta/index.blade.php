@@ -3,6 +3,10 @@
 @section('title', 'Reporte de Pagos con Tarjeta')
 
 @section('styles')
+    <!-- DataTables Bootstrap 5 CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+
     <style type="text/css">
         .cursor-pointer { cursor: pointer; }
         .card-hover:hover {
@@ -30,7 +34,7 @@
         #loading-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.85);
             z-index: 9999;
             display: flex;
             flex-direction: column;
@@ -61,8 +65,8 @@
             outline: none;
         }
         .table-select {
-            border: 1px solid transparent;
-            background-color: transparent;
+            border: 1px solid #ced4da;
+            background-color: #fff;
             padding: 3px 6px;
             border-radius: 4px;
             font-size: 0.875rem;
@@ -71,12 +75,10 @@
             transition: all 0.2s;
         }
         .table-select:hover {
-            border-color: #dee2e6;
-            background-color: #f8f9fa;
+            border-color: #adb5bd;
         }
         .table-select:focus {
             border-color: #0d6efd;
-            background-color: #fff;
             box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
             outline: none;
         }
@@ -90,12 +92,12 @@
         }
 
         /* Table Column Sizing */
-        .w-compct { width: 70px; margin: 0 auto; }
+        .w-compct { width: 75px; margin: 0 auto; }
         .w-months { width: 70px; margin: 0 auto; }
-        .w-amount { width: 100px; display: inline-block; }
+        .w-amount { width: 105px; display: inline-block; }
 
         .btn-xs {
-            padding: 0.15rem 0.3rem;
+            padding: 0.15rem 0.35rem;
             font-size: 0.75rem;
             border-radius: 0.2rem;
             line-height: 1;
@@ -107,25 +109,43 @@
             background-color: #f8faff;
         }
 
-        .table-hover tbody tr:hover td {
-            background-color: rgba(13, 110, 253, 0.02) !important;
+        /* DataTables Custom Styling */
+        div.dataTables_wrapper div.dataTables_filter {
+            text-align: right;
+            margin-bottom: 0.75rem;
+        }
+        div.dataTables_wrapper div.dataTables_length {
+            margin-bottom: 0.75rem;
+        }
+        div.dataTables_wrapper div.dataTables_filter input {
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            padding: 4px 10px;
+            margin-left: 6px;
+        }
+        div.dataTables_wrapper div.dataTables_length select {
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            padding: 4px 8px;
+            margin: 0 4px;
+        }
+        .dataTables_wrapper .pagination .page-item .page-link {
+            border-radius: 4px;
+            margin: 0 2px;
+        }
+        .dataTables_wrapper .pagination .page-item.active .page-link {
+            background: #0d6efd;
+            border-color: #0d6efd;
         }
 
         /* Print styling */
         @media print {
-            body * {
-                visibility: hidden;
-            }
-            #print-section, #print-section * {
-                visibility: visible;
-            }
+            body * { visibility: hidden; }
+            #print-section, #print-section * { visibility: visible; }
             #print-section {
                 position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
+                left: 0; top: 0; width: 100%;
             }
-            /* Style inputs and selects to look like text when printed */
             .table-input {
                 border: none !important;
                 background: transparent !important;
@@ -148,7 +168,7 @@
                 outline: none !important;
                 color: #000 !important;
             }
-            .actions-column, .btn-reset-row, th.actions-column, td.actions-column {
+            .actions-column, .btn-reset-row, th.actions-column, td.actions-column, .dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate {
                 display: none !important;
             }
             #sidebar-wrapper, #menu-toggle, #filter-form, .btn, #loading-overlay, .navbar, .kpi-container, .config-accordion {
@@ -198,7 +218,7 @@
         </div>
     </div>
 
-    <!-- Filtros -->
+    <!-- 1. Filtros Principales (Originales) -->
     <div class="card shadow-sm border-0 mb-4 rounded-3">
         <div class="card-body p-4">
             <form id="filter-form" class="row g-3">
@@ -240,7 +260,7 @@
         </div>
     </div>
 
-    <!-- Panel de Configuración de Tasas por Sucursal -->
+    <!-- 2. Panel de Configuración de Tasas por Sucursal (Colapsable) -->
     <div class="card shadow-sm border-0 mb-4 rounded-3 config-card config-accordion">
         <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between align-items-center cursor-pointer" data-bs-toggle="collapse" data-bs-target="#configPanelBody">
             <h5 class="fw-bold mb-0 text-primary">
@@ -303,14 +323,14 @@
                         <i class="bi bi-arrow-counterclockwise me-2"></i>Restablecer Valores por Defecto
                     </button>
                     <button type="button" id="btn-save-config" class="btn btn-success fw-bold">
-                        <i class="bi bi-check-circle me-2"></i>Aplicar Tasas
+                        <i class="bi bi-check-circle me-2"></i>Guardar y Aplicar Fórmulas
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- KPIs Principales -->
+    <!-- 3. KPIs Principales (Originales) -->
     <div class="row mb-4 kpi-container">
         <!-- Total Ingresos Tarjeta -->
         <div class="col-md-4 mb-3">
@@ -361,47 +381,75 @@
         </div>
     </div>
 
-    <!-- Tabla Detalle Movimientos -->
+    <!-- 4. Tabla Detalle Movimientos con los 3 Filtros justo arriba y diseño original -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0 rounded-3" id="print-section">
-                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="fw-bold mb-0">PAGOS CON TARJETA</h5>
-                        <p class="text-muted small mb-0 d-block d-print-inline">
-                            Período: <span id="print-period">-</span> | Generado: {{ now()->format('d/m/Y H:i:s') }}
-                        </p>
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="fw-bold mb-0">PAGOS CON TARJETA</h5>
+                            <p class="text-muted small mb-0 d-block d-print-inline">
+                                Período: <span id="print-period">-</span> | Generado: {{ now()->format('d/m/Y H:i:s') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- LOS 3 FILTROS EXACTAMENTE COMO EN TU IMAGEN -->
+                    <div class="row g-3 align-items-end pt-3 pb-3 border-top">
+                        <div class="col-12 col-md-4">
+                            <label for="table_transaccion" class="form-label fw-bold text-muted small text-uppercase mb-1">TRANSACCIÓN</label>
+                            <select id="table_transaccion" class="form-select">
+                                <option value="">-- Todas --</option>
+                                <option value="CLIP">CLIP</option>
+                                <option value="TERMINAL">TERMINAL</option>
+                                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                                <option value="DEPOSITO">DEPOSITO</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label for="table_banco" class="form-label fw-bold text-muted small text-uppercase mb-1">BANCO (CUENTA DESTINO)</label>
+                            <select id="table_banco" class="form-select">
+                                <option value="">-- Todos los Bancos / Cuentas --</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label for="table_concepto" class="form-label fw-bold text-muted small text-uppercase mb-1">CONCEPTO</label>
+                            <select id="table_concepto" class="form-select">
+                                <option value="">-- Todos los Conceptos --</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
+
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0 w-100" id="tabla-pagos-tarjeta">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Sucursal</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Fecha</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Contrato</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Concepto</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-center">Voucher</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Referencia</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Tipo de Pago</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Transacción</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold">Cuenta Destino</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Monto</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-center">Meses</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-center">Comisión %</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Comisión Meses</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Comisión Clip</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">IVA Comisión</th>
-                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">Total</th>
-                                    <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-center actions-column">Fórmula</th>
+                                    <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">SUCURSAL</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">FECHA</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">CONTRATO</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">CONCEPTO</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-center">VOUCHER</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">REFERENCIA</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">TIPO DE PAGO</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">TRANSACCIÓN</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold">CUENTA DESTINO</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">MONTO</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-center">MESES</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-center">COMISIÓN %</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">COMISIÓN MESES</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">COMISIÓN CLIP</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">IVA COMISIÓN</th>
+                                    <th class="py-3 text-uppercase text-muted small fw-bold text-end">TOTAL</th>
+                                    <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-center actions-column">FÓRMULA</th>
                                 </tr>
                             </thead>
                             <tbody id="movimientos-body">
-                                <tr><td colspan="16" class="text-center text-muted py-3">Cargando datos...</td></tr>
+                                <tr><td colspan="17" class="text-center text-muted py-3">Cargando datos...</td></tr>
                             </tbody>
                             <tfoot class="bg-light fw-bold" id="table-footer">
-                                <!-- Will be updated by JS -->
                             </tfoot>
                         </table>
                     </div>
@@ -415,7 +463,14 @@
 @endsection
 
 @section('scripts')
-<!-- Import SheetJS CDN for high fidelity Excel Export -->
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<!-- DataTables Bootstrap 5 -->
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+<!-- SheetJS CDN for high fidelity Excel Export -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
@@ -433,6 +488,7 @@
         let rawMovements = [];
         let sucursalRates = {};
         let rowOverrides = {};
+        let dataTableInstance = null;
 
         // 1. Initialize Sucursal Rates
         initSucursalRates();
@@ -440,10 +496,15 @@
         // 2. Fetch initial data
         loadData();
 
-        // Event listener for filter submission
+        // Event listener for main filter form submission
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             loadData();
+        });
+
+        // 3. Listener para los 3 filtros rápidos arriba de la tabla
+        $('#table_transaccion, #table_banco, #table_concepto').on('change', function() {
+            recomputeAndRender();
         });
 
         // Event listener for config panel - SAVE
@@ -460,14 +521,12 @@
             });
             localStorage.setItem('card_payments_sucursal_rates', JSON.stringify(sucursalRates));
             
-            // Render spreadsheet updates and show feedback
             recomputeAndRender();
             
-            // Inline notification inside panel or simple alert
             const btn = document.getElementById('btn-save-config');
             const originalText = btn.innerHTML;
             btn.className = "btn btn-success fw-bold";
-            btn.innerHTML = `<i class="bi bi-check-all me-2"></i>¡Aplicado!`;
+            btn.innerHTML = `<i class="bi bi-check-all me-2"></i>¡Fórmulas Aplicadas!`;
             setTimeout(() => {
                 btn.innerHTML = originalText;
             }, 2000);
@@ -477,7 +536,6 @@
         document.getElementById('btn-reset-config').addEventListener('click', function() {
             if (confirm('¿Estás seguro de restablecer todas las tasas a sus valores por defecto (2.99% base)?')) {
                 localStorage.removeItem('card_payments_sucursal_rates');
-                // Reset inputs to default values
                 document.querySelectorAll('#sucursal-rates-body tr').forEach(row => {
                     row.querySelector('.rate-base').value = '2.99';
                     row.querySelector('.rate-msi3').value = '4.50';
@@ -485,7 +543,6 @@
                     row.querySelector('.rate-msi9').value = '9.90';
                     row.querySelector('.rate-msi12').value = '11.95';
                 });
-                // Re-init memory state
                 initSucursalRates();
                 recomputeAndRender();
             }
@@ -515,92 +572,79 @@
                         r.querySelector('.rate-msi12').value = msi12;
                     }
                 });
-                // Auto-trigger save
                 document.getElementById('btn-save-config').click();
             }
         });
 
-        // Event listener for inline editing in the table body (Input change delegation)
-        const tbody = document.getElementById('movimientos-body');
-        
-        tbody.addEventListener('input', function(e) {
-            const target = e.target;
-            const row = target.closest('tr');
-            if (!row) return;
-            
-            const codMovimiento = row.dataset.codMovimiento;
+        // Event delegation for table inline editing via jQuery so DataTables pagination doesn't drop listeners
+        $(document).on('input', '#tabla-pagos-tarjeta tbody .table-input', function() {
+            handleRowFieldChange($(this));
+        });
+
+        $(document).on('change', '#tabla-pagos-tarjeta tbody .table-select', function() {
+            handleRowFieldChange($(this));
+        });
+
+        function handleRowFieldChange($elem) {
+            const $row = $elem.closest('tr');
+            const codMovimiento = $row.data('cod-movimiento');
             if (!codMovimiento) return;
-            
-            // Find movement
-            const m = rawMovements.find(item => item.cod_movimiento == codMovimiento);
-            if (!m) return;
-            
-            // Init override structure if missing
+
             if (!rowOverrides[codMovimiento]) {
                 rowOverrides[codMovimiento] = { overrides: {} };
             }
-            
-            const val = parseFloat(target.value);
-            const valInt = parseInt(target.value);
-            
-            if (target.classList.contains('row-comision-pct')) {
+
+            const val = parseFloat($elem.val());
+            const valInt = parseInt($elem.val(), 10);
+
+            if ($elem.hasClass('row-comision-pct')) {
                 rowOverrides[codMovimiento].comision_pct = isNaN(val) ? 0 : val;
                 rowOverrides[codMovimiento].overrides.comision_pct = true;
-            } else if (target.classList.contains('row-meses')) {
+            } else if ($elem.hasClass('row-meses')) {
                 rowOverrides[codMovimiento].meses = isNaN(valInt) ? 0 : valInt;
                 rowOverrides[codMovimiento].overrides.meses = true;
-            } else if (target.classList.contains('row-comision-meses')) {
+            } else if ($elem.hasClass('row-comision-meses')) {
                 rowOverrides[codMovimiento].comision_meses = isNaN(val) ? 0 : val;
                 rowOverrides[codMovimiento].overrides.comision_meses = true;
-            } else if (target.classList.contains('row-comision-clip')) {
+            } else if ($elem.hasClass('row-comision-clip')) {
                 rowOverrides[codMovimiento].comision = isNaN(val) ? 0 : val;
                 rowOverrides[codMovimiento].overrides.comision = true;
-            } else if (target.classList.contains('row-iva-comision')) {
+            } else if ($elem.hasClass('row-iva-comision')) {
                 rowOverrides[codMovimiento].iva = isNaN(val) ? 0 : val;
                 rowOverrides[codMovimiento].overrides.iva = true;
             }
-            
-            localStorage.setItem('card_payments_row_overrides', JSON.stringify(rowOverrides));
-            recomputeAndRender();
-        });
 
-        // Handle dropdown selection (selects fire 'change' not 'input')
-        tbody.addEventListener('change', function(e) {
-            const target = e.target;
-            if (target.classList.contains('row-meses')) {
-                const row = target.closest('tr');
-                if (!row) return;
-                
-                const codMovimiento = row.dataset.codMovimiento;
-                if (!codMovimiento) return;
-                
-                if (!rowOverrides[codMovimiento]) {
-                    rowOverrides[codMovimiento] = { overrides: {} };
-                }
-                
-                rowOverrides[codMovimiento].meses = parseInt(target.value) || 0;
-                rowOverrides[codMovimiento].overrides.meses = true;
-                
-                localStorage.setItem('card_payments_row_overrides', JSON.stringify(rowOverrides));
-                recomputeAndRender();
+            localStorage.setItem('card_payments_row_overrides', JSON.stringify(rowOverrides));
+
+            // Recalculate row values in place
+            const rawItem = rawMovements.find(item => item.cod_movimiento == codMovimiento);
+            if (rawItem) {
+                const m = calculateMovement(rawItem);
+                $row.find('.row-comision-meses').val(m.comision_meses.toFixed(2));
+                $row.find('.row-comision-clip').val(m.comision.toFixed(2));
+                $row.find('.row-iva-comision').val(m.iva.toFixed(2));
+                $row.find('.cell-total').text(formatter.format(m.total));
+                $elem.addClass('input-overridden');
+
+                $row.find('.actions-column').html(`
+                    <button type="button" class="btn btn-xs btn-outline-warning btn-reset-row" title="Restablecer valores de la fórmula">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                `);
             }
-        });
+
+            updateKpisAndFooter();
+        }
 
         // Event listener for row formula reset
-        tbody.addEventListener('click', function(e) {
-            const btn = e.target.closest('.btn-reset-row');
-            if (!btn) return;
-            
-            const row = btn.closest('tr');
-            if (!row) return;
-            
-            const codMovimiento = row.dataset.codMovimiento;
+        $(document).on('click', '#tabla-pagos-tarjeta tbody .btn-reset-row', function() {
+            const $row = $(this).closest('tr');
+            const codMovimiento = $row.data('cod-movimiento');
             if (!codMovimiento) return;
-            
-            // Delete override for this movement
+
             delete rowOverrides[codMovimiento];
-            
             localStorage.setItem('card_payments_row_overrides', JSON.stringify(rowOverrides));
+
             recomputeAndRender();
         });
 
@@ -611,7 +655,6 @@
             const savedRates = localStorage.getItem('card_payments_sucursal_rates');
             if (savedRates) {
                 sucursalRates = JSON.parse(savedRates);
-                // Pre-fill input fields in configuration panel with loaded rates
                 Object.keys(sucursalRates).forEach(sucId => {
                     const row = document.querySelector(`tr[data-sucursal-id="${sucId}"]`);
                     if (row) {
@@ -624,7 +667,6 @@
                     }
                 });
             } else {
-                // Read base inputs values
                 sucursalRates = {};
                 document.querySelectorAll('#sucursal-rates-body tr').forEach(row => {
                     const sucId = row.dataset.sucursalId;
@@ -659,10 +701,58 @@
                 .then(data => {
                     rawMovements = data.detalleMovimientos || [];
                     
-                    // Retrieve stored row overrides
                     const savedOverrides = localStorage.getItem('card_payments_row_overrides');
                     rowOverrides = savedOverrides ? JSON.parse(savedOverrides) : {};
                     
+                    // Extraer valores únicos para poblar los 3 filtros rápidos de la tabla
+                    const bancosSet = new Set();
+                    const conceptosSet = new Set();
+                    const transaccionesSet = new Set();
+
+                    rawMovements.forEach(m => {
+                        if (m.cuenta_destino && m.cuenta_destino !== '-') bancosSet.add(m.cuenta_destino);
+                        if (m.concepto) conceptosSet.add(m.concepto.toUpperCase());
+                        if (m.transaccion && m.transaccion !== 'NO DEFINIDO') transaccionesSet.add(m.transaccion.toUpperCase());
+                    });
+
+                    // Poblar selector de Bancos
+                    const bancoSelect = document.getElementById('table_banco');
+                    const currentBanco = bancoSelect.value;
+                    bancoSelect.innerHTML = '<option value="">-- Todos los Bancos / Cuentas --</option>';
+                    Array.from(bancosSet).sort().forEach(b => {
+                        const opt = document.createElement('option');
+                        opt.value = b;
+                        opt.textContent = b;
+                        if (b === currentBanco) opt.selected = true;
+                        bancoSelect.appendChild(opt);
+                    });
+
+                    // Poblar selector de Conceptos
+                    const conceptoSelect = document.getElementById('table_concepto');
+                    const currentConcepto = conceptoSelect.value;
+                    conceptoSelect.innerHTML = '<option value="">-- Todos los Conceptos --</option>';
+                    Array.from(conceptosSet).sort().forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c;
+                        opt.textContent = c;
+                        if (c === currentConcepto) opt.selected = true;
+                        conceptoSelect.appendChild(opt);
+                    });
+
+                    // Poblar selector de Transacciones
+                    const transSelect = document.getElementById('table_transaccion');
+                    const currentTrans = transSelect.value;
+                    transSelect.innerHTML = '<option value="">-- Todas --</option>';
+                    const defaultTrans = ['CLIP', 'TERMINAL', 'TRANSFERENCIA', 'DEPOSITO'];
+                    const allTrans = Array.from(new Set([...defaultTrans, ...Array.from(transaccionesSet)])).sort();
+                    allTrans.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t;
+                        opt.textContent = t;
+                        if (t === currentTrans) opt.selected = true;
+                        transSelect.appendChild(opt);
+                    });
+
                     recomputeAndRender();
                 })
                 .catch(error => {
@@ -681,16 +771,13 @@
             const isCanceled = m.status === 'CANCELADO';
             const aplicaComision = (m.transaccion === 'CLIP' || m.transaccion === 'TERMINAL' || m.tipo_pago === 'TARJETA');
             
-            // Get sucursal rates configuration
             const rates = sucursalRates[m.sucursal_id] || { base: 2.99, msi3: 4.5, msi6: 7.5, msi9: 9.9, msi12: 11.95 };
-            
-            // Check if overrides exist
             const rowOverride = rowOverrides[m.cod_movimiento] || { overrides: {} };
             
             // 1. Commission Base %
             let comision_pct = 0;
             let isPctOverridden = false;
-            if (rowOverride.overrides.comision_pct) {
+            if (rowOverride.overrides && rowOverride.overrides.comision_pct) {
                 comision_pct = parseFloat(rowOverride.comision_pct) || 0;
                 isPctOverridden = true;
             } else if (aplicaComision) {
@@ -700,14 +787,11 @@
             // 2. Meses (MSI)
             let meses = 0;
             let isMesesOverridden = false;
-            if (rowOverride.overrides.meses) {
+            if (rowOverride.overrides && rowOverride.overrides.meses) {
                 meses = parseInt(rowOverride.meses) || 0;
                 isMesesOverridden = true;
-            } else {
-                meses = 0; // default to 0
             }
             
-            // Surcharge percent lookup
             let surcharge_pct = 0;
             if (meses === 3) surcharge_pct = parseFloat(rates.msi3) || 0;
             else if (meses === 6) surcharge_pct = parseFloat(rates.msi6) || 0;
@@ -717,7 +801,7 @@
             // 3. Comisión Meses ($)
             let comision_meses = 0;
             let isComisionMesesOverridden = false;
-            if (rowOverride.overrides.comision_meses) {
+            if (rowOverride.overrides && rowOverride.overrides.comision_meses) {
                 comision_meses = parseFloat(rowOverride.comision_meses) || 0;
                 isComisionMesesOverridden = true;
             } else if (aplicaComision && m.monto > 0) {
@@ -727,7 +811,7 @@
             // 4. Comisión Clip ($)
             let comision_clip = 0;
             let isComisionClipOverridden = false;
-            if (rowOverride.overrides.comision) {
+            if (rowOverride.overrides && rowOverride.overrides.comision) {
                 comision_clip = parseFloat(rowOverride.comision) || 0;
                 isComisionClipOverridden = true;
             } else if (aplicaComision && m.monto > 0) {
@@ -737,7 +821,7 @@
             // 5. IVA Comisión ($)
             let iva = 0;
             let isIvaOverridden = false;
-            if (rowOverride.overrides.iva) {
+            if (rowOverride.overrides && rowOverride.overrides.iva) {
                 iva = parseFloat(rowOverride.iva) || 0;
                 isIvaOverridden = true;
             } else if (aplicaComision && m.monto > 0) {
@@ -755,7 +839,7 @@
                 comision_pct,
                 meses,
                 comision_meses,
-                comision: comision_clip, // map to 'comision' structure
+                comision: comision_clip,
                 iva,
                 total,
                 aplicaComision,
@@ -770,28 +854,36 @@
         }
 
         function recomputeAndRender() {
-            let totalMonto = 0;
-            let totalComisionMeses = 0;
-            let totalComision = 0;
-            let totalIva = 0;
-            let totalGeneral = 0;
-            let activeCount = 0;
+            // Destroy DataTable if already initialized
+            if ($.fn.DataTable.isDataTable('#tabla-pagos-tarjeta')) {
+                $('#tabla-pagos-tarjeta').DataTable().destroy();
+            }
 
+            const tbody = document.getElementById('movimientos-body');
             tbody.innerHTML = '';
 
-            if (rawMovements && rawMovements.length > 0) {
-                rawMovements.forEach(item => {
+            // Obtener valores seleccionados en los 3 filtros rápidos arriba de la tabla
+            const selTrans = $('#table_transaccion').val();
+            const selBanco = $('#table_banco').val();
+            const selConc = $('#table_concepto').val();
+
+            let filteredMovements = rawMovements;
+            if (selTrans) {
+                filteredMovements = filteredMovements.filter(m => (m.transaccion || '').toUpperCase() === selTrans.toUpperCase());
+            }
+            if (selBanco) {
+                filteredMovements = filteredMovements.filter(m => (m.cuenta_destino || '').toUpperCase() === selBanco.toUpperCase());
+            }
+            if (selConc) {
+                filteredMovements = filteredMovements.filter(m => (m.concepto || '').toUpperCase() === selConc.toUpperCase());
+            }
+
+            if (filteredMovements && filteredMovements.length > 0) {
+                let rowsHtml = '';
+
+                filteredMovements.forEach(item => {
                     const m = calculateMovement(item);
                     const isCanceled = m.status === 'CANCELADO';
-                    
-                    if (!isCanceled) {
-                        totalMonto += m.monto;
-                        totalComisionMeses += m.comision_meses;
-                        totalComision += m.comision;
-                        totalIva += m.iva;
-                        totalGeneral += m.total;
-                        activeCount++;
-                    }
 
                     const rowClass = isCanceled ? 'table-warning text-muted text-decoration-line-through' : '';
                     const statusBadge = isCanceled 
@@ -799,23 +891,20 @@
                         : `<span class="badge bg-success rounded-pill">ACTIVA</span>`;
 
                     const isOverridden = Object.values(m.overrides).some(o => o === true);
-                    
-                    const tr = document.createElement('tr');
-                    tr.className = rowClass;
-                    tr.dataset.codMovimiento = m.cod_movimiento;
 
-                    // Base read-only cells
+                    // Exactly matching original layout & styling from user's screenshot
                     let html = `
-                        <td class="ps-4 fw-semibold">${m.sucursal}</td>
-                        <td>${m.fecha}</td>
-                        <td>${m.contrato}</td>
-                        <td>${m.concepto}</td>
-                        <td class="text-center">${m.voucher ? '<span class="badge bg-danger fw-bold">' + m.voucher + '</span>' : statusBadge}</td>
-                        <td>${m.referencia || '-'}</td>
-                        <td class="fw-semibold text-secondary">${m.tipo_pago}</td>
-                        <td class="fw-semibold text-primary">${m.transaccion}</td>
-                        <td>${m.cuenta_destino || '-'}</td>
-                        <td class="text-end fw-semibold">${formatter.format(m.monto)}</td>
+                        <tr class="${rowClass}" data-cod-movimiento="${m.cod_movimiento}">
+                            <td class="ps-4 fw-semibold">${m.sucursal}</td>
+                            <td>${m.fecha}</td>
+                            <td>${m.contrato}</td>
+                            <td>${m.concepto}</td>
+                            <td class="text-center">${m.voucher ? '<span class="badge bg-danger fw-bold">' + m.voucher + '</span>' : statusBadge}</td>
+                            <td>${m.referencia || '-'}</td>
+                            <td class="fw-semibold text-secondary">${m.tipo_pago}</td>
+                            <td class="fw-semibold text-primary">${m.transaccion}</td>
+                            <td>${m.cuenta_destino || '-'}</td>
+                            <td class="text-end fw-semibold">${formatter.format(m.monto)}</td>
                     `;
 
                     // Editable/Calculated cells
@@ -855,52 +944,105 @@
 
                     // Total and Actions column
                     html += `
-                        <td class="pe-4 text-end fw-bold text-success">${formatter.format(m.total)}</td>
-                        <td class="text-center actions-column">
-                            ${(isOverridden && !isCanceled) ? `
-                                <button type="button" class="btn btn-xs btn-outline-warning btn-reset-row" title="Restablecer valores de la fórmula">
-                                    <i class="bi bi-arrow-counterclockwise"></i>
-                                </button>
-                            ` : `
-                                <span class="text-muted small"><i class="bi bi-calculator-fill text-black-50"></i></span>
-                            `}
-                        </td>
+                            <td class="pe-4 text-end fw-bold text-success cell-total">${formatter.format(m.total)}</td>
+                            <td class="text-center actions-column">
+                                ${(isOverridden && !isCanceled) ? `
+                                    <button type="button" class="btn btn-xs btn-outline-warning btn-reset-row" title="Restablecer valores de la fórmula">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                ` : `
+                                    <span class="text-muted small"><i class="bi bi-calculator-fill text-black-50"></i></span>
+                                `}
+                            </td>
+                        </tr>
                     `;
 
-                    tr.innerHTML = html;
-                    tbody.appendChild(tr);
+                    rowsHtml += html;
                 });
 
-                // Update KPIs
-                document.getElementById('kpi-total-tarjeta').innerText = formatter.format(totalGeneral);
-                document.getElementById('kpi-transacciones').innerText = activeCount;
-                const ticketPromedio = activeCount > 0 ? (totalGeneral / activeCount) : 0;
-                document.getElementById('kpi-ticket-promedio').innerText = formatter.format(ticketPromedio);
+                tbody.innerHTML = rowsHtml;
 
-                // Update Table Footer
-                const tfoot = document.getElementById('table-footer');
-                tfoot.innerHTML = `
-                    <tr>
-                        <td colspan="9" class="ps-4 py-3 text-end">TOTAL REPORTADO (ACTIVOS):</td>
-                        <td class="text-end py-3">${formatter.format(totalMonto)}</td>
-                        <td class="text-center py-3 text-muted">-</td>
-                        <td class="text-center py-3 text-muted">-</td>
-                        <td class="text-end py-3 text-muted">${formatter.format(totalComisionMeses)}</td>
-                        <td class="text-end py-3 text-muted">${formatter.format(totalComision)}</td>
-                        <td class="text-end py-3 text-muted">${formatter.format(totalIva)}</td>
-                        <td class="text-end py-3 text-success font-monospace" style="font-size: 1.15rem;">
-                            ${formatter.format(totalGeneral)}
-                        </td>
-                        <td class="actions-column"></td>
-                    </tr>
-                `;
+                // Initialize DataTable
+                dataTableInstance = $('#tabla-pagos-tarjeta').DataTable({
+                    paging: true,
+                    pageLength: 25,
+                    lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
+                    order: [[1, 'desc']], // ordenar por Fecha descendente
+                    autoWidth: false,
+                    language: {
+                        processing: "Procesando...",
+                        search: "Buscar en tabla:",
+                        lengthMenu: "Mostrar _MENU_ registros",
+                        info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                        infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                        infoFiltered: "(filtrado de _MAX_ registros totales)",
+                        zeroRecords: "No se encontraron resultados",
+                        emptyTable: "No hay datos disponibles en la tabla",
+                        paginate: {
+                            first: "Primero",
+                            previous: "Anterior",
+                            next: "Siguiente",
+                            last: "Último"
+                        }
+                    }
+                });
+
+                updateKpisAndFooter(filteredMovements);
+
             } else {
-                tbody.innerHTML = '<tr><td colspan="17" class="text-center text-muted py-4">No se encontraron movimientos con tarjeta en el período seleccionado.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="17" class="text-center text-muted py-4">No se encontraron movimientos con los filtros seleccionados.</td></tr>';
                 document.getElementById('table-footer').innerHTML = '';
                 document.getElementById('kpi-total-tarjeta').innerText = '$ 0.00';
                 document.getElementById('kpi-transacciones').innerText = '0';
                 document.getElementById('kpi-ticket-promedio').innerText = '$ 0.00';
             }
+        }
+
+        function updateKpisAndFooter(activeSubset) {
+            let totalMonto = 0;
+            let totalComisionMeses = 0;
+            let totalComision = 0;
+            let totalIva = 0;
+            let totalGeneral = 0;
+            let activeCount = 0;
+
+            const list = activeSubset || rawMovements;
+
+            if (list && list.length > 0) {
+                list.forEach(item => {
+                    const m = calculateMovement(item);
+                    if (m.status !== 'CANCELADO') {
+                        totalMonto += m.monto;
+                        totalComisionMeses += m.comision_meses;
+                        totalComision += m.comision;
+                        totalIva += m.iva;
+                        totalGeneral += m.total;
+                        activeCount++;
+                    }
+                });
+            }
+
+            document.getElementById('kpi-total-tarjeta').innerText = formatter.format(totalGeneral);
+            document.getElementById('kpi-transacciones').innerText = activeCount;
+            const ticketPromedio = activeCount > 0 ? (totalGeneral / activeCount) : 0;
+            document.getElementById('kpi-ticket-promedio').innerText = formatter.format(ticketPromedio);
+
+            const tfoot = document.getElementById('table-footer');
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="9" class="ps-4 py-3 text-end">TOTAL REPORTADO (ACTIVOS):</td>
+                    <td class="text-end py-3">${formatter.format(totalMonto)}</td>
+                    <td class="text-center py-3 text-muted">-</td>
+                    <td class="text-center py-3 text-muted">-</td>
+                    <td class="text-end py-3 text-muted">${formatter.format(totalComisionMeses)}</td>
+                    <td class="text-end py-3 text-muted">${formatter.format(totalComision)}</td>
+                    <td class="text-end py-3 text-muted">${formatter.format(totalIva)}</td>
+                    <td class="text-end py-3 text-success font-monospace" style="font-size: 1.15rem;">
+                        ${formatter.format(totalGeneral)}
+                    </td>
+                    <td class="actions-column"></td>
+                </tr>
+            `;
         }
 
         function exportToExcel() {
@@ -912,14 +1054,12 @@
             const dataToExport = [];
             const activeMovements = rawMovements.map(item => calculateMovement(item));
 
-            // Define column headers
             const headers = [
                 "Sucursal", "Fecha", "Contrato", "Concepto", "Estatus", "Referencia", 
                 "Tipo de Pago", "Transacción", "Cuenta Destino", "Monto", "Meses (MSI)", "Comisión %", 
                 "Comisión Meses", "Comisión Clip", "IVA Comisión", "Total"
             ];
 
-            // 1. Map data rows for SheetJS
             activeMovements.forEach(m => {
                 dataToExport.push({
                     "Sucursal": m.sucursal,
@@ -941,19 +1081,15 @@
                 });
             });
 
-            // 2. Create Sheet from JSON array
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
 
-            // 3. Insert real Excel Formulas for calculations in each row
             const range = XLSX.utils.decode_range(worksheet['!ref']);
-            for (let r = 1; r <= range.e.r; r++) { // skip header row (index 0)
-                const rowNum = r + 1; // Excel row numbering is 1-indexed, so row index 1 is Excel row 2
+            for (let r = 1; r <= range.e.r; r++) {
+                const rowNum = r + 1;
                 const m = activeMovements[r - 1];
                 if (!m) continue;
 
                 if (m.aplicaComision && m.status !== 'CANCELADO') {
-                    // Check if there are overrides to write static values, otherwise write Excel Formulas
-
                     // Comisión Meses ($) (Column 12 -> M)
                     const cellM = worksheet[XLSX.utils.encode_cell({ r: r, c: 12 })];
                     if (cellM) {
@@ -961,7 +1097,6 @@
                             cellM.v = m.comision_meses;
                             cellM.t = 'n';
                         } else {
-                            // Find months surcharge rate % from config
                             const rates = sucursalRates[m.sucursal_id] || { base: 2.99, msi3: 4.5, msi6: 7.5, msi9: 9.9, msi12: 11.95 };
                             let surcharge_pct = 0;
                             if (m.meses === 3) surcharge_pct = rates.msi3;
@@ -1011,25 +1146,20 @@
                 }
             }
 
-            // 4. Append Sum Totals Row in Excel at the bottom using SUM formulas
             const lastRowIndex = range.e.r + 1;
-            const lastDataRow = lastRowIndex; // row number in Excel for last data row
+            const lastDataRow = lastRowIndex;
 
-            // Label 'TOTAL REPORTADO (ACTIVOS):' in cell I (Column 8)
             worksheet[XLSX.utils.encode_cell({ r: lastRowIndex, c: 8 })] = { v: "TOTAL REPORTADO (ACTIVOS):", t: 's' };
 
-            // SUM Formulas for columns: Monto (J), Comisión Meses (M), Comisión Clip (N), IVA Comisión (O), Total (P)
             worksheet[XLSX.utils.encode_cell({ r: lastRowIndex, c: 9 })] = { f: `SUM(J2:J${lastDataRow})`, t: 'n' };
             worksheet[XLSX.utils.encode_cell({ r: lastRowIndex, c: 12 })] = { f: `SUM(M2:M${lastDataRow})`, t: 'n' };
             worksheet[XLSX.utils.encode_cell({ r: lastRowIndex, c: 13 })] = { f: `SUM(N2:N${lastDataRow})`, t: 'n' };
             worksheet[XLSX.utils.encode_cell({ r: lastRowIndex, c: 14 })] = { f: `SUM(O2:O${lastDataRow})`, t: 'n' };
             worksheet[XLSX.utils.encode_cell({ r: lastRowIndex, c: 15 })] = { f: `SUM(P2:P${lastDataRow})`, t: 'n' };
 
-            // Update range reference
             range.e.r = lastRowIndex;
             worksheet['!ref'] = XLSX.utils.encode_range(range);
 
-            // 5. Adjust column widths dynamically for readability
             const maxCols = headers.map(h => h.length);
             dataToExport.forEach(row => {
                 Object.keys(row).forEach((key, colIdx) => {
@@ -1042,7 +1172,6 @@
             });
             worksheet['!cols'] = maxCols.map(len => ({ wch: len + 3 }));
 
-            // 6. Build and save workbook
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Pagos con Tarjeta");
             

@@ -31,6 +31,12 @@ class OperacionesCarteraController extends Controller
         $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
         $fechaFinQuery = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
         
+        // Fecha de corte al cierre del mes anterior para calcular el inventario de depositaria base
+        $corteMesAnterior = \Carbon\Carbon::parse($request->input('fecha_inicio', now()->startOfMonth()->toDateString()))
+            ->subMonth()
+            ->endOfMonth()
+            ->toDateString() . ' 23:59:59';
+        
         $sucursalId = $request->input('sucursal_id');
         
         // Filtrar solo sucursales que existen
@@ -103,7 +109,11 @@ class OperacionesCarteraController extends Controller
                 'total_desempenos_con_dias' => 0
             ],
             'intereses' => [
-                'cobrados' => 0
+                'cobrados' => 0,
+                'refrendo_desempeno' => 0,
+                'depositaria_mes_anterior' => 0,
+                'tasa_real_mensual_pct' => 0,
+                'tasa_real_anual_pct' => 0,
             ],
             'mora' => [
                 '0_30' => 0,
@@ -503,17 +513,25 @@ class OperacionesCarteraController extends Controller
                 }
 
                 // ============================================
-                // 5. INTERESES COBRADOS
+                // 5. INTERESES COBRADOS Y DEPOSITARIA MES ANTERIOR
                 // ============================================
                 $interesesQ = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(
-                        CASE 
-                            WHEN mo.cod_tipo_movimiento = 2 THEN IF(mo.monto10 < 20, 20.0, mo.monto10)
-                            WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
-                            WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - COALESCE((SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior), 0)
-                            ELSE 0 
-                        END
-                    ), 0) AS total_intereses
+                    SELECT 
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN mo.cod_tipo_movimiento = 2 THEN IF(mo.monto10 < 20, 20.0, mo.monto10)
+                                WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
+                                WHEN mo.cod_tipo_movimiento = 3 THEN mo.monto10 - COALESCE((SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior), 0)
+                                ELSE 0 
+                            END
+                        ), 0) AS total_intereses,
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN mo.cod_tipo_movimiento = 2 THEN IF(mo.monto10 < 20, 20.0, mo.monto10)
+                                WHEN mo.cod_tipo_movimiento = 4 THEN mo.monto10 - con.prestamo
+                                ELSE 0 
+                            END
+                        ), 0) AS total_refrendo_desempeno
                     FROM movimientos mo 
                     INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     WHERE con.f_cancelacion IS NULL 
@@ -526,6 +544,25 @@ class OperacionesCarteraController extends Controller
                 ]);
                 
                 $data['intereses']['cobrados'] += (float)($interesesQ->total_intereses ?? 0);
+                $data['intereses']['refrendo_desempeno'] += (float)($interesesQ->total_refrendo_desempeno ?? 0);
+
+                // Inventario de Depositaria al cierre del mes anterior (para base de tasa real)
+                $depoMesAntQ = DB::connection($connectionName)->selectOne("
+                    SELECT COALESCE(SUM(prestamo), 0) AS total_depositaria
+                    FROM (
+                        SELECT h.prestamo, h.cod_estatus_prenda,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY h.cod_tipo_prenda, h.cod_prenda 
+                                   ORDER BY h.f_movimiento DESC, h.id_historico DESC
+                               ) AS rn
+                        FROM historico_articulos h
+                        WHERE h.cod_tipo_prenda IN (1, 2, 3)
+                          AND h.f_movimiento <= :corteMesAnt
+                    ) t
+                    WHERE t.rn = 1 AND t.cod_estatus_prenda IN (1, 2)
+                ", [':corteMesAnt' => $corteMesAnterior]);
+
+                $data['intereses']['depositaria_mes_anterior'] += (float)($depoMesAntQ->total_depositaria ?? 0);
 
                 // ============================================
                 // 6. DÍAS DE MORA (distribución)
@@ -792,8 +829,19 @@ class OperacionesCarteraController extends Controller
             round($data['tiempos']['dias_empeno_desempeno'] / $data['tiempos']['total_desempenos_con_dias'], 2) : 0;
 
         $carteraTotal = $data['cartera']['vigente'] + $data['cartera']['vencida'];
-        $tasaRealMensual = $carteraTotal > 0 ? 
-            ($data['intereses']['cobrados'] / $carteraTotal) * 100 : 0;
+        
+        // Base de cálculo: Inventario de depositaria al cierre del mes anterior
+        $baseDepositaria = $data['intereses']['depositaria_mes_anterior'] > 0 
+            ? $data['intereses']['depositaria_mes_anterior'] 
+            : $carteraTotal;
+
+        // Numerador: Suma de intereses de refrendo y desempeño
+        $interesesCalculo = $data['intereses']['refrendo_desempeno'] > 0 
+            ? $data['intereses']['refrendo_desempeno'] 
+            : $data['intereses']['cobrados'];
+
+        $tasaRealMensual = $baseDepositaria > 0 ? 
+            ($interesesCalculo / $baseDepositaria) * 100 : 0;
             
         $data['intereses']['tasa_real_mensual_pct'] = round($tasaRealMensual, 2);
         $data['intereses']['tasa_real_anual_pct'] = round($tasaRealMensual * 12, 2);

@@ -194,14 +194,11 @@
                 <a href="{{ route('inventario-apartados.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-bookmark-heart-fill me-2"></i>Inventario en Apartados
                 </a>
-                <a href="{{ route('inventario-credito.index') }}" class="list-group-item list-group-item-action">
-                    <i class="bi bi-credit-card-fill me-2"></i>Inventario en Créditos
-                </a>
                 <a href="{{ route('clientes.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-people-fill me-2"></i>Clientes
                 </a>
-                <a href="{{ route('creditos.index') }}" class="list-group-item list-group-item-action">
-                    <i class="bi bi-credit-card-2-front me-2"></i>Créditos
+                <a href="{{ route('creditos.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('creditos.*') || request()->routeIs('inventario-credito.*') ? 'active' : '' }}">
+                    <i class="bi bi-credit-card-2-front-fill me-2"></i>Créditos y Cartera
                 </a>
                 <a href="{{ route('certificados.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-shield-check me-2"></i>Certificados de Confianza

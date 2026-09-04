@@ -63,7 +63,7 @@
 <div class="container-fluid p-4" id="dashboard-content" style="display: none;">
     <div class="row mb-4">
         <div class="col-12">
-            <h4 class="title fw-bold text-dark">Inventario y Piso de Venta(DEPOSITARIA)</h4>
+            <h4 class="title fw-bold text-dark">Inventario y Piso de Venta</h4>
             <p class="text-muted">Control de valor, rotación y antigüedad del inventario en piso</p>
         </div>
     </div>
@@ -170,7 +170,7 @@
                         </div>
                     </div>
                     <h3 class="fw-bold text-dark mb-0" id="kpi-total-articulos">0</h3>
-                    <span class="text-muted small">Oro: <span class="fw-bold text-warning" id="kpi-count-oro">0</span> | Varios: <span class="fw-bold text-info" id="kpi-count-varios">0</span></span>
+                    <span class="text-muted small">Oro: <span class="fw-bold text-warning" id="kpi-count-oro">0</span> | Varios: <span class="fw-bold text-info" id="kpi-count-varios">0</span> | Autos: <span class="fw-bold text-primary" id="kpi-count-autos">0</span></span>
                 </div>
             </div>
         </div>
@@ -352,6 +352,7 @@
             updateElementText('kpi-total-articulos', numberFormatter.format(data.totalArticulosN || 0));
             updateElementText('kpi-count-oro', numberFormatter.format(data.countOro || 0));
             updateElementText('kpi-count-varios', numberFormatter.format(data.countVarios || 0));
+            updateElementText('kpi-count-autos', numberFormatter.format(data.countAutos || 0));
             
             updateElementText('kpi-perdidas', formatter.format(data.perdidasMerma || 0));
 
@@ -487,6 +488,11 @@
                             label: 'Varios',
                             data: chartData.data_varios,
                             backgroundColor: '#0dcaf0',
+                        },
+                        {
+                            label: 'Autos',
+                            data: chartData.data_autos || [],
+                            backgroundColor: '#0d6efd',
                         }
                     ]
                 },

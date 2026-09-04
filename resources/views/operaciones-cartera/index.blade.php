@@ -258,9 +258,13 @@
         <div class="col-12 col-md-4 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body text-center p-4">
-                    <h6 class="text-muted mb-2">Tasa Real de Interés (Mes)</h6>
+                    <h6 class="text-muted mb-2">
+                        <span class="metric-tooltip" id="tooltip-tasa-real" data-bs-toggle="tooltip" data-bs-html="true" title="Intereses Refrendo y Desempeño / Inv. Depositaria Mes Anterior">
+                            Tasa Real de Interés (Mes) <i class="bi bi-info-circle ms-1 small"></i>
+                        </span>
+                    </h6>
                     <h2 class="display-6 fw-bold text-purple mb-0" id="kpi-tasa-real">0.0%</h2>
-                    <p class="text-muted small mt-1 mb-0">Calculado s/ cartera total</p>
+                    <p class="text-muted small mt-1 mb-0" id="kpi-tasa-real-desc">Int. Refrendo + Desempeño / Inv. Mes Ant.</p>
                 </div>
             </div>
         </div>
@@ -749,6 +753,28 @@
             updateElement('kpi-tasa-real', `${numberFormatter.format(data.intereses.tasa_real_mensual_pct)}%`);
             updateElement('kpi-dias-promedio', Math.round(data.tiempos.promedio_dias));
             updateElement('kpi-sobreavaluo', `${numberFormatter.format(data.empenos.sobreavaluo_pct)}%`);
+
+            // Tooltip Tasa Real (Intereses Refrendo + Desempeño / Depositaria Mes Anterior)
+            const tooltipTasaRealEl = document.getElementById('tooltip-tasa-real');
+            if (tooltipTasaRealEl && typeof bootstrap !== 'undefined') {
+                const intRefDes = (data.intereses && data.intereses.refrendo_desempeno) ? data.intereses.refrendo_desempeno : ((data.intereses && data.intereses.cobrados) || 0);
+                const invMesAnt = (data.intereses && data.intereses.depositaria_mes_anterior) ? data.intereses.depositaria_mes_anterior : ((data.cartera && (data.cartera.vigente + data.cartera.vencida)) || 0);
+                let tooltipHtmlTasa = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 250px;">
+                        <strong class="d-block mb-1 border-bottom pb-1">Cálculo de Tasa Real:</strong>
+                        <div class="d-flex justify-content-between"><span>(+) Int. Refrendo + Desempeño:</span> <span class="fw-bold text-success">${formatter.format(intRefDes)}</span></div>
+                        <div class="d-flex justify-content-between"><span>(÷) Inv. Depositaria Mes Ant.:</span> <span class="fw-bold text-primary">${formatter.format(invMesAnt)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>TASA REAL MENSUAL:</span> <span class="text-purple">${numberFormatter.format(data.intereses.tasa_real_mensual_pct)}%</span></div>
+                        <div class="d-flex justify-content-between text-muted small"><span>Anualizada (x12):</span> <span>${numberFormatter.format(data.intereses.tasa_real_anual_pct)}%</span></div>
+                    </div>
+                `;
+                const existingTooltipTasa = bootstrap.Tooltip.getInstance(tooltipTasaRealEl);
+                if (existingTooltipTasa) existingTooltipTasa.dispose();
+                tooltipTasaRealEl.setAttribute('data-bs-original-title', tooltipHtmlTasa);
+                tooltipTasaRealEl.setAttribute('title', tooltipHtmlTasa);
+                new bootstrap.Tooltip(tooltipTasaRealEl, { html: true, placement: 'top' });
+            }
 
             // Tables
             buildTableRows('tbody-empenados', data.rankings.articulos_empenados, 1);

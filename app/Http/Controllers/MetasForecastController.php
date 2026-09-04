@@ -11,13 +11,16 @@ use Carbon\Carbon;
 
 class MetasForecastController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
         $mesesHistorico = 12;
         $crecimiento = 5; // 5% por defeto
         $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
 
-        return view('metas-forecast.index', compact('mesesHistorico', 'crecimiento', 'sucursales'));
+        $fechaInicio = Carbon::now()->startOfMonth()->toDateString();
+        $fechaFin = Carbon::now()->toDateString();
+
+        return view('metas-forecast.index', compact('mesesHistorico', 'crecimiento', 'sucursales', 'fechaInicio', 'fechaFin'));
     }
 
     public function data(Request $request)
@@ -26,16 +29,17 @@ class MetasForecastController extends Controller
         $crecimientoPorcentaje = (float) $request->input('crecimiento', 5);
         $sucursalId = $request->input('sucursal_id');
 
+        $fechaInicio = $request->input('fecha_inicio', Carbon::now()->startOfMonth()->toDateString());
+        $fechaFin = $request->input('fecha_fin', Carbon::now()->toDateString());
+
         $crecimientoFactor = 1 + ($crecimientoPorcentaje / 100);
         
-        // El forecast es usualmente para el mes actual o siguiente. Asumiremos mes actual como curso.
-        $mesActual = Carbon::now();
-        $mesObjetivo = $mesActual->month;
-        $anioObjetivo = $mesActual->year;
+        $carbonFin = Carbon::parse($fechaFin);
+        $mesObjetivo = $carbonFin->month;
+        $anioObjetivo = $carbonFin->year;
 
-        $fechaInicioHistorico = $mesActual->copy()->subMonths($mesesHistorico)->startOfMonth()->toDateString();
-        // Usamos now()->endOfDay() para incluir lo actual del mes en los valores reales
-        $fechaTopeActual = $mesActual->copy()->endOfDay()->toDateString(); 
+        $fechaInicioHistorico = Carbon::parse($fechaInicio)->subMonths($mesesHistorico)->startOfMonth()->toDateString();
+        $fechaTopeActual = Carbon::parse($fechaFin)->endOfDay()->toDateString(); 
 
         $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
         if ($sucursalId) {
@@ -44,7 +48,7 @@ class MetasForecastController extends Controller
 
         $baseConfig = Config::get('database.connections.mysql');
 
-        // Variables Globales Reales del Mes Curso
+        // Variables Globales Reales del Periodo
         $real_ventasTotales = 0;
         $real_empenosTotales = 0;
         $real_interesesTotales = 0;
@@ -107,7 +111,20 @@ class MetasForecastController extends Controller
                             WHEN ve.cod_tipo_prenda = 2 THEN COALESCE(au.prestamo, 0)
                             WHEN ve.cod_tipo_prenda = 3 THEN COALESCE(va.prestamo, 0)
                             ELSE 0
-                        END) as prestamo_base
+                        END) as prestamo_base,
+                        SUM(CASE 
+                            WHEN CAST(ve.f_venta AS DATE) BETWEEN ? AND ? THEN dv.venta10 
+                            ELSE 0 
+                        END) as real_periodo_venta,
+                        SUM(CASE 
+                            WHEN CAST(ve.f_venta AS DATE) BETWEEN ? AND ? THEN (dv.venta10 - (CASE 
+                                WHEN ve.cod_tipo_prenda = 1 THEN COALESCE(al.prestamo, 0)
+                                WHEN ve.cod_tipo_prenda = 2 THEN COALESCE(au.prestamo, 0)
+                                WHEN ve.cod_tipo_prenda = 3 THEN COALESCE(va.prestamo, 0)
+                                ELSE 0
+                            END))
+                            ELSE 0 
+                        END) as real_periodo_utilidad_vta
                     FROM detalle_venta dv
                     INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
                     LEFT JOIN alhajas al ON ve.cod_tipo_prenda = 1 AND al.cod_alhaja = dv.cod_prenda
@@ -116,8 +133,9 @@ class MetasForecastController extends Controller
                     WHERE ve.f_cancela IS NULL
                     AND CAST(ve.f_venta AS DATE) BETWEEN ? AND ?
                     GROUP BY YEAR(ve.f_venta), MONTH(ve.f_venta)
-                ", [$fechaInicioHistorico, $fechaTopeActual]);
+                ", [$fechaInicio, $fechaFin, $fechaInicio, $fechaFin, $fechaInicioHistorico, $fechaTopeActual]);
 
+                $realUtilidadVentaPeriodo = 0;
                 foreach ($ventasHist as $vh) {
                     $key = sprintf("%04d-%02d", $vh->anio, $vh->mes);
                     if (!isset($branchData['history'][$key])) {
@@ -126,9 +144,8 @@ class MetasForecastController extends Controller
                     $branchData['history'][$key]['ventas'] += (float)$vh->total_venta;
                     $branchData['history'][$key]['utilidad_vta'] += ((float)$vh->total_venta - (float)$vh->prestamo_base);
 
-                    if ($vh->anio == $anioObjetivo && $vh->mes == $mesObjetivo) {
-                        $branchData['real_ventas'] += (float)$vh->total_venta;
-                    }
+                    $branchData['real_ventas'] += (float)$vh->real_periodo_venta;
+                    $realUtilidadVentaPeriodo += (float)$vh->real_periodo_utilidad_vta;
                 }
 
                 // 2. EXTRAER EMPEÑOS E INTERESES HISTORICOS (Movimientos)
@@ -141,30 +158,39 @@ class MetasForecastController extends Controller
                             WHEN mo.cod_tipo_movimiento = 4 THEN (mo.monto10 - COALESCE(con.prestamo, 0))
                             WHEN mo.cod_tipo_movimiento IN (2, 3) THEN (mo.monto10 - COALESCE(ca.abono, 0))
                             ELSE 0
-                        END) as intereses
+                        END) as intereses,
+                        SUM(CASE 
+                            WHEN CAST(mo.f_alta AS DATE) BETWEEN ? AND ? AND mo.cod_tipo_movimiento = 1 THEN con.prestamo 
+                            ELSE 0 
+                        END) as real_periodo_empenos,
+                        SUM(CASE 
+                            WHEN CAST(mo.f_alta AS DATE) BETWEEN ? AND ? THEN (
+                                CASE 
+                                    WHEN mo.cod_tipo_movimiento = 4 THEN (mo.monto10 - COALESCE(con.prestamo, 0))
+                                    WHEN mo.cod_tipo_movimiento IN (2, 3) THEN (mo.monto10 - COALESCE(ca.abono, 0))
+                                    ELSE 0
+                                END
+                            )
+                            ELSE 0 
+                        END) as real_periodo_intereses
                     FROM movimientos mo
                     LEFT JOIN contratos con ON con.cod_contrato = mo.cod_contrato
                     LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
                     WHERE mo.f_cancela IS NULL AND mo.cod_tipo_movimiento IN (1, 2, 3, 4)
                     AND CAST(mo.f_alta AS DATE) BETWEEN ? AND ?
                     GROUP BY YEAR(mo.f_alta), MONTH(mo.f_alta)
-                ", [$fechaInicioHistorico, $fechaTopeActual]);
+                ", [$fechaInicio, $fechaFin, $fechaInicio, $fechaFin, $fechaInicioHistorico, $fechaTopeActual]);
 
                 foreach ($movsHist as $mh) {
                     $key = sprintf("%04d-%02d", $mh->anio, $mh->mes);
                     if (!isset($branchData['history'][$key])) {
                         $branchData['history'][$key] = ['ventas' => 0, 'utilidad_vta' => 0, 'empenos' => 0, 'intereses' => 0, 'gastos' => 0];
                     }
-                    $empenoVal = (float)$mh->empenos;
-                    $interesVal = (float)$mh->intereses;
+                    $branchData['history'][$key]['empenos'] += (float)$mh->empenos;
+                    $branchData['history'][$key]['intereses'] += (float)$mh->intereses;
 
-                    $branchData['history'][$key]['empenos'] += $empenoVal;
-                    $branchData['history'][$key]['intereses'] += $interesVal;
-
-                    if ($mh->anio == $anioObjetivo && $mh->mes == $mesObjetivo) {
-                        $branchData['real_empenos'] += $empenoVal;
-                        $branchData['real_intereses'] += $interesVal;
-                    }
+                    $branchData['real_empenos'] += (float)$mh->real_periodo_empenos;
+                    $branchData['real_intereses'] += (float)$mh->real_periodo_intereses;
                 }
 
                 // 3. EXTRAER GASTOS (Para Utilidad Operativa)
@@ -172,14 +198,18 @@ class MetasForecastController extends Controller
                     SELECT 
                         YEAR(gas.f_solicitado) as anio,
                         MONTH(gas.f_solicitado) as mes,
-                        SUM(gas.solicitado) as total_gasto
+                        SUM(gas.solicitado) as total_gasto,
+                        SUM(CASE 
+                            WHEN CAST(gas.f_solicitado AS DATE) BETWEEN ? AND ? THEN gas.solicitado 
+                            ELSE 0 
+                        END) as real_periodo_gasto
                     FROM gastos gas
                     WHERE gas.activo = 1 AND gas.cod_estatus = 2
                     AND CAST(gas.f_solicitado AS DATE) BETWEEN ? AND ?
                     GROUP BY YEAR(gas.f_solicitado), MONTH(gas.f_solicitado)
-                ", [$fechaInicioHistorico, $fechaTopeActual]);
+                ", [$fechaInicio, $fechaFin, $fechaInicioHistorico, $fechaTopeActual]);
 
-                $gastoActual = 0;
+                $gastoPeriodo = 0;
                 foreach ($gastosHist as $gh) {
                     $key = sprintf("%04d-%02d", $gh->anio, $gh->mes);
                     if (!isset($branchData['history'][$key])) {
@@ -187,15 +217,11 @@ class MetasForecastController extends Controller
                     }
                     $branchData['history'][$key]['gastos'] += (float)$gh->total_gasto;
 
-                    if ($gh->anio == $anioObjetivo && $gh->mes == $mesObjetivo) {
-                        $gastoActual += (float)$gh->total_gasto;
-                    }
+                    $gastoPeriodo += (float)$gh->real_periodo_gasto;
                 }
 
-            // Consolidar Real Actual Utilidad Operativa
-                $keyActual = sprintf("%04d-%02d", $anioObjetivo, $mesObjetivo);
-                $utilidadActualVta = $branchData['history'][$keyActual]['utilidad_vta'] ?? 0;
-                $branchData['real_utilidad_operativa'] = ($utilidadActualVta + $branchData['real_intereses']) - $gastoActual;
+            // Consolidar Real del Periodo Utilidad Operativa
+                $branchData['real_utilidad_operativa'] = ($realUtilidadVentaPeriodo + $branchData['real_intereses']) - $gastoPeriodo;
                 // ============================================
                 // CÁLCULO DE METAS ESTADÍSTICAS AUTOMÁTICAS
                 // ============================================
@@ -340,6 +366,75 @@ class MetasForecastController extends Controller
             // La meta histórica de ese mes
             $metaAnt = $this->calcularMeta($global_history, 'ventas', (int)$partes[1], $mesesHistorico, 1, (int)$partes[0], (int)$partes[1], true);
             $globalTendenciaVentas[] = $metaAnt;
+        }
+
+        // =========================================================================
+        // SINCRONIZACIÓN OFICIAL CON TABLERO DE CONTROL (Valores Reales y Metas)
+        // =========================================================================
+        try {
+            $tableroCtrl = new TableroControlController();
+            $tableroReq = new Request([
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
+                'sucursal_id' => $sucursalId,
+                'sistema' => 'varamas'
+            ]);
+            $tResp = json_decode($tableroCtrl->data($tableroReq)->getContent(), true);
+            $tablero = $tResp['tablero'] ?? $tResp;
+
+            $tVentas = $this->getIndicatorData($tablero, 'Ventas');
+            $tEmpenos = $this->getIndicatorData($tablero, 'Empeño');
+            $tIntereses = $this->getIndicatorData($tablero, 'Intereses');
+            $tUtilidad = $this->getIndicatorData($tablero, 'Utilidad Neta del Mes');
+
+            // Asignar los valores reales exactamente calculados por Tablero de Control
+            $real_ventasTotales = $tVentas['real'];
+            $real_empenosTotales = $tEmpenos['real'];
+            $real_interesesTotales = $tIntereses['real'];
+            $real_utilidadOperativa = $tUtilidad['real'];
+
+            // Si el Tablero de Control tiene metas corporativas registradas (> 0), se toman como metas oficiales
+            if ($tVentas['meta'] > 0) {
+                $manualG_ventas = $tVentas['meta'];
+                $metaG_ventasTotales = $tVentas['meta'];
+            }
+            if ($tEmpenos['meta'] > 0) {
+                $manualG_empenos = $tEmpenos['meta'];
+                $metaG_empenosTotales = $tEmpenos['meta'];
+            }
+            if ($tIntereses['meta'] > 0) {
+                $manualG_intereses = $tIntereses['meta'];
+                $metaG_interesesTotales = $tIntereses['meta'];
+            }
+            if ($tUtilidad['meta'] > 0) {
+                $manualG_utilidad = $tUtilidad['meta'];
+                $metaG_utilidadOperativa = $tUtilidad['meta'];
+            }
+
+            if ($sucursalId && !empty($branchKPIs)) {
+                $branchKey = array_key_first($branchKPIs);
+                if ($branchKey) {
+                    $branchKPIs[$branchKey]['real_ventas'] = $real_ventasTotales;
+                    $branchKPIs[$branchKey]['meta_ventas'] = $metaG_ventasTotales;
+                    $branchKPIs[$branchKey]['pct_ventas'] = $metaG_ventasTotales > 0 ? ($real_ventasTotales / $metaG_ventasTotales) * 100 : 0;
+                    $branchKPIs[$branchKey]['real_empenos'] = $real_empenosTotales;
+                    $branchKPIs[$branchKey]['meta_empenos'] = $metaG_empenosTotales;
+                    $branchKPIs[$branchKey]['pct_empenos'] = $metaG_empenosTotales > 0 ? ($real_empenosTotales / $metaG_empenosTotales) * 100 : 0;
+                    $branchKPIs[$branchKey]['real_intereses'] = $real_interesesTotales;
+                    $branchKPIs[$branchKey]['meta_intereses'] = $metaG_interesesTotales;
+                    $branchKPIs[$branchKey]['pct_intereses'] = $metaG_interesesTotales > 0 ? ($real_interesesTotales / $metaG_interesesTotales) * 100 : 0;
+                    $branchKPIs[$branchKey]['real_utilidad'] = $real_utilidadOperativa;
+                    $branchKPIs[$branchKey]['meta_utilidad'] = $metaG_utilidadOperativa;
+                    $branchKPIs[$branchKey]['pct_utilidad'] = $metaG_utilidadOperativa > 0 ? ($real_utilidadOperativa / $metaG_utilidadOperativa) * 100 : 0;
+
+                    $branchKPIs[$branchKey]['semaforo_ventas'] = $this->getSemaforo($branchKPIs[$branchKey]['pct_ventas']);
+                    $branchKPIs[$branchKey]['semaforo_empenos'] = $this->getSemaforo($branchKPIs[$branchKey]['pct_empenos']);
+                    $branchKPIs[$branchKey]['semaforo_intereses'] = $this->getSemaforo($branchKPIs[$branchKey]['pct_intereses']);
+                    $branchKPIs[$branchKey]['semaforo_utilidad'] = $this->getSemaforo($branchKPIs[$branchKey]['pct_utilidad']);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Error sincronizando con TableroControlController: " . $e->getMessage());
         }
 
         $globalMetaVentas = $metaG_ventasTotales;
@@ -541,6 +636,23 @@ class MetasForecastController extends Controller
 
         // Si da negativo (fallo de regresión abrupta) aplanamos a 0
         return $meta > 0 ? $meta : (($sumY / $n) * $factorCrecimiento * $indiceEstacionalidad); 
+    }
+
+    /**
+     * Extrae de forma segura el valor real y meta de un indicador del Tablero de Control
+     */
+    private function getIndicatorData($t, $ind)
+    {
+        if (!isset($t[$ind])) return ['real' => 0.0, 'meta' => 0.0];
+        $real = (float)($t[$ind]['_total']['avance'] ?? 0);
+        $meta = (float)($t[$ind]['_total']['meta'] ?? 0);
+        if ($real == 0 && $meta == 0) {
+            foreach (['MERCANCIA GENERAL', 'ORO', 'PLATA', 'AUTOS'] as $cat) {
+                $real += (float)($t[$ind][$cat]['avance'] ?? 0);
+                $meta += (float)($t[$ind][$cat]['meta'] ?? 0);
+            }
+        }
+        return ['real' => $real, 'meta' => $meta];
     }
 
     private function calcularMetaUtilidad($historyData, $mesObjetivo, $numMesesHist, $factorCrecimiento, $anioObj, $mesObj)

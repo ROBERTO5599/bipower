@@ -26,9 +26,71 @@
         .bg-verde { background-color: #198754; color: white; }
         .bg-amarillo { background-color: #ffc107; color: black; }
         .bg-rojo { background-color: #dc3545; color: white; }
+        
+        /* Tarjetas de Indicadores Separadas y Elegantes */
+        .gauge-card {
+            border: 1px solid #edf2f7;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+            background: #ffffff;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .gauge-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+        }
+        .gauge-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+        .card-ventas::before { background: #3b82f6; }
+        .card-empenos::before { background: #10b981; }
+        .card-intereses::before { background: #f59e0b; }
+        .card-utilidad::before { background: #6366f1; }
+
         .gauge-container {
             width: 100%;
-            height: 200px;
+            height: 180px;
+        }
+        .badge-kpi {
+            font-size: 0.72rem;
+            letter-spacing: 0.5px;
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+        .quick-range-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-color: transparent !important;
+            color: #fff !important;
+            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
+        }
+        .sidebar-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        .bg-verde {
+            background-color: #dcfce7 !important;
+            color: #15803d !important;
+            border: 1px solid #bbf7d0 !important;
+            font-weight: 700;
+        }
+        .bg-amarillo {
+            background-color: #fef9c3 !important;
+            color: #a16207 !important;
+            border: 1px solid #fef08a !important;
+            font-weight: 700;
+        }
+        .bg-rojo {
+            background-color: #fee2e2 !important;
+            color: #b91c1c !important;
+            border: 1px solid #fecaca !important;
+            font-weight: 700;
         }
     </style>
 @endsection
@@ -51,14 +113,14 @@
         </div>
     </div>
 
-    <!-- Filtros Inteligentes -->
+    <!-- Filtros Inteligentes con Rango de Fecha -->
     <div class="card shadow-sm border-0 mb-4 rounded-3 bg-white">     
         <div class="card-body p-4">
             <form id="filter-form" class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Sucursal</label>
+                <div class="col-md-4">
+                    <label for="sucursal_id" class="form-label fw-bold text-muted small text-uppercase">Sucursal</label>
                     <select name="sucursal_id" id="sucursal_id" class="form-select">
-                        <option value="">-- Todas Consolidadas --</option>
+                        <option value="">-- Todas las Sucursales --</option>
                         @foreach($sucursales ?? [] as $sucursal)
                             <option value="{{ $sucursal->id_valora_mas }}">
                                 {{ $sucursal->nombre }}
@@ -67,62 +129,152 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Profundidad Histórica</label>
-                    <select name="meses_historico" id="meses_historico" class="form-select">
-                        <option value="12" selected>Últimos 12 Meses</option>
-                        <option value="18">Últimos 18 Meses</option>
-                        <option value="24">Últimos 24 Meses</option>
-                    </select>
+                    <label for="fecha_inicio" class="form-label fw-bold text-muted small text-uppercase">Fecha Inicio</label>
+                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" value="{{ $fechaInicio }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Crecimiento Objetivo (%)</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-graph-up-arrow"></i></span>
-                        <input type="number" step="0.1" name="crecimiento" id="crecimiento" value="{{ $crecimiento }}" class="form-control">
-                        <span class="input-group-text">%</span>
+                    <label for="fecha_fin" class="form-label fw-bold text-muted small text-uppercase">Fecha Fin</label>
+                    <input type="date" name="fecha_fin" id="fecha_fin" class="form-control" value="{{ $fechaFin }}">
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary fw-bold sidebar-gradient border-0 py-2">
+                        <i class="bi bi-search me-2"></i>Consultar
+                    </button>
+                </div>
+
+                <!-- Botonera de Rangos Rápidos y Ajustes de Modelo -->
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary quick-range-btn" data-range="today">Hoy</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary quick-range-btn active" data-range="month">Este Mes</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary quick-range-btn" data-range="prev-month">Mes Anterior</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary quick-range-btn" data-range="year">Este Año</button>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <button type="submit" class="btn btn-primary w-100 fw-bold">
-                        <i class="bi bi-calculator"></i> Refactorizar Metas
-                    </button>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text small fw-semibold">Profundidad</span>
+                        <select name="meses_historico" id="meses_historico" class="form-select form-select-sm">
+                            <option value="12" {{ ($mesesHistorico ?? 12) == 12 ? 'selected' : '' }}>12 Meses</option>
+                            <option value="18" {{ ($mesesHistorico ?? 12) == 18 ? 'selected' : '' }}>18 Meses</option>
+                            <option value="24" {{ ($mesesHistorico ?? 12) == 24 ? 'selected' : '' }}>24 Meses</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text small fw-semibold">Crecimiento</span>
+                        <input type="number" step="0.1" name="crecimiento" id="crecimiento" value="{{ $crecimiento ?? 5 }}" class="form-control form-control-sm">
+                        <span class="input-group-text small">%</span>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Indicadores Velocímetros Principales -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-0 h-100 rounded-3 text-center p-3">
-                <h6 class="text-muted fw-bold text-uppercase ls-1">Ventas Reales vs Meta</h6>
-                <div id="gaugeVentas" class="gauge-container mb-2"></div>
-                <h4 class="fw-bold mb-0" id="txtRevVentas">$ 0</h4>
-                <small class="text-muted">Meta: <span id="txtMetaVentas">$ 0</span></small>
+    <!-- Indicadores Velocímetros Principales Separados -->
+    <div class="row g-3 mb-4">
+        <!-- Ventas -->
+        <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="card gauge-card card-ventas h-100 text-center p-3 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center justify-content-center mb-1">
+                        <span class="badge bg-light text-primary border badge-kpi fw-bold text-uppercase">
+                            <i class="bi bi-cart-check-fill me-1"></i> Ventas Reales vs Meta
+                        </span>
+                    </div>
+                    <div id="gaugeVentas" class="gauge-container"></div>
+                </div>
+                <div class="bg-light rounded-3 p-2 mt-2 border">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-start">
+                            <small class="text-muted d-block" style="font-size: 0.7rem; font-weight: 600;">REAL</small>
+                            <span class="fw-bold text-dark font-monospace-custom" id="txtRevVentas" style="font-size: 0.95rem;">$ 0.00</span>
+                        </div>
+                        <div class="text-end border-start ps-2">
+                            <small class="text-muted d-block" style="font-size: 0.7rem; font-weight: 600;">META</small>
+                            <span class="fw-semibold text-secondary font-monospace-custom" id="txtMetaVentas" style="font-size: 0.95rem;">$ 0.00</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-0 h-100 rounded-3 text-center p-3">
-                <h6 class="text-muted fw-bold text-uppercase ls-1">Empeños Reales vs Meta</h6>
-                <div id="gaugeEmpenos" class="gauge-container mb-2"></div>
-                <h4 class="fw-bold mb-0" id="txtRevEmpenos">$ 0</h4>
-                <small class="text-muted">Meta: <span id="txtMetaEmpenos">$ 0</span></small>
+
+        <!-- Empeños -->
+        <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="card gauge-card card-empenos h-100 text-center p-3 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center justify-content-center mb-1">
+                        <span class="badge bg-light text-success border badge-kpi fw-bold text-uppercase">
+                            <i class="bi bi-journal-plus me-1"></i> Empeños Reales vs Meta
+                        </span>
+                    </div>
+                    <div id="gaugeEmpenos" class="gauge-container"></div>
+                </div>
+                <div class="bg-light rounded-3 p-2 mt-2 border">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-start">
+                            <small class="text-muted d-block" style="font-size: 0.7rem; font-weight: 600;">REAL</small>
+                            <span class="fw-bold text-dark font-monospace-custom" id="txtRevEmpenos" style="font-size: 0.95rem;">$ 0.00</span>
+                        </div>
+                        <div class="text-end border-start ps-2">
+                            <small class="text-muted d-block" style="font-size: 0.7rem; font-weight: 600;">META</small>
+                            <span class="fw-semibold text-secondary font-monospace-custom" id="txtMetaEmpenos" style="font-size: 0.95rem;">$ 0.00</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-0 h-100 rounded-3 text-center p-3">
-                <h6 class="text-muted fw-bold text-uppercase ls-1">Intereses Cobrados</h6>
-                <div id="gaugeIntereses" class="gauge-container mb-2"></div>
-                <h4 class="fw-bold mb-0" id="txtRevIntereses">$ 0</h4>
-                <small class="text-muted">Meta: <span id="txtMetaIntereses">$ 0</span></small>
+
+        <!-- Intereses -->
+        <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="card gauge-card card-intereses h-100 text-center p-3 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center justify-content-center mb-1">
+                        <span class="badge bg-light text-warning text-dark border badge-kpi fw-bold text-uppercase">
+                            <i class="bi bi-cash-coin me-1"></i> Intereses Cobrados
+                        </span>
+                    </div>
+                    <div id="gaugeIntereses" class="gauge-container"></div>
+                </div>
+                <div class="bg-light rounded-3 p-2 mt-2 border">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-start">
+                            <small class="text-muted d-block" style="font-size: 0.7rem; font-weight: 600;">REAL</small>
+                            <span class="fw-bold text-dark font-monospace-custom" id="txtRevIntereses" style="font-size: 0.95rem;">$ 0.00</span>
+                        </div>
+                        <div class="text-end border-start ps-2">
+                            <small class="text-muted d-block" style="font-size: 0.7rem; font-weight: 600;">META</small>
+                            <span class="fw-semibold text-secondary font-monospace-custom" id="txtMetaIntereses" style="font-size: 0.95rem;">$ 0.00</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-0 h-100 rounded-3 text-center p-3">
-                <h6 class="text-muted fw-bold text-uppercase ls-1">Utilidad Operativa</h6>
-                <div id="gaugeUtilidad" class="gauge-container mb-2"></div>
-                <h4 class="fw-bold mb-0" id="txtRevUtilidad">$ 0</h4>
-                <small class="text-muted">Meta: <span id="txtMetaUtilidad">$ 0</span></small>
+
+        <!-- Utilidad -->
+        <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="card gauge-card card-utilidad h-100 text-center p-3 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center justify-content-center mb-1">
+                        <span class="badge bg-light text-indigo border badge-kpi fw-bold text-uppercase" style="color: #6366f1;">
+                            <i class="bi bi-wallet2 me-1"></i> Utilidad Operativa
+                        </span>
+                    </div>
+                    <div id="gaugeUtilidad" class="gauge-container"></div>
+                </div>
+                <div class="bg-light rounded-3 p-2 mt-2 border">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-start">
+                            <small class="text-muted d-block" style="font-size: 0.7rem; font-weight: 600;">REAL</small>
+                            <span class="fw-bold text-dark font-monospace-custom" id="txtRevUtilidad" style="font-size: 0.95rem;">$ 0.00</span>
+                        </div>
+                        <div class="text-end border-start ps-2">
+                            <small class="text-muted d-block" style="font-size: 0.7rem; font-weight: 600;">META</small>
+                            <span class="fw-semibold text-secondary font-monospace-custom" id="txtMetaUtilidad" style="font-size: 0.95rem;">$ 0.00</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -275,38 +427,71 @@
         const dashboard = document.getElementById('dashboard-content');
         const form = document.getElementById('filter-form');
 
-        // Setup ECharts
-        const gaugeOptions = {
-            series: [{
-                type: 'gauge',
-                startAngle: 180,
-                endAngle: 0,
-                min: 0,
-                max: 100, // Dinámico
-                axisLine: {
-                    lineStyle: {
-                        width: 15,
-                        color: [
-                            [0.7, '#ffc107'], // 0-70% amarillo
-                            [0.9, '#fd7e14'], // 70-90% naranja/precaucion
-                            [1, '#198754']   // >90% verde
-                        ]
-                    }
-                },
-                pointer: { itemStyle: { color: 'auto' } },
-                axisTick: { distance: -15, length: 8, lineStyle: { color: '#fff', width: 2 } },
-                splitLine: { distance: -15, length: 15, lineStyle: { color: '#fff', width: 2 } },
-                axisLabel: { color: 'auto', distance: 20, fontSize: 10 },
-                detail: {
-                    valueAnimation: true,
-                    formatter: '{value}%',
-                    color: 'auto',
-                    fontSize: 20,
-                    offsetCenter: [0, '30%']
-                },
-                data: [{ value: 0 }]
-            }]
-        };
+        // ECharts Configuración Limpia y Espaciosa (sin colisiones)
+        function createGaugeOption(initialVal) {
+            return {
+                series: [{
+                    type: 'gauge',
+                    startAngle: 180,
+                    endAngle: 0,
+                    center: ['50%', '75%'],
+                    radius: '95%',
+                    min: 0,
+                    max: 100,
+                    splitNumber: 4,
+                    axisLine: {
+                        lineStyle: {
+                            width: 12,
+                            color: [
+                                [0.7, '#ffc107'], // 0-70% amarillo
+                                [0.9, '#fd7e14'], // 70-90% naranja/precaución
+                                [1, '#198754']    // >90% verde
+                            ]
+                        }
+                    },
+                    pointer: {
+                        icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z',
+                        length: '14%',
+                        width: 12,
+                        offsetCenter: [0, '-50%'],
+                        itemStyle: {
+                            color: 'auto'
+                        }
+                    },
+                    axisTick: {
+                        show: false
+                    },
+                    splitLine: {
+                        distance: -12,
+                        length: 12,
+                        lineStyle: {
+                            color: '#fff',
+                            width: 2
+                        }
+                    },
+                    axisLabel: {
+                        color: '#6c757d',
+                        distance: -34,
+                        fontSize: 10,
+                        formatter: function (val) {
+                            if (val === 0) return '0%';
+                            if (val === 50) return '50%';
+                            if (val === 100) return '100%';
+                            return '';
+                        }
+                    },
+                    detail: {
+                        valueAnimation: true,
+                        formatter: '{value}%',
+                        color: 'auto',
+                        fontSize: 24,
+                        fontWeight: 'bold',
+                        offsetCenter: [0, '-15%']
+                    },
+                    data: [{ value: initialVal || 0 }]
+                }]
+            };
+        }
 
         gauges['ventas'] = echarts.init(document.getElementById('gaugeVentas'));
         gauges['empenos'] = echarts.init(document.getElementById('gaugeEmpenos'));
@@ -314,8 +499,54 @@
         gauges['utilidad'] = echarts.init(document.getElementById('gaugeUtilidad'));
 
         for (let g in gauges) {
-            gauges[g].setOption(gaugeOptions);
+            gauges[g].setOption(createGaugeOption(0));
         }
+
+        window.addEventListener('resize', function() {
+            for (let g in gauges) {
+                if (gauges[g]) gauges[g].resize();
+            }
+        });
+
+        // Botonera de Rangos Rápidos (Hoy, Este Mes, Mes Anterior, Este Año)
+        document.querySelectorAll('.quick-range-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.quick-range-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                const range = this.dataset.range;
+                const startInput = document.getElementById('fecha_inicio');
+                const endInput = document.getElementById('fecha_fin');
+
+                const today = new Date();
+                let start, end;
+
+                function formatDate(d) {
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+
+                if (range === 'today') {
+                    start = end = today;
+                } else if (range === 'month') {
+                    start = new Date(today.getFullYear(), today.getMonth(), 1);
+                    end = today;
+                } else if (range === 'prev-month') {
+                    start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    end = new Date(today.getFullYear(), today.getMonth(), 0);
+                } else if (range === 'year') {
+                    start = new Date(today.getFullYear(), 0, 1);
+                    end = today;
+                }
+
+                startInput.value = formatDate(start);
+                endInput.value = formatDate(end);
+
+                loadData();
+            });
+        });
 
         loadData();
 
@@ -338,16 +569,30 @@
                     overlay.style.display = 'none';
                     dashboard.style.display = 'block';
                     dashboard.style.opacity = '1';
+                    for (let g in gauges) {
+                        if (gauges[g]) gauges[g].resize();
+                    }
                 });
         }
 
         function updateGauge(gaugeId, real, meta) {
             let pct = meta > 0 ? (real / meta) * 100 : 0;
-            if (pct > 100) {
-                // Adaptar el maximo del gauge si pasamos el limite
-                gauges[gaugeId].setOption({ series: [{ max: Math.ceil(pct), data: [{ value: pct.toFixed(1) }] }] });
-            } else {
-                gauges[gaugeId].setOption({ series: [{ max: 100, data: [{ value: pct.toFixed(1) }] }] });
+            let maxVal = pct > 100 ? Math.ceil(pct / 10) * 10 : 100;
+            if (gauges[gaugeId]) {
+                gauges[gaugeId].setOption({
+                    series: [{
+                        max: maxVal,
+                        data: [{ value: parseFloat(pct.toFixed(1)) }],
+                        axisLabel: {
+                            formatter: function (v) {
+                                if (v === 0) return '0%';
+                                if (v === Math.round(maxVal / 2)) return Math.round(maxVal / 2) + '%';
+                                if (v === maxVal) return maxVal + '%';
+                                return '';
+                            }
+                        }
+                    }]
+                });
             }
         }
 
