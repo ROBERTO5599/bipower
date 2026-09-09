@@ -21,8 +21,11 @@ class InventarioPisoController extends Controller
 
     public function data(Request $request)
     {
-        $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
-        $fechaFin = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
+        $rawInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString());
+        $fechaInicio = (strlen($rawInicio) <= 10 ? $rawInicio . ' 00:00:00' : $rawInicio);
+
+        $rawFin = $request->input('fecha_fin', now()->toDateString());
+        $fechaFin = (strlen($rawFin) <= 10 ? $rawFin . ' 23:59:59' : $rawFin);
 
         $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
         $sucursalId = $request->input('sucursal_id');
@@ -67,7 +70,8 @@ class InventarioPisoController extends Controller
             '0-30' => 0,
             '31-60' => 0,
             '61-90' => 0,
-            '90+' => 0
+            '91-150' => 0,
+            '150+' => 0
         ];
 
         $rangosOro = $rangos;
@@ -90,51 +94,71 @@ class InventarioPisoController extends Controller
                 Config::set("database.connections.$connectionName", $config);
                 DB::purge($connectionName);
 
-                // ================= INVENTARIO =================
+                // ================= INVENTARIO PISO DE VENTA (MovimientosIndicadorBC - Bazar / Histórico) =================
                 $items = DB::connection($connectionName)->select("
                     SELECT 
-                        'alhajas' as tipo,
-                        pre.prenda as id,
-                        a.prestamo,
-                        COALESCE(a.p_venta, con.f_contrato) as fecha,
+                        'Oro' as tipo_cat,
+                        COALESCE(pre.prenda, 'ALHAJA') as id,
+                        h.prestamo,
+                        COALESCE(a.p_venta, h.f_movimiento) as fecha,
                         CASE 
-                            WHEN a.kilataje BETWEEN 8 AND 26 THEN 'Oro'
-                            ELSE 'Varios'
+                            WHEN a.kilataje BETWEEN 8 AND 26 THEN 'Oro' 
+                            WHEN a.kilataje BETWEEN 500 AND 999 THEN 'Plata' 
+                            ELSE 'Varios' 
                         END as categoria,
-                        pre.cod_prenda
-                    FROM alhajas a
-                    INNER JOIN prendas pre ON pre.cod_prenda = a.cod_prenda AND pre.cod_tipo_prenda = 1
-                    LEFT JOIN contratos con ON con.cod_contrato = a.cod_contrato
-                    WHERE a.cod_estatus_prenda = 9
+                        a.cod_prenda
+                    FROM (
+                        SELECT h.cod_prenda, h.prestamo, h.cod_estatus_prenda, h.f_movimiento,
+                               ROW_NUMBER() OVER (PARTITION BY h.cod_prenda ORDER BY h.f_movimiento DESC, h.id_historico DESC) AS rn
+                        FROM historico_articulos h
+                        WHERE h.cod_tipo_prenda = 1 AND h.f_movimiento <= :f1
+                    ) h
+                    INNER JOIN alhajas a ON a.cod_alhaja = h.cod_prenda
+                    LEFT JOIN prendas pre ON pre.cod_prenda = a.cod_prenda AND pre.cod_tipo_prenda = 1
+                    WHERE h.rn = 1 AND h.cod_estatus_prenda IN (9)
 
                     UNION ALL
 
                     SELECT 
-                        'varios' as tipo,
-                        pre.prenda as id,
-                        v.prestamo,
-                        COALESCE(v.p_venta, con.f_contrato) as fecha,
+                        'Varios' as tipo_cat,
+                        COALESCE(pre.prenda, 'VARIOS') as id,
+                        h.prestamo,
+                        COALESCE(v.p_venta, h.f_movimiento) as fecha,
                         'Varios' as categoria,
-                        pre.cod_prenda
-                    FROM varios v
-                    INNER JOIN prendas pre ON pre.cod_prenda = v.cod_prenda AND pre.cod_tipo_prenda = 3
-                    LEFT JOIN contratos con ON con.cod_contrato = v.cod_contrato
-                    WHERE v.cod_estatus_prenda = 9
+                        v.cod_prenda
+                    FROM (
+                        SELECT h.cod_prenda, h.prestamo, h.cod_estatus_prenda, h.f_movimiento,
+                               ROW_NUMBER() OVER (PARTITION BY h.cod_prenda ORDER BY h.f_movimiento DESC, h.id_historico DESC) AS rn
+                        FROM historico_articulos h
+                        WHERE h.cod_tipo_prenda = 3 AND h.f_movimiento <= :f2
+                    ) h
+                    INNER JOIN varios v ON v.cod_varios = h.cod_prenda
+                    LEFT JOIN prendas pre ON pre.cod_prenda = v.cod_prenda AND pre.cod_tipo_prenda = 3
+                    WHERE h.rn = 1 AND h.cod_estatus_prenda IN (9)
 
                     UNION ALL
 
                     SELECT 
-                        'autos' as tipo,
-                        pre.prenda as id,
-                        au.prestamo,
-                        COALESCE(au.p_venta, con.f_contrato) as fecha,
+                        'Autos' as tipo_cat,
+                        COALESCE(pre.prenda, 'AUTO') as id,
+                        h.prestamo,
+                        COALESCE(au.p_venta, h.f_movimiento) as fecha,
                         'Autos' as categoria,
-                        pre.cod_prenda
-                    FROM autos au
-                    INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
-                    LEFT JOIN contratos con ON con.cod_contrato = au.cod_contrato
-                    WHERE au.cod_estatus_prenda = 9
-                ");
+                        au.cod_prenda
+                    FROM (
+                        SELECT h.cod_prenda, h.prestamo, h.cod_estatus_prenda, h.f_movimiento,
+                               ROW_NUMBER() OVER (PARTITION BY h.cod_prenda ORDER BY h.f_movimiento DESC, h.id_historico DESC) AS rn
+                        FROM historico_articulos h
+                        WHERE h.cod_tipo_prenda = 2 AND h.f_movimiento <= :f3
+                    ) h
+                    INNER JOIN autos au ON au.cod_auto = h.cod_prenda
+                    LEFT JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
+                    WHERE h.rn = 1 AND h.cod_estatus_prenda IN (9)
+                ", [
+                    'f1' => $fechaFin,
+                    'f2' => $fechaFin,
+                    'f3' => $fechaFin
+                ]);
 
                 // Obtener ventas del periodo para la rotación (Costo o Venta)
                 $ventasRes = DB::connection($connectionName)->selectOne("
@@ -150,10 +174,13 @@ class InventarioPisoController extends Controller
                 $sucDias = 0;
                 $sucCount = 0;
 
+                $fechaCorteCarbon = \Carbon\Carbon::parse($fechaFin);
+
                 foreach ($items as $item) {
                     $dias = 0;
                     if ($item->fecha) {
-                        $dias = (int) now()->diffInDays(\Carbon\Carbon::parse($item->fecha), true);
+                        $itemFecha = \Carbon\Carbon::parse($item->fecha);
+                        $dias = $itemFecha->lessThanOrEqualTo($fechaCorteCarbon) ? (int) $itemFecha->diffInDays($fechaCorteCarbon) : 0;
                     }
                     $valor = (float)$item->prestamo;
 
@@ -199,11 +226,16 @@ class InventarioPisoController extends Controller
                         if ($item->categoria == 'Oro') $rangosOro['61-90']++;
                         elseif ($item->categoria == 'Autos') $rangosAutos['61-90']++;
                         else $rangosVarios['61-90']++;
+                    } elseif ($dias <= 150) {
+                        $rangos['91-150']++;
+                        if ($item->categoria == 'Oro') $rangosOro['91-150']++;
+                        elseif ($item->categoria == 'Autos') $rangosAutos['91-150']++;
+                        else $rangosVarios['91-150']++;
                     } else {
-                        $rangos['90+']++;
-                        if ($item->categoria == 'Oro') $rangosOro['90+']++;
-                        elseif ($item->categoria == 'Autos') $rangosAutos['90+']++;
-                        else $rangosVarios['90+']++;
+                        $rangos['150+']++;
+                        if ($item->categoria == 'Oro') $rangosOro['150+']++;
+                        elseif ($item->categoria == 'Autos') $rangosAutos['150+']++;
+                        else $rangosVarios['150+']++;
                     }
 
                     // Top artículos
@@ -429,9 +461,10 @@ class InventarioPisoController extends Controller
         // ================= KPIs =================
         $antiguedadPromedio = $totalArticulosN > 0 ? $totalDias / $totalArticulosN : 0;
 
-        $porcentajeMas30 = $totalArticulosN > 0 ? (($rangos['31-60'] + $rangos['61-90'] + $rangos['90+']) / $totalArticulosN) * 100 : 0;
-        $porcentajeMas60 = $totalArticulosN > 0 ? (($rangos['61-90'] + $rangos['90+']) / $totalArticulosN) * 100 : 0;
-        $porcentajeMas90 = $totalArticulosN > 0 ? ($rangos['90+'] / $totalArticulosN) * 100 : 0;
+        $porcentajeMas30 = $totalArticulosN > 0 ? (($rangos['31-60'] + $rangos['61-90'] + $rangos['91-150'] + $rangos['150+']) / $totalArticulosN) * 100 : 0;
+        $porcentajeMas60 = $totalArticulosN > 0 ? (($rangos['61-90'] + $rangos['91-150'] + $rangos['150+']) / $totalArticulosN) * 100 : 0;
+        $porcentajeMas90 = $totalArticulosN > 0 ? (($rangos['91-150'] + $rangos['150+']) / $totalArticulosN) * 100 : 0;
+        $porcentajeMas150 = $totalArticulosN > 0 ? ($rangos['150+'] / $totalArticulosN) * 100 : 0;
 
         // Ordenar top
         usort($topArticulos, fn($a, $b) => $b['dias'] <=> $a['dias']);
@@ -442,7 +475,7 @@ class InventarioPisoController extends Controller
 
         $totalIngresos = $globalInventarioInicial + $globalDotaciones + $globalDepositaria + $globalDevolucion + $globalRemate;
         $totalEgresos = $globalVentas + $globalApartado + $globalSalidas + $globalTraspaso + $globalRefExt;
-        $inventarioPisoNeto = $totalIngresos - $totalEgresos;
+        $inventarioPisoNeto = $valorTotalInventario;
 
         return response()->json([
             'valorTotalInventario' => $valorTotalInventario,
@@ -478,6 +511,7 @@ class InventarioPisoController extends Controller
             'porcentajeMas30' => round($porcentajeMas30, 1),
             'porcentajeMas60' => round($porcentajeMas60, 1),
             'porcentajeMas90' => round($porcentajeMas90, 1),
+            'porcentajeMas150' => round($porcentajeMas150, 1),
 
             'perdidasMerma' => $perdidasMerma,
 
@@ -488,7 +522,7 @@ class InventarioPisoController extends Controller
             ],
 
             'chartDistribucionAntiguedad' => [
-                'labels' => ['0-30', '31-60', '61-90', '90+'],
+                'labels' => ['0-30', '31-60', '61-90', '91-150', '150+'],
                 'data_oro' => array_values($rangosOro),
                 'data_varios' => array_values($rangosVarios),
                 'data_autos' => array_values($rangosAutos),

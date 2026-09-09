@@ -101,8 +101,11 @@ class OperacionesCarteraController extends Controller
                 'vigente' => 0,
                 'vencida' => 0,
                 'oro' => 0,
+                'plata' => 0,
+                'otros_metales' => 0,
                 'varios' => 0,
                 'auto' => 0,
+                'total_articulos' => 0,
             ],
             'tiempos' => [
                 'dias_empeno_desempeno' => 0,
@@ -454,60 +457,126 @@ class OperacionesCarteraController extends Controller
                 }
 
                 // ============================================
-                // 4. CARTERA VIGENTE/VENCIDA
+                // 4. CARTERA VIGENTE/VENCIDA (MovimientosIndicadorBC - Depositaria / INVENTARIO)
                 // ============================================
                 $inventarioResult = DB::connection($connectionName)->select("
-                    SELECT
-                        'Alhaja' AS Tipo,
-                        CASE 
-                            WHEN kilataje BETWEEN 500 AND 999 THEN 'Plata' 
-                            WHEN kilataje BETWEEN 8 AND 26 THEN 'Oro' 
-                            ELSE 'Varios' 
-                        END AS CategoriaMetal,
-                        cod_estatus_prenda,
-                        COALESCE(SUM(prestamo), 0) as total_prestamo
-                    FROM alhajas 
-                    WHERE cod_estatus_prenda IN (1,9) 
-                    GROUP BY CategoriaMetal, cod_estatus_prenda
-                    
-                    UNION ALL
-                    
                     SELECT 
-                        'Varios' AS Tipo, 
-                        'Varios' AS CategoriaMetal, 
-                        cod_estatus_prenda, 
-                        COALESCE(SUM(prestamo), 0) as total_prestamo
-                    FROM varios 
-                    WHERE cod_estatus_prenda IN (1,9) 
-                    GROUP BY cod_estatus_prenda
-                    
-                    UNION ALL
-                    
-                    SELECT 
-                        'Auto' AS Tipo, 
-                        'Auto' AS CategoriaMetal, 
-                        cod_estatus_prenda, 
-                        COALESCE(SUM(prestamo), 0) as total_prestamo
-                    FROM autos 
-                    WHERE cod_estatus_prenda IN (1,9) 
-                    GROUP BY cod_estatus_prenda
-                ");
+                        t.tipo,
+                        t.categoria,
+                        t.estado_cartera,
+                        SUM(t.prestamo) AS total_prestamo,
+                        COUNT(t.cod_prenda) AS operaciones
+                    FROM (
+                        -- ALHAJAS
+                        SELECT 
+                            1 AS tipo,
+                            CASE
+                                WHEN a.kilataje BETWEEN 8 AND 26 THEN 'Oro'
+                                WHEN a.kilataje BETWEEN 500 AND 999 THEN 'Plata'
+                                ELSE 'Otros Metales'
+                            END AS categoria,
+                            CASE
+                                WHEN h.cod_estatus_prenda = 2 OR (c.f_vencimiento IS NOT NULL AND c.f_vencimiento < :f1) THEN 'Vencida'
+                                ELSE 'Vigente'
+                            END AS estado_cartera,
+                            (h.prestamo - COALESCE(c.abono, 0)) AS prestamo,
+                            h.cod_prenda
+                        FROM (
+                            SELECT h.cod_prenda, h.prestamo, h.cod_estatus_prenda, h.cod_contrato,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY h.cod_prenda
+                                       ORDER BY h.f_movimiento DESC, h.id_historico DESC
+                                   ) AS rn
+                            FROM historico_articulos h
+                            WHERE h.cod_tipo_prenda = 1
+                              AND h.f_movimiento <= :fc1
+                        ) h
+                        INNER JOIN alhajas a ON a.cod_alhaja = h.cod_prenda
+                        LEFT JOIN contratos c ON c.cod_contrato = h.cod_contrato AND c.f_cancelacion IS NULL
+                        WHERE h.rn = 1
+                          AND h.cod_estatus_prenda IN (1,2)
+
+                        UNION ALL
+
+                        -- VARIOS
+                        SELECT 
+                            3 AS tipo,
+                            'Varios' AS categoria,
+                            CASE
+                                WHEN h.cod_estatus_prenda = 2 OR (c.f_vencimiento IS NOT NULL AND c.f_vencimiento < :f2) THEN 'Vencida'
+                                ELSE 'Vigente'
+                            END AS estado_cartera,
+                            (h.prestamo - COALESCE(c.abono, 0)) AS prestamo,
+                            h.cod_prenda
+                        FROM (
+                            SELECT h.cod_prenda, h.prestamo, h.cod_estatus_prenda, h.cod_contrato,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY h.cod_prenda
+                                       ORDER BY h.f_movimiento DESC, h.id_historico DESC
+                                   ) AS rn
+                            FROM historico_articulos h
+                            WHERE h.cod_tipo_prenda = 3
+                              AND h.f_movimiento <= :fc2
+                        ) h
+                        LEFT JOIN contratos c ON c.cod_contrato = h.cod_contrato AND c.f_cancelacion IS NULL
+                        WHERE h.rn = 1
+                          AND h.cod_estatus_prenda IN (1,2)
+
+                        UNION ALL
+
+                        -- AUTOS
+                        SELECT 
+                            2 AS tipo,
+                            'Auto' AS categoria,
+                            CASE
+                                WHEN h.cod_estatus_prenda = 2 OR (c.f_vencimiento IS NOT NULL AND c.f_vencimiento < :f3) THEN 'Vencida'
+                                ELSE 'Vigente'
+                            END AS estado_cartera,
+                            (h.prestamo - COALESCE(c.abono, 0)) AS prestamo,
+                            h.cod_prenda
+                        FROM (
+                            SELECT h.cod_prenda, h.prestamo, h.cod_estatus_prenda, h.cod_contrato,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY h.cod_prenda
+                                       ORDER BY h.f_movimiento DESC, h.id_historico DESC
+                                   ) AS rn
+                            FROM historico_articulos h
+                            WHERE h.cod_tipo_prenda = 2
+                              AND h.f_movimiento <= :fc3
+                        ) h
+                        LEFT JOIN contratos c ON c.cod_contrato = h.cod_contrato AND c.f_cancelacion IS NULL
+                        WHERE h.rn = 1
+                          AND h.cod_estatus_prenda IN (1,2)
+                    ) AS t
+                    GROUP BY t.tipo, t.categoria, t.estado_cartera
+                ", [
+                    ':f1' => $fechaFinQuery, ':fc1' => $fechaFinQuery,
+                    ':f2' => $fechaFinQuery, ':fc2' => $fechaFinQuery,
+                    ':f3' => $fechaFinQuery, ':fc3' => $fechaFinQuery
+                ]);
 
                 foreach ($inventarioResult as $inv) {
                     $monto = (float)$inv->total_prestamo;
+                    $ops = (int)$inv->operaciones;
                     
-                    if ($inv->cod_estatus_prenda == 1) { // Vigente
+                    if ($inv->estado_cartera === 'Vigente') {
                         $data['cartera']['vigente'] += $monto;
-                    } elseif ($inv->cod_estatus_prenda == 9) { // Vencida/Piso de venta
+                    } else {
                         $data['cartera']['vencida'] += $monto;
                     }
 
-                    // Clasificación por tipo
-                    if ($inv->Tipo == 'Alhaja') {
+                    $data['cartera']['total_articulos'] += $ops;
+
+                    // Clasificación por tipo y categoría
+                    if ($inv->categoria === 'Oro') {
                         $data['cartera']['oro'] += $monto;
-                    } elseif ($inv->Tipo == 'Varios') {
+                    } elseif ($inv->categoria === 'Plata') {
+                        $data['cartera']['plata'] += $monto;
+                    } elseif ($inv->categoria === 'Otros Metales') {
+                        $data['cartera']['otros_metales'] += $monto;
+                    } elseif ($inv->tipo == 3) {
                         $data['cartera']['varios'] += $monto;
-                    } elseif ($inv->Tipo == 'Auto') {
+                    } elseif ($inv->tipo == 2) {
                         $data['cartera']['auto'] += $monto;
                     }
                 }
@@ -548,9 +617,9 @@ class OperacionesCarteraController extends Controller
 
                 // Inventario de Depositaria al cierre del mes anterior (para base de tasa real)
                 $depoMesAntQ = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(prestamo), 0) AS total_depositaria
+                    SELECT COALESCE(SUM(t.prestamo - COALESCE(c.abono, 0)), 0) AS total_depositaria
                     FROM (
-                        SELECT h.prestamo, h.cod_estatus_prenda,
+                        SELECT h.prestamo, h.cod_estatus_prenda, h.cod_contrato,
                                ROW_NUMBER() OVER (
                                    PARTITION BY h.cod_tipo_prenda, h.cod_prenda 
                                    ORDER BY h.f_movimiento DESC, h.id_historico DESC
@@ -559,6 +628,7 @@ class OperacionesCarteraController extends Controller
                         WHERE h.cod_tipo_prenda IN (1, 2, 3)
                           AND h.f_movimiento <= :corteMesAnt
                     ) t
+                    LEFT JOIN contratos c ON c.cod_contrato = t.cod_contrato AND c.f_cancelacion IS NULL
                     WHERE t.rn = 1 AND t.cod_estatus_prenda IN (1, 2)
                 ", [':corteMesAnt' => $corteMesAnterior]);
 

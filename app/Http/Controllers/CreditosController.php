@@ -48,6 +48,8 @@ class CreditosController extends Controller
 
         $heatmapMorosidad = []; 
         $topCreditos = [];
+        $timelineData = [];
+        $vintageData = [];
 
         foreach ($sucursalesSeleccionadas as $sucursal) {
             try {
@@ -85,7 +87,7 @@ class CreditosController extends Controller
 
                 $capitalCobrado += (float) $pagos->capital_cobrado;
 
-                // 3. Morosidad por contrato
+                // 3. Morosidad por contrato y rangos
                 $moraQuery = DB::connection($connectionName)->select("
                     SELECT 
                         dc.cod_credito,
@@ -97,7 +99,7 @@ class CreditosController extends Controller
                     GROUP BY dc.cod_credito
                 ");
 
-                $sucMora = ['0-30'=>0, '31-60'=>0, '61-90'=>0, '90+'=>0];
+                $sucMora = ['0-30' => 0, '31-60' => 0, '61-90' => 0, '90+' => 0];
 
                 foreach ($moraQuery as $mq) {
                     $dias = (int) $mq->dias_atraso;
@@ -119,12 +121,69 @@ class CreditosController extends Controller
                     }
                 }
 
+                $sucTotalVencido = array_sum($sucMora);
+                $sucSaldoCartera = (float) $cartera->saldo;
+                $sucIndiceMora = $sucSaldoCartera > 0 ? ($sucTotalVencido / $sucSaldoCartera) * 100 : 0;
+
                 $heatmapMorosidad[] = [
                     'sucursal' => $sucursal->nombre,
-                    'mora' => $sucMora
+                    'mora' => $sucMora,
+                    'total_vencido' => $sucTotalVencido,
+                    'saldo_cartera' => $sucSaldoCartera,
+                    'indice_mora' => $sucIndiceMora
                 ];
 
-                // 4. Detalle Top Créditos
+                // 4. Timeline mensual (Saldo vs Colocación últimos 12 meses)
+                $monthly = DB::connection($connectionName)->select("
+                    SELECT 
+                        DATE_FORMAT(f_autorizado, '%Y-%m') as mes,
+                        COALESCE(SUM(monto_credito), 0) as colocacion,
+                        COALESCE(SUM(adeudo), 0) as saldo
+                    FROM creditos
+                    WHERE cod_estatus <> 3 AND f_autorizado >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+                    GROUP BY DATE_FORMAT(f_autorizado, '%Y-%m')
+                    ORDER BY mes ASC
+                ");
+
+                foreach ($monthly as $m) {
+                    if (!isset($timelineData[$m->mes])) {
+                        $timelineData[$m->mes] = ['colocacion' => 0, 'saldo' => 0];
+                    }
+                    $timelineData[$m->mes]['colocacion'] += (float)$m->colocacion;
+                    $timelineData[$m->mes]['saldo'] += (float)$m->saldo;
+                }
+
+                // 5. Curva de Cosecha / Vintage (Cohortes de colocación vs morosidad a 30, 60, 90 días)
+                $vintages = DB::connection($connectionName)->select("
+                    SELECT 
+                        DATE_FORMAT(c.f_autorizado, '%Y-%m') as mes,
+                        COALESCE(SUM(c.monto_credito), 0) as monto_colocado,
+                        COALESCE(SUM(CASE WHEN m.dias > 30 THEN c.adeudo ELSE 0 END), 0) as mora_30,
+                        COALESCE(SUM(CASE WHEN m.dias > 60 THEN c.adeudo ELSE 0 END), 0) as mora_60,
+                        COALESCE(SUM(CASE WHEN m.dias > 90 THEN c.adeudo ELSE 0 END), 0) as mora_90
+                    FROM creditos c
+                    LEFT JOIN (
+                        SELECT cod_credito, MAX(DATEDIFF(NOW(), f_pago_requerida)) as dias
+                        FROM detalle_credito
+                        WHERE adeudo > 0 AND f_pago_requerida < NOW()
+                        GROUP BY cod_credito
+                    ) m ON m.cod_credito = c.cod_credito
+                    WHERE c.cod_estatus <> 3 AND c.f_autorizado >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+                    GROUP BY DATE_FORMAT(c.f_autorizado, '%Y-%m')
+                    ORDER BY mes ASC
+                ");
+
+                foreach ($vintages as $v) {
+                    if (!isset($vintageData[$v->mes])) {
+                        $vintageData[$v->mes] = ['colocado' => 0, 'mora30' => 0, 'mora60' => 0, 'mora90' => 0];
+                    }
+                    $vintageData[$v->mes]['colocado'] += (float)$v->monto_colocado;
+                    $vintageData[$v->mes]['mora30'] += (float)$v->mora_30;
+                    $vintageData[$v->mes]['mora60'] += (float)$v->mora_60;
+                    $vintageData[$v->mes]['mora90'] += (float)$v->mora_90;
+                }
+
+                // 6. Detalle Top Créditos
                 $lista = DB::connection($connectionName)->select("
                     SELECT 
                         c.cod_credito,
@@ -137,7 +196,7 @@ class CreditosController extends Controller
                     LEFT JOIN clientes cl ON cl.cod_cliente = c.cod_cliente
                     WHERE c.adeudo > 0 AND c.cod_estatus <> 3
                     ORDER BY c.adeudo DESC
-                    LIMIT 10
+                    LIMIT 15
                 ");
 
                 foreach ($lista as $l) {
@@ -158,13 +217,9 @@ class CreditosController extends Controller
 
         // ================= KPIs Finales =================
         $indiceMorosidad = $saldoCartera > 0 ? ($saldoVencido / $saldoCartera) * 100 : 0;
-        
         $capitalOtorgado = $creditosNuevosMonto; 
         $recuperacionPorcentaje = $capitalOtorgado > 0 ? ($capitalCobrado / $capitalOtorgado) * 100 : 0;
-        
-        // Asumimos que los cobrados son un % del capitalCobrado, o simplemente los listamos
-        $interesesCobrados = $capitalCobrado * 0.20; // Estimación si no hay split exacto
-        
+        $interesesCobrados = $capitalCobrado * 0.20;
         $tasaEfectivaRendimiento = $saldoCartera > 0 ? ($interesesGenerados / $saldoCartera) * 100 : 0;
 
         $chartCarteraMora = [
@@ -179,13 +234,46 @@ class CreditosController extends Controller
 
         // Ordenar top creditos
         usort($topCreditos, fn($a, $b) => $b['saldo_actual'] <=> $a['saldo_actual']);
-        $topCreditos = array_slice($topCreditos, 0, 15);
+        $topCreditos = array_slice($topCreditos, 0, 25);
+
+        // Formatear Timeline mensual para gráfico de líneas
+        ksort($timelineData);
+        $timelineLabels = array_keys($timelineData);
+        $timelineColocacion = [];
+        $timelineSaldo = [];
+        foreach ($timelineLabels as $mes) {
+            $timelineColocacion[] = round($timelineData[$mes]['colocacion'], 2);
+            $timelineSaldo[] = round($timelineData[$mes]['saldo'], 2);
+        }
 
         $chartSaldoColocacion = [
-            'labels' => ['Colocación Periodo', 'Cobranza Periodo'],
-            'colocacion' => [$creditosNuevosMonto, 0],
-            'saldo' => [0, $capitalCobrado]
+            'labels' => $timelineLabels,
+            'colocacion' => $timelineColocacion,
+            'saldo' => $timelineSaldo
         ];
+
+        // Formatear Curva de Cosecha / Vintage
+        ksort($vintageData);
+        $vintageLabels = array_keys($vintageData);
+        $vintageMora30 = [];
+        $vintageMora60 = [];
+        $vintageMora90 = [];
+        foreach ($vintageLabels as $mes) {
+            $col = $vintageData[$mes]['colocado'];
+            $vintageMora30[] = $col > 0 ? round(($vintageData[$mes]['mora30'] / $col) * 100, 2) : 0;
+            $vintageMora60[] = $col > 0 ? round(($vintageData[$mes]['mora60'] / $col) * 100, 2) : 0;
+            $vintageMora90[] = $col > 0 ? round(($vintageData[$mes]['mora90'] / $col) * 100, 2) : 0;
+        }
+
+        $chartVintage = [
+            'labels' => $vintageLabels,
+            'mora30' => $vintageMora30,
+            'mora60' => $vintageMora60,
+            'mora90' => $vintageMora90
+        ];
+
+        // Ordenar heatmap por mayor saldo de cartera
+        usort($heatmapMorosidad, fn($a, $b) => $b['saldo_cartera'] <=> $a['saldo_cartera']);
 
         return response()->json([
             'saldoCartera' => $saldoCartera,
@@ -201,6 +289,7 @@ class CreditosController extends Controller
             'tasaEfectivaRendimiento' => $tasaEfectivaRendimiento,
             'chartCarteraMora' => $chartCarteraMora,
             'chartSaldoColocacion' => $chartSaldoColocacion,
+            'chartVintage' => $chartVintage,
             'heatmapMorosidad' => $heatmapMorosidad,
             'topCreditos' => $topCreditos
         ]);

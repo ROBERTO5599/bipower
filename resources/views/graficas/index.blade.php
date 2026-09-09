@@ -984,7 +984,7 @@
             drawChart('distribucionAntiguedadPisoChart', {
                 type: 'bar',
                 data: {
-                    labels: ['0-30 días', '31-60 días', '61-90 días', '90+ días'],
+                    labels: chartData.labels || ['0-30', '31-60', '61-90', '91-150', '150+'],
                     datasets: [
                         {
                             label: 'Oro (Kilatajes)',
@@ -996,6 +996,12 @@
                             label: 'Varios (Electrónica/Otros)',
                             data: chartData.data_varios,
                             backgroundColor: 'rgba(108, 117, 125, 0.7)',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Autos',
+                            data: chartData.data_autos || [],
+                            backgroundColor: 'rgba(13, 110, 253, 0.7)',
                             borderRadius: 4
                         }
                     ]

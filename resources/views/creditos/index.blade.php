@@ -54,12 +54,33 @@
             box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
         }
 
-        /* Tooltip de desglose */
+        /* Tooltip de desglose (Estilo Flujo Operativo) */
         .metric-tooltip {
             position: relative;
             display: inline-block;
             border-bottom: 1px dotted #6c757d;
             cursor: help;
+        }
+        .metric-tooltip:hover {
+            color: #0d6efd;
+        }
+        .tooltip-inner {
+            max-width: 340px !important;
+            padding: 10px 14px !important;
+            font-size: 0.8rem !important;
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+            border-radius: 8px !important;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.4) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            text-align: left !important;
+        }
+        .tooltip-inner hr {
+            border-color: rgba(255,255,255,0.15) !important;
+            margin: 6px 0 !important;
+        }
+        .tooltip-inner .text-muted {
+            color: #cbd5e1 !important;
         }
 
         /* KPI Card */
@@ -174,48 +195,62 @@
         <!-- PESTAÑA 1: CARTERA Y COBRANZA                                 -->
         <!-- ============================================================= -->
         <div class="tab-pane fade show active" id="tab-cartera-pane" role="tabpanel" aria-labelledby="tab-cartera-btn">
-            <!-- KPIs Principales Cartera -->
-            <div class="row mb-4 justify-content-center">
-                <!-- Saldo Cartera -->
-                <div class="col-12 col-xl-4 mb-3">
+            <!-- ============================================================= -->
+            <!-- 4 KPIS PRINCIPALES DE CARTERA (FILAS 51, 52, 53, 54)            -->
+            <!-- ============================================================= -->
+            <div class="row mb-4">
+                <!-- 51. Saldo Total Cartera -->
+                <div class="col-12 col-sm-6 col-xl-3 mb-3">
                     <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center justify-content-between mb-3">
-                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Saldo Cartera Créditos</h6>
+                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                    <span class="metric-tooltip" id="tooltip-saldo-cartera" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de saldo cartera...">
+                                        Saldo Total Cartera
+                                    </span>
+                                </h6>
                                 <div class="icon-shape bg-light-primary text-primary">
                                     <i class="bi bi-wallet2"></i>
                                 </div>
                             </div>
                             <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-saldo-cartera">$ 0.00</h2>
-                            <span class="text-muted small">Al término del periodo</span>
+                            <span class="text-muted small">Cartera Vigente + Vencida</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Colocación -->
-                <div class="col-12 col-xl-4 mb-3">
+                <!-- 52. Colocación de Créditos Nuevos -->
+                <div class="col-12 col-sm-6 col-xl-3 mb-3">
                     <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center justify-content-between mb-3">
-                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Colocación en el Periodo</h6>
+                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                    <span class="metric-tooltip" id="tooltip-colocacion" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de colocación...">
+                                        Colocación de Créditos
+                                    </span>
+                                </h6>
                                 <div class="icon-shape bg-light-info text-info">
                                     <i class="bi bi-rocket-takeoff-fill"></i>
                                 </div>
                             </div>
                             <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-colocacion-monto">$ 0.00</h2>
                             <span class="text-muted small">
-                                <span class="fw-bold text-dark" id="kpi-colocacion-cantidad">0</span> créditos nuevos
+                                <span class="fw-bold text-dark" id="kpi-colocacion-cantidad">0</span> créditos otorgados
                             </span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Morosidad -->
-                <div class="col-12 col-xl-4 mb-3">
+                <!-- 53. Índice de Morosidad -->
+                <div class="col-12 col-sm-6 col-xl-3 mb-3">
                     <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center justify-content-between mb-3">
-                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Índice de Morosidad</h6>
+                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                    <span class="metric-tooltip" id="tooltip-morosidad" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de morosidad...">
+                                        Índice de Morosidad
+                                    </span>
+                                </h6>
                                 <div class="icon-shape bg-light-danger text-danger">
                                     <i class="bi bi-exclamation-triangle-fill"></i>
                                 </div>
@@ -227,9 +262,31 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 54. Tasa Efectiva de Rendimiento -->
+                <div class="col-12 col-sm-6 col-xl-3 mb-3">
+                    <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                    <span class="metric-tooltip" id="tooltip-tasa-efectiva" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de rendimiento...">
+                                        Tasa Efectiva Rend.
+                                    </span>
+                                </h6>
+                                <div class="icon-shape bg-light-warning text-warning">
+                                    <i class="bi bi-percent"></i>
+                                </div>
+                            </div>
+                            <h2 class="display-6 fw-bold mb-0 text-dark" id="kpi-tasa-efectiva-card">0.0%</h2>
+                            <div class="mt-2 text-muted small">
+                                Intereses: <span class="fw-bold text-success" id="kpi-intereses-cobrados-card">$ 0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- KPIs Secundarios Cartera -->
+            <!-- KPIs Complementarios Cartera -->
             <div class="row mb-4">
                 <!-- Recuperación vs Otorgamiento -->
                 <div class="col-12 col-xl-6 mb-3">
@@ -240,7 +297,11 @@
                                     <i class="bi bi-piggy-bank-fill"></i>
                                 </div>
                                 <div>
-                                    <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Recuperación vs Otorgamiento</h6>
+                                    <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                        <span class="metric-tooltip" id="tooltip-recuperacion" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de recuperación...">
+                                            Recuperación vs Otorgamiento
+                                        </span>
+                                    </h6>
                                     <h3 class="fw-bold text-dark mb-0"><span id="kpi-recuperacion-pct" class="text-success">0.0%</span></h3>
                                 </div>
                             </div>
@@ -258,7 +319,7 @@
                     </div>
                 </div>
 
-                <!-- Intereses / Rendimiento -->
+                <!-- Rentabilidad (Intereses) -->
                 <div class="col-12 col-xl-6 mb-3">
                     <div class="card shadow-sm border-0 h-100 rounded-3">
                         <div class="card-body p-4">
@@ -267,7 +328,11 @@
                                     <i class="bi bi-graph-up-arrow"></i>
                                 </div>
                                 <div>
-                                    <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Rentabilidad (Intereses)</h6>
+                                    <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                        <span class="metric-tooltip" id="tooltip-intereses" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de rentabilidad...">
+                                            Rentabilidad de Cartera
+                                        </span>
+                                    </h6>
                                     <h3 class="fw-bold text-dark mb-0" id="kpi-intereses-generados">$ 0.00</h3>
                                 </div>
                             </div>
@@ -277,7 +342,7 @@
                                     <span class="fw-bold text-success" id="kpi-intereses-cobrados">$ 0.00</span>
                                 </div>
                                 <div class="col-6 border-start">
-                                    <small class="text-muted d-block">Tasa Efectiva de Rend.</small>
+                                    <small class="text-muted d-block">Tasa Efectiva</small>
                                     <span class="fw-bold text-primary" id="kpi-tasa-efectiva">0.0%</span>
                                 </div>
                             </div>
@@ -286,49 +351,125 @@
                 </div>
             </div>
 
-            <!-- Gráficos Cartera -->
+            <!-- ============================================================= -->
+            <!-- 55. MAPA DE CALOR: MOROSIDAD POR RANGO DE DÍAS Y SUCURSAL    -->
+            <!-- ============================================================= -->
             <div class="row mb-4">
-                <div class="col-md-8 mb-3">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0 rounded-3">
+                        <div class="card-header bg-white border-0 pt-4 px-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                            <div>
+                                <h5 class="fw-bold mb-0">
+                                    <i class="bi bi-grid-3x3-gap-fill text-danger me-2"></i>Mapa de Calor: Morosidad por Rango de Días y Sucursal
+                                </h5>
+                                <small class="text-muted">Concentración de cartera vencida por atraso y punto de venta</small>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 small flex-wrap">
+                                <span class="badge bg-light text-muted border px-2 py-1"><i class="bi bi-circle-fill text-secondary me-1" style="font-size: 0.55rem;"></i>$ 0 (Sin mora)</span>
+                                <span class="badge px-2 py-1" style="background-color: rgba(255, 193, 7, 0.25); color: #856404;"><i class="bi bi-circle-fill text-warning me-1" style="font-size: 0.55rem;"></i>Mora Leve</span>
+                                <span class="badge px-2 py-1" style="background-color: rgba(253, 126, 20, 0.25); color: #d63384;"><i class="bi bi-circle-fill text-warning me-1" style="font-size: 0.55rem;"></i>Mora Media</span>
+                                <span class="badge px-2 py-1" style="background-color: rgba(220, 53, 69, 0.25); color: #dc3545;"><i class="bi bi-circle-fill text-danger me-1" style="font-size: 0.55rem;"></i>Mora Crítica</span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover align-middle mb-0">
+                                    <thead class="bg-light text-center">
+                                        <tr>
+                                            <th class="ps-4 py-3 text-start text-uppercase text-muted small fw-bold" style="min-width: 170px;">Sucursal</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold">0 a 30 Días</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold">31 a 60 Días</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold">61 a 90 Días</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold">Más de 90 Días</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-danger">Total Vencido</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-dark">Saldo Cartera</th>
+                                            <th class="pe-4 py-3 text-uppercase text-muted small fw-bold">% Morosidad</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="heatmap-morosidad-body">
+                                        <tr><td colspan="8" class="text-center text-muted py-4">Cargando mapa de calor...</td></tr>
+                                    </tbody>
+                                    <tfoot id="heatmap-morosidad-foot"></tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- 56 Y 58. GRÁFICOS DE LÍNEAS: EVOLUCIÓN SALDO/COLOCACIÓN Y VINTAGE -->
+            <!-- ============================================================= -->
+            <div class="row mb-4">
+                <!-- 56. Gráfico de líneas: Saldo de Cartera y Colocación por periodo -->
+                <div class="col-12 col-xl-6 mb-3">
                     <div class="card shadow-sm border-0 h-100 rounded-3">
-                        <div class="card-header bg-white border-0 pt-4 px-4">
-                            <h5 class="fw-bold mb-0">Evolución de Saldo y Colocación</h5>
+                        <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="fw-bold mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>Evolución de Saldo y Colocación</h5>
+                                <small class="text-muted">Histórico mensual de otorgamiento vs. saldo total</small>
+                            </div>
                         </div>
                         <div class="card-body p-4 d-flex justify-content-center align-items-center">
-                            <canvas id="saldoColocacionChart" height="260"></canvas>
+                            <canvas id="saldoColocacionChart" height="270"></canvas>
                         </div>
                     </div>
                 </div>
                 
-                <div class="col-md-4 mb-3">
+                <!-- 58. Curva de Cosecha (Vintage): % Morosidad a 30/60/90 días por mes de colocación -->
+                <div class="col-12 col-xl-6 mb-3">
+                    <div class="card shadow-sm border-0 h-100 rounded-3">
+                        <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="fw-bold mb-0"><i class="bi bi-layers-fill me-2 text-warning"></i>Curva de Cosecha (Vintage)</h5>
+                                <small class="text-muted">% Morosidad a 30, 60 y 90 días por mes de colocación</small>
+                            </div>
+                        </div>
+                        <div class="card-body p-4 d-flex justify-content-center align-items-center">
+                            <canvas id="vintageChart" height="270"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico Complementario de Dona & 57. Tabla Detalle de Créditos -->
+            <div class="row mb-4">
+                <!-- Distribución de Mora (Dona) -->
+                <div class="col-12 col-xl-4 mb-3">
                     <div class="card shadow-sm border-0 h-100 rounded-3">
                         <div class="card-header bg-white border-0 pt-4 px-4">
-                            <h5 class="fw-bold mb-0">Distribución por Mora (Días de Atraso)</h5>
+                            <h5 class="fw-bold mb-0"><i class="bi bi-pie-chart-fill me-2 text-danger"></i>Distribución por Días de Mora</h5>
+                            <small class="text-muted">Proporción de cartera vencida por antigüedad de atraso</small>
                         </div>
                         <div class="card-body p-4 d-flex justify-content-center align-items-center">
                             <canvas id="morosidadChart" height="260"></canvas>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Tabla Detalle de Créditos -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card shadow-sm border-0 rounded-3">
-                        <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                            <h5 class="fw-bold mb-0">Detalle de Créditos y Estatus</h5>
+                <!-- 57. Tabla Detalle por Crédito y Cliente con Estado del Crédito -->
+                <div class="col-12 col-xl-8 mb-3">
+                    <div class="card shadow-sm border-0 h-100 rounded-3">
+                        <div class="card-header bg-white border-0 pt-4 px-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                            <div>
+                                <h5 class="fw-bold mb-0"><i class="bi bi-person-lines-fill me-2 text-info"></i>Detalle de Créditos y Estatus de Clientes</h5>
+                                <small class="text-muted">Créditos principales con saldo activo y estado de pago</small>
+                            </div>
+                            <div style="max-width: 260px;" class="w-100">
+                                <input type="text" id="filtro-cliente-input" class="form-control form-control-sm rounded-pill px-3" placeholder="🔍 Buscar cliente...">
+                            </div>
                         </div>
                         <div class="card-body p-0">
-                            <div class="table-responsive">
+                            <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
                                 <table class="table table-hover align-middle mb-0">
-                                    <thead class="bg-light">
+                                    <thead class="bg-light sticky-top">
                                         <tr>
                                             <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Cliente</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold">Sucursal</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-end">Monto Original</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-end">Saldo Actual</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Intereses Gen.</th>
-                                            <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">Estatus</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Intereses</th>
+                                            <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">Estado</th>
                                         </tr>
                                     </thead>
                                     <tbody id="top-creditos-body">
@@ -361,7 +502,7 @@
                                 <div class="icon-shape bg-light-success text-success"><i class="bi bi-arrow-down-left-circle-fill"></i></div>
                             </div>
                             <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-ingresos">$ 0.00</h2>
-                            <span class="text-muted small">Inv. Inicial + Enganche de Crédito</span>
+                            <span class="text-muted small">Inventario Inicial + Enganche</span>
                         </div>
                     </div>
                 </div>
@@ -390,14 +531,14 @@
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
-                                    <span class="metric-tooltip" id="tooltip-inventario" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de inventario en créditos...">
+                                    <span class="metric-tooltip" id="tooltip-inventario" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de inventario en crédito...">
                                         Total Inventario en Crédito
                                     </span>
                                 </h6>
                                 <div class="icon-shape bg-light-warning text-warning"><i class="bi bi-box-seam-fill"></i></div>
                             </div>
                             <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-total-inventario-piso">$ 0.00</h2>
-                            <span class="text-muted small">Ingresos - Egresos (Saldo Activo)</span>
+                            <span class="text-muted small">Ingresos Totales − Egresos Totales</span>
                         </div>
                     </div>
                 </div>
@@ -409,7 +550,11 @@
                     <div class="card shadow-sm border-0 kpi-card h-100 rounded-3">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Artículos Financiados</h6>
+                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                    <span class="metric-tooltip" id="tooltip-articulos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de artículos...">
+                                        Artículos Financiados
+                                    </span>
+                                </h6>
                                 <div class="icon-shape bg-light-info text-info">
                                     <i class="bi bi-upc-scan fs-3"></i>
                                 </div>
@@ -424,7 +569,11 @@
                     <div class="card shadow-sm border-0 kpi-card h-100 rounded-3">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Antigüedad Promedio</h6>
+                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                    <span class="metric-tooltip" id="tooltip-antiguedad" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de antigüedad...">
+                                        Antigüedad Promedio
+                                    </span>
+                                </h6>
                                 <div class="icon-shape bg-light-warning text-warning">
                                     <i class="bi bi-hourglass-split fs-3"></i>
                                 </div>
@@ -441,13 +590,17 @@
                     <div class="card shadow-sm border-0 kpi-card h-100 rounded-3">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Rotación de Cobro</h6>
+                                <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                    <span class="metric-tooltip" id="tooltip-rotacion" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de rotación...">
+                                        Rotación de Cobro
+                                    </span>
+                                </h6>
                                 <div class="icon-shape bg-light-success text-success">
                                     <i class="bi bi-arrow-repeat fs-3"></i>
                                 </div>
                             </div>
                             <h2 class="fw-bold text-dark mb-0" id="kpi-rotacion" style="font-size: 2rem;">0.00x</h2>
-                            <span class="text-muted small">Cobros / Cartera Promedio</span>
+                            <span class="text-muted small">Abonos Crédito / Inventario Activo</span>
                         </div>
                     </div>
                 </div>
@@ -570,8 +723,10 @@
         // Charts instances
         let saldoColocacionChart = null;
         let morosidadChart = null;
+        let vintageChart = null;
         let distribucionAntiguedadChart = null;
         let valorSucursalChart = null;
+        let currentCreditosList = [];
 
         // Flags para controlar carga
         let carteraLoaded = false;
@@ -628,11 +783,30 @@
             loadAllData();
         });
 
+        // Search filter for credits table
+        const filtroClienteInput = document.getElementById('filtro-cliente-input');
+        if (filtroClienteInput) {
+            filtroClienteInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) {
+                    renderCreditosTable(currentCreditosList);
+                    return;
+                }
+                const filtered = currentCreditosList.filter(c => 
+                    (c.cliente && c.cliente.toLowerCase().includes(query)) ||
+                    (c.sucursal && c.sucursal.toLowerCase().includes(query)) ||
+                    (c.id && String(c.id).toLowerCase().includes(query))
+                );
+                renderCreditosTable(filtered);
+            });
+        }
+
         // Tab change events: resize charts when tab is revealed
         document.querySelectorAll('#creditosTabs button[data-bs-toggle="pill"]').forEach(tabBtn => {
             tabBtn.addEventListener('shown.bs.tab', function(e) {
                 if (e.target.id === 'tab-cartera-btn') {
                     if (saldoColocacionChart) saldoColocacionChart.resize();
+                    if (vintageChart) vintageChart.resize();
                     if (morosidadChart) morosidadChart.resize();
                     if (!carteraLoaded) loadCarteraData();
                 } else if (e.target.id === 'tab-inventario-btn') {
@@ -712,6 +886,10 @@
             updateElementText('kpi-indice-morosidad', `${(data.indiceMorosidad || 0).toFixed(2)}%`);
             updateElementText('kpi-saldo-vencido', formatter.format(data.saldoVencido || 0));
             
+            updateElementText('kpi-tasa-efectiva-card', `${(data.tasaEfectivaRendimiento || 0).toFixed(2)}%`);
+            updateElementText('kpi-intereses-cobrados-card', formatter.format(data.interesesCobrados || 0));
+
+            // KPIs Secundarios
             updateElementText('kpi-recuperacion-pct', `${(data.recuperacionPorcentaje || 0).toFixed(1)}%`);
             updateElementText('kpi-capital-cobrado', formatter.format(data.capitalCobrado || 0));
             updateElementText('kpi-capital-otorgado', formatter.format(data.capitalOtorgado || 0));
@@ -720,11 +898,202 @@
             updateElementText('kpi-intereses-cobrados', formatter.format(data.interesesCobrados || 0));
             updateElementText('kpi-tasa-efectiva', `${(data.tasaEfectivaRendimiento || 0).toFixed(2)}%`);
 
-            // Tabla Detalle de Créditos
+            // Tooltips de Cartera (Estilo Flujo Operativo)
+            const saldoTotal = data.saldoCartera || 0;
+            const saldoVencido = data.saldoVencido || 0;
+            const saldoVigente = Math.max(0, saldoTotal - saldoVencido);
+
+            setCustomTooltip('tooltip-saldo-cartera', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Saldo Cartera:</strong>
+                    <div class="d-flex justify-content-between"><span>Cartera Vigente:</span> <span class="fw-bold text-success">${formatter.format(saldoVigente)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Cartera Vencida:</span> <span class="fw-bold text-danger">${formatter.format(saldoVencido)}</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span>TOTAL CARTERA:</span> <span class="text-primary">${formatter.format(saldoTotal)}</span></div>
+                </div>
+            `);
+
+            const montoColocado = data.creditosNuevosMonto || 0;
+            const cantColocada = data.creditosNuevosCantidad || 0;
+            const promCredito = cantColocada > 0 ? (montoColocado / cantColocada) : 0;
+
+            setCustomTooltip('tooltip-colocacion', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Colocación:</strong>
+                    <div class="d-flex justify-content-between"><span>Monto Otorgado:</span> <span class="fw-bold text-success">${formatter.format(montoColocado)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Nuevos Créditos:</span> <span class="fw-bold">${numberFormatter.format(cantColocada)} contratos</span></div>
+                    <div class="d-flex justify-content-between"><span>Promedio por Crédito:</span> <span class="fw-bold">${formatter.format(promCredito)}</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span>TOTAL COLOCACIÓN:</span> <span class="text-primary">${formatter.format(montoColocado)}</span></div>
+                </div>
+            `);
+
+            const moraRangos = (data.chartCarteraMora && data.chartCarteraMora.data) ? data.chartCarteraMora.data : [0, 0, 0, 0];
+
+            setCustomTooltip('tooltip-morosidad', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 230px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Morosidad:</strong>
+                    <div class="d-flex justify-content-between"><span>0 a 30 días:</span> <span class="fw-bold">${formatter.format(moraRangos[0] || 0)}</span></div>
+                    <div class="d-flex justify-content-between"><span>31 a 60 días:</span> <span class="fw-bold">${formatter.format(moraRangos[1] || 0)}</span></div>
+                    <div class="d-flex justify-content-between"><span>61 a 90 días:</span> <span class="fw-bold">${formatter.format(moraRangos[2] || 0)}</span></div>
+                    <div class="d-flex justify-content-between text-danger"><span>Más de 90 días:</span> <span class="fw-bold">${formatter.format(moraRangos[3] || 0)}</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between"><span>Saldo Vencido:</span> <span class="fw-bold text-danger">${formatter.format(saldoVencido)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Saldo Total Cartera:</span> <span class="fw-bold">${formatter.format(saldoTotal)}</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span>ÍNDICE MOROSIDAD:</span> <span class="text-danger">${(data.indiceMorosidad || 0).toFixed(2)}%</span></div>
+                </div>
+            `);
+
+            const intGenerados = data.interesesGenerados || 0;
+            const intCobrados = data.interesesCobrados || 0;
+
+            setCustomTooltip('tooltip-tasa-efectiva', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 230px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose Rendimiento de Cartera:</strong>
+                    <div class="d-flex justify-content-between"><span>Intereses Cobrados (+):</span> <span class="fw-bold text-success">${formatter.format(intCobrados)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Intereses Generados:</span> <span class="fw-bold">${formatter.format(intGenerados)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Saldo Cartera Base:</span> <span class="fw-bold">${formatter.format(saldoTotal)}</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span>TASA EFECTIVA:</span> <span class="text-warning">${(data.tasaEfectivaRendimiento || 0).toFixed(2)}%</span></div>
+                </div>
+            `);
+
+            const capCobrado = data.capitalCobrado || 0;
+            const capOtorgado = data.capitalOtorgado || 0;
+            const difRecup = capCobrado - capOtorgado;
+
+            setCustomTooltip('tooltip-recuperacion', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Recuperación:</strong>
+                    <div class="d-flex justify-content-between"><span>Capital Cobrado (+):</span> <span class="fw-bold text-success">${formatter.format(capCobrado)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Capital Otorgado (-):</span> <span class="fw-bold">${formatter.format(capOtorgado)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Diferencia Neta:</span> <span class="fw-bold ${difRecup >= 0 ? 'text-success' : 'text-danger'}">${formatter.format(difRecup)}</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span>RECUPERACIÓN:</span> <span class="text-success">${(data.recuperacionPorcentaje || 0).toFixed(1)}%</span></div>
+                </div>
+            `);
+
+            setCustomTooltip('tooltip-intereses', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Intereses:</strong>
+                    <div class="d-flex justify-content-between"><span>Intereses Cobrados:</span> <span class="fw-bold text-success">${formatter.format(intCobrados)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Intereses Generados:</span> <span class="fw-bold">${formatter.format(intGenerados)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Cartera Base:</span> <span class="fw-bold">${formatter.format(saldoTotal)}</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span>TASA EFECTIVA:</span> <span class="text-warning">${(data.tasaEfectivaRendimiento || 0).toFixed(2)}%</span></div>
+                </div>
+            `);
+
+            // 55. Mapa de Calor Morosidad
+            renderHeatmapMorosidad(data.heatmapMorosidad || []);
+
+            // 56. Gráfico Saldo Cartera y Colocación
+            renderSaldoColocacionChart(data.chartSaldoColocacion);
+
+            // 58. Curva de Cosecha (Vintage)
+            renderVintageChart(data.chartVintage);
+
+            // Gráfico Dona Morosidad
+            renderMorosidadChart(data.chartCarteraMora);
+
+            // 57. Tabla Detalle de Créditos con Filtro
+            currentCreditosList = data.topCreditos || [];
+            renderCreditosTable(currentCreditosList);
+        }
+
+        // 55. Render Heatmap Morosidad
+        function renderHeatmapMorosidad(items) {
+            const tbody = document.getElementById('heatmap-morosidad-body');
+            const tfoot = document.getElementById('heatmap-morosidad-foot');
+            if (!tbody) return;
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No hay datos de morosidad por sucursal disponibles</td></tr>';
+                if (tfoot) tfoot.innerHTML = '';
+                return;
+            }
+
+            let sum0_30 = 0, sum31_60 = 0, sum61_90 = 0, sum90_plus = 0;
+            let sumVencido = 0, sumSaldo = 0;
+
+            let html = '';
+            items.forEach(row => {
+                const m0_30 = row.mora['0_30'] || 0;
+                const m31_60 = row.mora['31_60'] || 0;
+                const m61_90 = row.mora['61_90'] || 0;
+                const m90 = row.mora['90_plus'] || 0;
+                const totalVenc = row.total_vencido || 0;
+                const saldo = row.saldo_cartera || 0;
+                const indice = row.indice_mora || 0;
+
+                sum0_30 += m0_30;
+                sum31_60 += m31_60;
+                sum61_90 += m61_90;
+                sum90_plus += m90;
+                sumVencido += totalVenc;
+                sumSaldo += saldo;
+
+                // Heat cell backgrounds
+                const style0_30 = m0_30 > 0 ? 'background-color: rgba(25, 135, 84, 0.08); font-weight: 500;' : 'color: #adb5bd;';
+                const style31_60 = m31_60 > 0 ? 'background-color: rgba(255, 193, 7, 0.18); font-weight: 600; color: #856404;' : 'color: #adb5bd;';
+                const style61_90 = m61_90 > 0 ? 'background-color: rgba(253, 126, 20, 0.20); font-weight: 600; color: #b02a37;' : 'color: #adb5bd;';
+                const style90 = m90 > 0 ? 'background-color: rgba(220, 53, 69, 0.22); font-weight: 700; color: #dc3545;' : 'color: #adb5bd;';
+
+                let badgeIndice = 'bg-light text-muted border';
+                if (indice > 15) badgeIndice = 'bg-danger text-white';
+                else if (indice > 5) badgeIndice = 'bg-warning text-dark';
+                else if (indice > 0) badgeIndice = 'bg-success text-white';
+
+                html += `
+                    <tr>
+                        <td class="ps-4 py-3 fw-bold text-dark">${escapeHtml(row.sucursal)}</td>
+                        <td class="py-3 text-end" style="${style0_30}">${formatter.format(m0_30)}</td>
+                        <td class="py-3 text-end" style="${style31_60}">${formatter.format(m31_60)}</td>
+                        <td class="py-3 text-end" style="${style61_90}">${formatter.format(m61_90)}</td>
+                        <td class="py-3 text-end" style="${style90}">${formatter.format(m90)}</td>
+                        <td class="py-3 text-end fw-bold text-danger" style="background-color: rgba(220, 53, 69, 0.06);">${formatter.format(totalVenc)}</td>
+                        <td class="py-3 text-end fw-bold text-dark">${formatter.format(saldo)}</td>
+                        <td class="pe-4 py-3 text-center">
+                            <span class="badge ${badgeIndice} rounded-pill px-3 py-1">${indice.toFixed(1)}%</span>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+
+            if (tfoot) {
+                const totalIndice = sumSaldo > 0 ? (sumVencido / sumSaldo * 100) : 0;
+                let badgeTotal = 'bg-light text-muted border';
+                if (totalIndice > 15) badgeTotal = 'bg-danger text-white';
+                else if (totalIndice > 5) badgeTotal = 'bg-warning text-dark';
+                else if (totalIndice > 0) badgeTotal = 'bg-success text-white';
+
+                tfoot.innerHTML = `
+                    <tr class="table-dark fw-bold">
+                        <td class="ps-4 py-3">TOTAL CONSOLIDADO</td>
+                        <td class="py-3 text-end">${formatter.format(sum0_30)}</td>
+                        <td class="py-3 text-end">${formatter.format(sum31_60)}</td>
+                        <td class="py-3 text-end">${formatter.format(sum61_90)}</td>
+                        <td class="py-3 text-end">${formatter.format(sum90_plus)}</td>
+                        <td class="py-3 text-end text-warning">${formatter.format(sumVencido)}</td>
+                        <td class="py-3 text-end">${formatter.format(sumSaldo)}</td>
+                        <td class="pe-4 py-3 text-center">
+                            <span class="badge ${badgeTotal} rounded-pill px-3 py-1">${totalIndice.toFixed(1)}%</span>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // 57. Render Tabla Créditos
+        function renderCreditosTable(items) {
             const tbody = document.getElementById('top-creditos-body');
-            if (data.topCreditos && data.topCreditos.length > 0) {
+            if (!tbody) return;
+
+            if (items && items.length > 0) {
                 let html = '';
-                data.topCreditos.forEach(c => {
+                items.forEach(c => {
                     let badgeClass = c.estatus == 1 ? 'bg-success' : (c.estatus == 2 ? 'bg-warning text-dark' : 'bg-secondary');
                     html += `
                         <tr>
@@ -739,12 +1108,8 @@
                 });
                 tbody.innerHTML = html;
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No hay créditos registrados para este periodo</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No se encontraron créditos registrados</td></tr>';
             }
-
-            // Gráficos Cartera
-            renderMorosidadChart(data.chartCarteraMora);
-            renderSaldoColocacionChart(data.chartSaldoColocacion);
         }
 
         function renderMorosidadChart(chartData) {
@@ -777,6 +1142,7 @@
             });
         }
 
+        // 56. Gráfico de Líneas: Saldo de Cartera y Colocación por periodo
         function renderSaldoColocacionChart(chartData) {
             const ctx = document.getElementById('saldoColocacionChart');
             if (!ctx) return;
@@ -784,25 +1150,31 @@
             if (!chartData || !chartData.labels) return;
 
             saldoColocacionChart = new Chart(ctx, {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: chartData.labels,
                     datasets: [
                         {
-                            type: 'line',
                             label: 'Saldo Cartera',
                             data: chartData.saldo || [],
                             borderColor: '#0d6efd',
-                            backgroundColor: '#0d6efd',
-                            tension: 0.1,
-                            fill: false
+                            backgroundColor: 'rgba(13, 110, 253, 0.08)',
+                            borderWidth: 2.5,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            tension: 0.3,
+                            fill: true
                         },
                         {
-                            type: 'bar',
                             label: 'Colocación',
                             data: chartData.colocacion || [],
-                            backgroundColor: 'rgba(25, 135, 84, 0.75)',
-                            borderRadius: 4
+                            borderColor: '#198754',
+                            backgroundColor: 'rgba(25, 135, 84, 0.12)',
+                            borderWidth: 2.5,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            tension: 0.3,
+                            fill: true
                         }
                     ]
                 },
@@ -810,9 +1182,84 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.dataset.label}: ${formatter.format(ctx.raw)}`
+                            }
+                        }
+                    },
                     scales: {
                         y: {
                             ticks: { callback: v => formatter.format(v) }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 58. Curva de Cosecha (Vintage): % Morosidad a 30/60/90 días por mes de colocación
+        function renderVintageChart(chartData) {
+            const ctx = document.getElementById('vintageChart');
+            if (!ctx) return;
+            if (vintageChart) vintageChart.destroy();
+            if (!chartData || !chartData.labels) return;
+
+            vintageChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [
+                        {
+                            label: 'Mora > 30 días',
+                            data: chartData.mora30 || [],
+                            borderColor: '#ffc107',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            tension: 0.3,
+                            fill: false
+                        },
+                        {
+                            label: 'Mora > 60 días',
+                            data: chartData.mora60 || [],
+                            borderColor: '#fd7e14',
+                            backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            tension: 0.3,
+                            fill: false
+                        },
+                        {
+                            label: 'Mora > 90 días',
+                            data: chartData.mora90 || [],
+                            borderColor: '#dc3545',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            tension: 0.3,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.dataset.label}: ${Number(ctx.raw).toFixed(2)}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: v => v + '%' },
+                            title: { display: true, text: '% Cartera Vencida' }
                         }
                     }
                 }
@@ -847,50 +1294,101 @@
         function updateInventarioUI(data) {
             // Ingresos
             const ingresos = data.ingresosTotales || 0;
+            const invInicial = data.inventarioInicial || 0;
+            const enganche = data.enganche || 0;
             updateElementText('kpi-ingresos', formatter.format(ingresos));
+
+            // Tooltips de Inventario (Estilo Flujo Operativo)
             setCustomTooltip('tooltip-ingresos', `
-                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 260px;">
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
                     <strong class="d-block mb-1 border-bottom pb-1">Desglose de Ingresos:</strong>
-                    <div class="d-flex justify-content-between"><span>Inventario Inicial Crédito:</span> <span class="fw-bold text-success">${formatter.format(data.inventarioInicial || 0)}</span></div>
-                    <div class="d-flex justify-content-between"><span>Enganche de Crédito (+):</span> <span class="fw-bold">${formatter.format(data.enganche || 0)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Inventario Inicial:</span> <span class="fw-bold">${formatter.format(invInicial)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Enganche Crédito:</span> <span class="fw-bold">${formatter.format(enganche)}</span></div>
                     <hr class="my-1">
-                    <div class="d-flex justify-content-between fw-bold"><span>INGRESOS TOTALES</span> <span class="text-success">${formatter.format(ingresos)}</span></div>
+                    <div class="d-flex justify-content-between fw-bold"><span>TOTAL INGRESOS:</span> <span class="text-success">${formatter.format(ingresos)}</span></div>
                 </div>
             `);
 
             // Egresos
             const egresos = data.egresosTotales || 0;
+            const liquidacion = data.liquidacion || 0;
+            const devolucion = data.devolucion || 0;
             updateElementText('kpi-egresos', formatter.format(egresos));
+
             setCustomTooltip('tooltip-egresos', `
-                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 260px;">
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
                     <strong class="d-block mb-1 border-bottom pb-1">Desglose de Egresos:</strong>
-                    <div class="d-flex justify-content-between"><span>Liquidación de Crédito (-):</span> <span class="fw-bold text-danger">${formatter.format(data.liquidacion || 0)}</span></div>
-                    <div class="d-flex justify-content-between"><span>Devolución de Crédito (-):</span> <span class="fw-bold">${formatter.format(data.devolucion || 0)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Liquidación Crédito:</span> <span class="fw-bold">${formatter.format(liquidacion)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Devolución Crédito:</span> <span class="fw-bold">${formatter.format(devolucion)}</span></div>
                     <hr class="my-1">
-                    <div class="d-flex justify-content-between fw-bold"><span>EGRESOS TOTALES</span> <span class="text-danger">${formatter.format(egresos)}</span></div>
+                    <div class="d-flex justify-content-between fw-bold"><span>TOTAL EGRESOS:</span> <span class="text-danger">${formatter.format(egresos)}</span></div>
                 </div>
             `);
 
             // Total Inventario en Créditos
             const saldoPorCobrar = data.saldoPorCobrar || 0;
             updateElementText('kpi-total-inventario-piso', formatter.format(saldoPorCobrar));
+
             setCustomTooltip('tooltip-inventario', `
-                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 280px;">
-                    <strong class="d-block mb-1 border-bottom pb-1">Flujo Neto en Créditos:</strong>
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Inventario Crédito:</strong>
                     <div class="d-flex justify-content-between"><span>Ingresos Totales (+):</span> <span class="fw-bold text-success">${formatter.format(ingresos)}</span></div>
                     <div class="d-flex justify-content-between"><span>Egresos Totales (-):</span> <span class="fw-bold text-danger">${formatter.format(egresos)}</span></div>
                     <hr class="my-1">
-                    <div class="d-flex justify-content-between fw-bold"><span>NETO CRÉDITOS</span> <span class="text-primary">${formatter.format(saldoPorCobrar)}</span></div>
+                    <div class="d-flex justify-content-between fw-bold"><span>TOTAL INVENTARIO:</span> <span class="text-primary">${formatter.format(saldoPorCobrar)}</span></div>
                 </div>
             `);
 
-            // KPIs Secundarios
-            updateElementText('kpi-total-articulos', numberFormatter.format(data.totalArticulosN || 0));
-            updateElementText('kpi-antiguedad-promedio', `${numberFormatter.format(data.antiguedadPromedioDias || 0)} días`);
-            updateElementText('kpi-porcentaje-30', `${(data.porcentajeMas30 || 0).toFixed(1)}%`);
-            updateElementText('kpi-porcentaje-60', `${(data.porcentajeMas60 || 0).toFixed(1)}%`);
-            updateElementText('kpi-porcentaje-90', `${(data.porcentajeMas90 || 0).toFixed(1)}%`);
-            updateElementText('kpi-rotacion', `${(data.rotacionInventario || 0).toFixed(2)}x`);
+            // KPIs Secundarios Inventario
+            const totalArticulos = data.totalArticulosN || 0;
+            const promArticulo = totalArticulos > 0 ? (saldoPorCobrar / totalArticulos) : 0;
+            updateElementText('kpi-total-articulos', numberFormatter.format(totalArticulos));
+
+            setCustomTooltip('tooltip-articulos', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Artículos:</strong>
+                    <div class="d-flex justify-content-between"><span>Prendas Financiadas:</span> <span class="fw-bold">${numberFormatter.format(totalArticulos)} pzas</span></div>
+                    <div class="d-flex justify-content-between"><span>Valor Total en Crédito:</span> <span class="fw-bold">${formatter.format(saldoPorCobrar)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Promedio por Prenda:</span> <span class="fw-bold">${formatter.format(promArticulo)}</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span>TOTAL PRENDAS:</span> <span class="text-info">${numberFormatter.format(totalArticulos)}</span></div>
+                </div>
+            `);
+
+            const p30 = (data.porcentajeMas30 || 0).toFixed(1);
+            const p60 = (data.porcentajeMas60 || 0).toFixed(1);
+            const p90 = (data.porcentajeMas90 || 0).toFixed(1);
+            const antiguedadDias = numberFormatter.format(data.antiguedadPromedioDias || 0);
+            updateElementText('kpi-antiguedad-promedio', `${antiguedadDias} días`);
+
+            setCustomTooltip('tooltip-antiguedad', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Antigüedad:</strong>
+                    <div class="d-flex justify-content-between"><span>Más de 30 días (>30d):</span> <span class="fw-bold">${p30}%</span></div>
+                    <div class="d-flex justify-content-between"><span>Más de 60 días (>60d):</span> <span class="fw-bold">${p60}%</span></div>
+                    <div class="d-flex justify-content-between"><span>Más de 90 días (>90d):</span> <span class="fw-bold text-danger">${p90}%</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span>ANTIGÜEDAD PROMEDIO:</span> <span class="text-warning">${antiguedadDias} días</span></div>
+                </div>
+            `);
+
+            updateElementText('kpi-porcentaje-30', `${p30}%`);
+            updateElementText('kpi-porcentaje-60', `${p60}%`);
+            updateElementText('kpi-porcentaje-90', `${p90}%`);
+
+            const abonosCobrados = data.pagoCredito || 0;
+            const rotacionVal = (data.rotacionInventario || 0).toFixed(2);
+            updateElementText('kpi-rotacion', `${rotacionVal}x`);
+
+            setCustomTooltip('tooltip-rotacion', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                    <strong class="d-block mb-1 border-bottom pb-1">Desglose de Rotación:</strong>
+                    <div class="d-flex justify-content-between"><span>Abonos Crédito:</span> <span class="fw-bold text-success">${formatter.format(abonosCobrados)}</span></div>
+                    <div class="d-flex justify-content-between"><span>Inventario en Crédito:</span> <span class="fw-bold">${formatter.format(saldoPorCobrar)}</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span>ROTACIÓN:</span> <span class="text-success">${rotacionVal}x</span></div>
+                </div>
+            `);
 
             // Tabla de Artículos Añejos
             const tbody = document.getElementById('top-articulos-body');

@@ -222,7 +222,7 @@
     <div class="card shadow-sm border-0 mb-4 rounded-3">
         <div class="card-body p-4">
             <form id="filter-form" class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label fw-semibold">Sucursal</label>
                     <select name="sucursal_id" id="sucursal_id" class="form-select">
                         <option value="">-- Todas Consolidado --</option>
@@ -234,20 +234,10 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Transacción</label>
-                    <select name="transaccion" id="transaccion" class="form-select">
-                        <option value="">-- Todos --</option>
-                        <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-                        <option value="CLIP">CLIP</option>
-                        <option value="DEPOSITO">DEPOSITO</option>
-                        <option value="TERMINAL">TERMINAL</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
                     <label class="form-label fw-semibold">Fecha Desde</label>
                     <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ $fechaInicio }}" class="form-control">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label fw-semibold">Fecha Hasta (Corte)</label>
                     <input type="date" name="fecha_fin" id="fecha_fin" value="{{ $fechaFin }}" class="form-control">
                 </div>

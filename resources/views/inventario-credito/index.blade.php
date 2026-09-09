@@ -44,8 +44,36 @@
         .metric-tooltip {
             position: relative;
             display: inline-block;
-            border-bottom: 1px dotted #6c757d;
+            border-bottom: 1px dashed #0d6efd;
             cursor: help;
+        }
+        .metric-tooltip:hover {
+            color: #0d6efd;
+        }
+        .tooltip-inner {
+            max-width: 380px !important;
+            padding: 12px 16px !important;
+            font-size: 0.82rem !important;
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+            border-radius: 10px !important;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.4) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            text-align: left !important;
+        }
+        .tooltip-inner code {
+            color: #38bdf8 !important;
+            background-color: rgba(255,255,255,0.12);
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .tooltip-inner hr {
+            border-color: rgba(255,255,255,0.15) !important;
+            margin: 6px 0 !important;
+        }
+        .tooltip-inner .text-muted {
+            color: #cbd5e1 !important;
         }
         
         .badge-tipo {
@@ -164,7 +192,7 @@
                         <div class="icon-shape bg-light-warning text-warning"><i class="bi bi-box-seam-fill"></i></div>
                     </div>
                     <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-total-inventario-piso">$ 0.00</h2>
-                    <span class="text-muted small">Ingresos - Egresos</span>
+                    <span class="text-muted small">Mercancía activa con clientes</span>
                 </div>
             </div>
         </div>
@@ -176,7 +204,11 @@
             <div class="card shadow-sm border-0 kpi-card h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Artículos en Crédito</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-articulos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando detalle de artículos...">
+                                Artículos en Crédito <i class="bi bi-info-circle ms-1 text-info small"></i>
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-info text-info">
                             <i class="bi bi-upc-scan fs-3"></i>
                         </div>
@@ -190,7 +222,11 @@
             <div class="card shadow-sm border-0 kpi-card h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Antigüedad Promedio</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-antiguedad" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando detalle de antigüedad...">
+                                Antigüedad Promedio <i class="bi bi-info-circle ms-1 text-warning small"></i>
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-warning text-warning">
                             <i class="bi bi-hourglass-split fs-3"></i>
                         </div>
@@ -207,13 +243,17 @@
             <div class="card shadow-sm border-0 kpi-card h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Rotación de Cobro</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-rotacion" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando detalle de rotación...">
+                                Rotación de Cobro <i class="bi bi-info-circle ms-1 text-success small"></i>
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-success text-success">
                             <i class="bi bi-arrow-repeat fs-3"></i>
                         </div>
                     </div>
                     <h2 class="fw-bold text-dark mb-0" id="kpi-rotacion" style="font-size: 2rem;">0.00x</h2>
-                    <span class="text-muted small">Cobros / Cartera Promedio</span>
+                    <span class="text-muted small">Ritmo de recuperación</span>
                 </div>
             </div>
         </div>
@@ -382,12 +422,12 @@
             const tooltipIngresosEl = document.getElementById('tooltip-ingresos');
             if (tooltipIngresosEl && typeof bootstrap !== 'undefined') {
                 let tooltipHtml = `
-                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 260px;">
-                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Ingresos:</strong>
-                        <div class="d-flex justify-content-between"><span>Inventario Inicial Crédito:</span> <span class="fw-bold text-success">${formatter.format(data.inventarioInicial || 0)}</span></div>
-                        <div class="d-flex justify-content-between"><span>Enganche de Crédito (+):</span> <span class="fw-bold">${formatter.format(data.enganche || 0)}</span></div>
-                        <hr class="my-1">
-                        <div class="d-flex justify-content-between fw-bold"><span>INGRESOS TOTALES</span> <span class="text-success">${formatter.format(ingresos)}</span></div>
+                    <div class="custom-tooltip text-start" style="font-size:0.83rem; line-height: 1.5; min-width: 270px;">
+                        <div class="fw-bold mb-1 border-bottom pb-1 text-success"><i class="bi bi-arrow-down-left-circle-fill me-1"></i>Artículos y Enganches que Entraron</div>
+                        <div class="mb-2">Suma del valor de los productos que se entregaron a crédito más los enganches pagados por los clientes.</div>
+                        <div class="d-flex justify-content-between"><span>Valor de productos:</span> <span class="fw-bold text-success">${formatter.format(data.inventarioInicial || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Enganches cobrados:</span> <span class="fw-bold">${formatter.format(data.enganche || 0)}</span></div>
+                        <div class="d-flex justify-content-between border-top pt-1 fw-bold"><span>Total entrante:</span> <span class="text-success">${formatter.format(ingresos)}</span></div>
                     </div>
                 `;
                 const existingTooltip = bootstrap.Tooltip.getInstance(tooltipIngresosEl);
@@ -405,12 +445,12 @@
             const tooltipEgresosEl = document.getElementById('tooltip-egresos');
             if (tooltipEgresosEl && typeof bootstrap !== 'undefined') {
                 let tooltipHtml = `
-                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 260px;">
-                        <strong class="d-block mb-1 border-bottom pb-1">Desglose de Egresos:</strong>
-                        <div class="d-flex justify-content-between"><span>Liquidación de Crédito (-):</span> <span class="fw-bold text-danger">${formatter.format(data.liquidacion || 0)}</span></div>
-                        <div class="d-flex justify-content-between"><span>Devolución de Crédito (-):</span> <span class="fw-bold">${formatter.format(data.devolucion || 0)}</span></div>
-                        <hr class="my-1">
-                        <div class="d-flex justify-content-between fw-bold"><span>EGRESOS TOTALES</span> <span class="text-danger">${formatter.format(egresos)}</span></div>
+                    <div class="custom-tooltip text-start" style="font-size:0.83rem; line-height: 1.5; min-width: 270px;">
+                        <div class="fw-bold mb-1 border-bottom pb-1 text-danger"><i class="bi bi-arrow-up-right-circle-fill me-1"></i>Artículos Terminados o Devueltos</div>
+                        <div class="mb-2">Mercancía que salió de crédito porque los clientes terminaron de pagarla o la devolvieron a la sucursal.</div>
+                        <div class="d-flex justify-content-between"><span>Cuentas ya liquidadas:</span> <span class="fw-bold text-danger">${formatter.format(data.liquidacion || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Prendas devueltas:</span> <span class="fw-bold">${formatter.format(data.devolucion || 0)}</span></div>
+                        <div class="d-flex justify-content-between border-top pt-1 fw-bold"><span>Total saliente:</span> <span class="text-danger">${formatter.format(egresos)}</span></div>
                     </div>
                 `;
                 const existingTooltip = bootstrap.Tooltip.getInstance(tooltipEgresosEl);
@@ -431,12 +471,10 @@
             const tooltipInventarioEl = document.getElementById('tooltip-inventario');
             if (tooltipInventarioEl && typeof bootstrap !== 'undefined') {
                 let tooltipHtml = `
-                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 280px;">
-                        <strong class="d-block mb-1 border-bottom pb-1">Flujo Neto en Créditos:</strong>
-                        <div class="d-flex justify-content-between"><span>Ingresos Totales (+):</span> <span class="fw-bold text-success">${formatter.format(ingresos)}</span></div>
-                        <div class="d-flex justify-content-between"><span>Egresos Totales (-):</span> <span class="fw-bold text-danger">${formatter.format(egresos)}</span></div>
-                        <hr class="my-1">
-                        <div class="d-flex justify-content-between fw-bold"><span>NETO CRÉDITOS</span> <span class="text-primary">${formatter.format(saldoPorCobrar)}</span></div>
+                    <div class="custom-tooltip text-start" style="font-size:0.83rem; line-height: 1.5; min-width: 270px;">
+                        <div class="fw-bold mb-1 border-bottom pb-1 text-warning"><i class="bi bi-box-seam-fill me-1"></i>Mercancía Activa con Clientes</div>
+                        <div class="mb-2">Valor total de los artículos que actualmente tienen los clientes en sus manos mientras continúan pagando su crédito.</div>
+                        <div class="d-flex justify-content-between border-top pt-1 fw-bold"><span>Saldo en mercancía activa:</span> <span class="text-primary">${formatter.format(saldoPorCobrar)}</span></div>
                     </div>
                 `;
                 const existingTooltip = bootstrap.Tooltip.getInstance(tooltipInventarioEl);
@@ -448,13 +486,58 @@
 
             // ========== KPIs SECUNDARIOS ==========
             updateElementText('kpi-total-articulos', numberFormatter.format(data.totalArticulosN || 0));
+            const tooltipArticulosEl = document.getElementById('tooltip-articulos');
+            if (tooltipArticulosEl && typeof bootstrap !== 'undefined') {
+                const existing = bootstrap.Tooltip.getInstance(tooltipArticulosEl);
+                if (existing) existing.dispose();
+                tooltipArticulosEl.setAttribute('data-bs-original-title', `
+                    <div class="text-start" style="font-size:0.83rem; line-height: 1.5; min-width: 260px;">
+                        <div class="fw-bold mb-1 border-bottom pb-1 text-info"><i class="bi bi-upc-scan me-1"></i>Artículos Financiados</div>
+                        <div class="mb-2">Cantidad total de piezas o productos (joyas, varios, autos) que los clientes se llevaron a crédito y siguen pagando.</div>
+                        <div class="d-flex justify-content-between border-top pt-1 fw-bold"><span>Total de artículos:</span> <span class="text-info">${numberFormatter.format(data.totalArticulosN || 0)} piezas</span></div>
+                    </div>
+                `);
+                new bootstrap.Tooltip(tooltipArticulosEl, { html: true, placement: 'top' });
+            }
             
             updateElementText('kpi-antiguedad-promedio', `${numberFormatter.format(data.antiguedadPromedioDias || 0)} días`);
+            const tooltipAntiguedadEl = document.getElementById('tooltip-antiguedad');
+            if (tooltipAntiguedadEl && typeof bootstrap !== 'undefined') {
+                const existing = bootstrap.Tooltip.getInstance(tooltipAntiguedadEl);
+                if (existing) existing.dispose();
+                tooltipAntiguedadEl.setAttribute('data-bs-original-title', `
+                    <div class="text-start" style="font-size:0.83rem; line-height: 1.5; min-width: 260px;">
+                        <div class="fw-bold mb-1 border-bottom pb-1 text-warning"><i class="bi bi-hourglass-split me-1"></i>Tiempo Promedio con el Crédito</div>
+                        <div class="mb-2">Días que en promedio llevan los clientes con sus artículos desde que se les entregó el crédito.</div>
+                        <div class="d-flex justify-content-between"><span>Con más de 1 mes:</span> <span class="fw-bold">${(data.porcentajeMas30 || 0).toFixed(1)}%</span></div>
+                        <div class="d-flex justify-content-between"><span>Con más de 2 meses:</span> <span class="fw-bold">${(data.porcentajeMas60 || 0).toFixed(1)}%</span></div>
+                        <div class="d-flex justify-content-between"><span>Con más de 3 meses:</span> <span class="fw-bold text-danger">${(data.porcentajeMas90 || 0).toFixed(1)}%</span></div>
+                        <div class="d-flex justify-content-between border-top pt-1 fw-bold"><span>Promedio general:</span> <span class="text-warning">${numberFormatter.format(data.antiguedadPromedioDias || 0)} días</span></div>
+                    </div>
+                `);
+                new bootstrap.Tooltip(tooltipAntiguedadEl, { html: true, placement: 'top' });
+            }
+
             updateElementText('kpi-porcentaje-30', `${(data.porcentajeMas30 || 0).toFixed(1)}%`);
             updateElementText('kpi-porcentaje-60', `${(data.porcentajeMas60 || 0).toFixed(1)}%`);
             updateElementText('kpi-porcentaje-90', `${(data.porcentajeMas90 || 0).toFixed(1)}%`);
 
             updateElementText('kpi-rotacion', `${(data.rotacionInventario || 0).toFixed(2)}x`);
+            const tooltipRotacionEl = document.getElementById('tooltip-rotacion');
+            if (tooltipRotacionEl && typeof bootstrap !== 'undefined') {
+                const existing = bootstrap.Tooltip.getInstance(tooltipRotacionEl);
+                if (existing) existing.dispose();
+                tooltipRotacionEl.setAttribute('data-bs-original-title', `
+                    <div class="text-start" style="font-size:0.83rem; line-height: 1.5; min-width: 260px;">
+                        <div class="fw-bold mb-1 border-bottom pb-1 text-success"><i class="bi bi-arrow-repeat me-1"></i>Velocidad de Cobro</div>
+                        <div class="mb-2">Mide qué tan rápido se recupera en abonos cobrados el valor de los artículos que están en la calle.</div>
+                        <div class="d-flex justify-content-between"><span>Abonos cobrados:</span> <span class="fw-bold text-success">${formatter.format(data.pagoCredito || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Mercancía en la calle:</span> <span class="fw-bold">${formatter.format(saldoPorCobrar)}</span></div>
+                        <div class="d-flex justify-content-between border-top pt-1 fw-bold"><span>Ritmo de cobro:</span> <span class="text-success">${(data.rotacionInventario || 0).toFixed(2)} veces</span></div>
+                    </div>
+                `);
+                new bootstrap.Tooltip(tooltipRotacionEl, { html: true, placement: 'top' });
+            }
 
             // Tabla de artículos añejos
             const tbody = document.getElementById('top-articulos-body');

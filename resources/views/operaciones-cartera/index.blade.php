@@ -240,7 +240,11 @@
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3 border-bottom border-warning border-3">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Depositaria (Cartera)</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">
+                            <span class="metric-tooltip" id="tooltip-cartera" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de depositaria...">
+                                Depositaria (Cartera) <i class="bi bi-info-circle ms-1 small text-info"></i>
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-warning"><i class="bi bi-briefcase-fill"></i></div>
                     </div>
                     <h3 class="fw-bold text-dark mb-0" id="kpi-cartera-monto">$ 0.00</h3>
@@ -744,10 +748,36 @@
             updateElement('kpi-desempenos-monto', formatter.format(data.desempenos.monto));
             updateElement('kpi-desempenos-total', `${data.desempenos.total} Operaciones`);
 
-            const carteraTotal = data.cartera.vigente + data.cartera.vencida;
+            const carteraTotal = (data.cartera.vigente || 0) + (data.cartera.vencida || 0);
             updateElement('kpi-cartera-monto', formatter.format(carteraTotal));
-            updateElement('kpi-cartera-vigente', `Vigente: ${formatter.format(data.cartera.vigente)}`);
-            updateElement('kpi-cartera-vencida', `Vencida: ${formatter.format(data.cartera.vencida)}`);
+            updateElement('kpi-cartera-vigente', `Vigente: ${formatter.format(data.cartera.vigente || 0)}`);
+            updateElement('kpi-cartera-vencida', `Vencida: ${formatter.format(data.cartera.vencida || 0)}`);
+
+            // Tooltip Depositaria (Cartera)
+            const tooltipCarteraEl = document.getElementById('tooltip-cartera');
+            if (tooltipCarteraEl && typeof bootstrap !== 'undefined') {
+                const c = data.cartera || {};
+                let tooltipHtmlCartera = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 250px;">
+                        <strong class="d-block mb-1 border-bottom pb-1 text-warning"><i class="bi bi-briefcase me-1"></i>Cartera en Depositaria:</strong>
+                        <div class="d-flex justify-content-between"><span>Oro:</span> <span class="fw-bold text-warning">${formatter.format(c.oro || 0)}</span></div>
+                        ${(c.plata || 0) > 0 ? `<div class="d-flex justify-content-between"><span>Plata:</span> <span class="fw-bold text-secondary">${formatter.format(c.plata)}</span></div>` : ''}
+                        ${(c.otros_metales || 0) > 0 ? `<div class="d-flex justify-content-between"><span>Otros Metales:</span> <span class="fw-bold text-muted">${formatter.format(c.otros_metales)}</span></div>` : ''}
+                        <div class="d-flex justify-content-between"><span>Varios / Mercancía:</span> <span class="fw-bold text-info">${formatter.format(c.varios || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Autos:</span> <span class="fw-bold text-primary">${formatter.format(c.auto || 0)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between text-success"><span>Vigente:</span> <span class="fw-bold">${formatter.format(c.vigente || 0)}</span></div>
+                        <div class="d-flex justify-content-between text-danger"><span>Vencida:</span> <span class="fw-bold">${formatter.format(c.vencida || 0)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>TOTAL CARTERA</span> <span class="text-primary">${formatter.format(carteraTotal)}</span></div>
+                    </div>
+                `;
+                const existingTooltipCartera = bootstrap.Tooltip.getInstance(tooltipCarteraEl);
+                if (existingTooltipCartera) existingTooltipCartera.dispose();
+                tooltipCarteraEl.setAttribute('data-bs-original-title', tooltipHtmlCartera);
+                tooltipCarteraEl.setAttribute('title', tooltipHtmlCartera);
+                new bootstrap.Tooltip(tooltipCarteraEl, { html: true, placement: 'top' });
+            }
 
             // Secondary KPIs
             updateElement('kpi-tasa-real', `${numberFormatter.format(data.intereses.tasa_real_mensual_pct)}%`);

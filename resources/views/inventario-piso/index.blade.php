@@ -151,7 +151,7 @@
                         <div class="icon-shape bg-light-warning text-warning"><i class="bi bi-box-seam-fill"></i></div>
                     </div>
                     <h2 class="display-6 fw-bold text-dark mb-0" id="kpi-total-inventario-piso">$ 0.00</h2>
-                    <span class="text-muted small">Ingresos - Egresos</span>
+                    <span class="text-muted small">Inventario al corte del periodo</span>
                 </div>
             </div>
         </div>
@@ -160,11 +160,15 @@
     <!-- KPIS SECUNDARIOS -->
     <div class="row mb-4">
         <!-- Artículos en Piso -->
-        <div class="col-12 col-md-6 mb-3">
+        <div class="col-12 col-md-4 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">Artículos en Piso</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">
+                            <span class="metric-tooltip" id="tooltip-articulos" data-bs-toggle="tooltip" data-bs-html="true" title="Artículos disponibles en piso">
+                                Artículos en Piso <i class="bi bi-info-circle ms-1 text-info small"></i>
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-info text-info">
                             <i class="bi bi-upc-scan"></i>
                         </div>
@@ -175,8 +179,33 @@
             </div>
         </div>
 
+        <!-- Antigüedad en Piso -->
+        <div class="col-12 col-md-4 mb-3">
+            <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0" style="font-size: 0.8rem;">
+                            <span class="metric-tooltip" id="tooltip-antiguedad" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando detalle de antigüedad...">
+                                Antigüedad en Piso <i class="bi bi-info-circle ms-1 text-warning small"></i>
+                            </span>
+                        </h6>
+                        <div class="icon-shape bg-light-warning text-warning">
+                            <i class="bi bi-hourglass-split"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-0" id="kpi-antiguedad-promedio">0 días</h3>
+                    <span class="text-muted small">
+                        >30d: <span class="fw-bold text-dark" id="kpi-porcentaje-30">0%</span> | 
+                        >60d: <span class="fw-bold text-dark" id="kpi-porcentaje-60">0%</span> | 
+                        >90d: <span class="fw-bold text-dark" id="kpi-porcentaje-90">0%</span> | 
+                        >150d: <span class="fw-bold text-danger" id="kpi-porcentaje-150">0%</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
         <!-- Pérdidas y Merma -->
-        <div class="col-12 col-md-6 mb-3">
+        <div class="col-12 col-md-4 mb-3">
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
@@ -354,7 +383,34 @@
             updateElementText('kpi-count-varios', numberFormatter.format(data.countVarios || 0));
             updateElementText('kpi-count-autos', numberFormatter.format(data.countAutos || 0));
             
+            updateElementText('kpi-antiguedad-promedio', `${numberFormatter.format(data.antiguedadPromedioDias || 0)} días`);
+            updateElementText('kpi-porcentaje-30', `${(data.porcentajeMas30 || 0).toFixed(1)}%`);
+            updateElementText('kpi-porcentaje-60', `${(data.porcentajeMas60 || 0).toFixed(1)}%`);
+            updateElementText('kpi-porcentaje-90', `${(data.porcentajeMas90 || 0).toFixed(1)}%`);
+            updateElementText('kpi-porcentaje-150', `${(data.porcentajeMas150 || 0).toFixed(1)}%`);
+
             updateElementText('kpi-perdidas', formatter.format(data.perdidasMerma || 0));
+
+            // Tooltip Antigüedad
+            const tooltipAntiguedadEl = document.getElementById('tooltip-antiguedad');
+            if (tooltipAntiguedadEl && typeof bootstrap !== 'undefined') {
+                let tooltipHtmlAntiguedad = `
+                    <div class="custom-tooltip text-start" style="font-size:0.83rem; line-height: 1.5; min-width: 270px;">
+                        <div class="fw-bold mb-1 border-bottom pb-1 text-warning"><i class="bi bi-hourglass-split me-1"></i>Antigüedad en Piso de Ventas</div>
+                        <div class="mb-2">Promedio de días que llevan los artículos en mostrador o piso de venta sin venderse.</div>
+                        <div class="d-flex justify-content-between"><span>Con más de 1 mes (>30d):</span> <span class="fw-bold">${(data.porcentajeMas30 || 0).toFixed(1)}%</span></div>
+                        <div class="d-flex justify-content-between"><span>Con más de 2 meses (>60d):</span> <span class="fw-bold">${(data.porcentajeMas60 || 0).toFixed(1)}%</span></div>
+                        <div class="d-flex justify-content-between"><span>Con más de 3 meses (>90d):</span> <span class="fw-bold">${(data.porcentajeMas90 || 0).toFixed(1)}%</span></div>
+                        <div class="d-flex justify-content-between"><span>Con más de 5 meses (>150d):</span> <span class="fw-bold text-danger">${(data.porcentajeMas150 || 0).toFixed(1)}%</span></div>
+                        <div class="d-flex justify-content-between border-top pt-1 fw-bold"><span>Promedio general:</span> <span class="text-warning">${numberFormatter.format(data.antiguedadPromedioDias || 0)} días</span></div>
+                    </div>
+                `;
+                const existingTooltipAntiguedad = bootstrap.Tooltip.getInstance(tooltipAntiguedadEl);
+                if (existingTooltipAntiguedad) existingTooltipAntiguedad.dispose();
+                tooltipAntiguedadEl.setAttribute('data-bs-original-title', tooltipHtmlAntiguedad);
+                tooltipAntiguedadEl.setAttribute('title', tooltipHtmlAntiguedad);
+                new bootstrap.Tooltip(tooltipAntiguedadEl, { html: true, placement: 'top' });
+            }
 
             // Tooltip Ingresos
             const tooltipIngresosEl = document.getElementById('tooltip-ingresos');
@@ -400,16 +456,17 @@
                 new bootstrap.Tooltip(tooltipEgresosEl, { html: true, placement: 'top' });
             }
 
-            // Tooltip Piso Neto
+            // Tooltip Piso de Ventas al corte
             const tooltipInventarioEl = document.getElementById('tooltip-inventario');
             if (tooltipInventarioEl && typeof bootstrap !== 'undefined') {
                 let tooltipHtmlInventario = `
                     <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 280px;">
-                        <strong class="d-block mb-1 border-bottom pb-1">Flujo Neto en Piso de Ventas:</strong>
-                        <div class="d-flex justify-content-between"><span>Ingresos Totales (+):</span> <span class="fw-bold text-success">${formatter.format(data.ingresosTotales || 0)}</span></div>
-                        <div class="d-flex justify-content-between"><span>Egresos Totales (-):</span> <span class="fw-bold text-danger">${formatter.format(data.egresosTotales || 0)}</span></div>
+                        <strong class="d-block mb-1 border-bottom pb-1 text-warning"><i class="bi bi-box-seam me-1"></i>Inventario en Piso de Venta:</strong>
+                        <div class="d-flex justify-content-between"><span>Oro:</span> <span class="fw-bold text-warning">${formatter.format(data.valorOro || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Varios / Mercancía:</span> <span class="fw-bold text-info">${formatter.format(data.valorVarios || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Autos:</span> <span class="fw-bold text-primary">${formatter.format(data.valorAutos || 0)}</span></div>
                         <hr class="my-1">
-                        <div class="d-flex justify-content-between fw-bold"><span>NETO PISO DE VENTAS</span> <span class="text-primary">${formatter.format(data.inventarioPisoNeto || 0)}</span></div>
+                        <div class="d-flex justify-content-between fw-bold"><span>TOTAL AL CORTE</span> <span class="text-success">${formatter.format(data.valorTotalInventario || 0)}</span></div>
                     </div>
                 `;
                 const existingTooltipInventario = bootstrap.Tooltip.getInstance(tooltipInventarioEl);
@@ -419,6 +476,26 @@
                 new bootstrap.Tooltip(tooltipInventarioEl, { html: true, placement: 'top' });
             }
 
+            // Tooltip Artículos en Piso
+            const tooltipArticulosEl = document.getElementById('tooltip-articulos');
+            if (tooltipArticulosEl && typeof bootstrap !== 'undefined') {
+                let tooltipHtmlArticulos = `
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 260px;">
+                        <strong class="d-block mb-1 border-bottom pb-1 text-info"><i class="bi bi-upc-scan me-1"></i>Prendas en Piso de Venta:</strong>
+                        <div class="d-flex justify-content-between"><span>Oro:</span> <span class="fw-bold text-warning">${numberFormatter.format(data.countOro || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Varios / Mercancía:</span> <span class="fw-bold text-info">${numberFormatter.format(data.countVarios || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Autos:</span> <span class="fw-bold text-primary">${numberFormatter.format(data.countAutos || 0)}</span></div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between fw-bold"><span>TOTAL PRENDAS</span> <span class="text-primary">${numberFormatter.format(data.totalArticulosN || 0)}</span></div>
+                    </div>
+                `;
+                const existingTooltipArticulos = bootstrap.Tooltip.getInstance(tooltipArticulosEl);
+                if (existingTooltipArticulos) existingTooltipArticulos.dispose();
+                tooltipArticulosEl.setAttribute('data-bs-original-title', tooltipHtmlArticulos);
+                tooltipArticulosEl.setAttribute('title', tooltipHtmlArticulos);
+                new bootstrap.Tooltip(tooltipArticulosEl, { html: true, placement: 'top' });
+            }
+
             // Tablas
             const tbody = document.getElementById('top-articulos-body');
             tbody.innerHTML = '';
@@ -426,7 +503,7 @@
                 data.topArticulosAnejos.forEach(item => {
                     const tr = document.createElement('tr');
                     const codPrenda = item.cod_prenda;
-                    let badgeClass = item.dias > 90 ? 'bg-danger' : (item.dias > 60 ? 'bg-warning text-dark' : 'bg-secondary');
+                    let badgeClass = item.dias > 150 ? 'bg-dark text-white' : (item.dias > 90 ? 'bg-danger' : (item.dias > 60 ? 'bg-warning text-dark' : 'bg-secondary'));
                     
                     if (codPrenda) {
                         tr.className = 'cursor-pointer';
