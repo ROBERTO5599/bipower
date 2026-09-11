@@ -14,7 +14,7 @@ class GastosFinanzasController extends Controller
     {
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $sucursales = Sucursal::svm()->get();
 
         return view('gastos-finanzas.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
     }
@@ -24,7 +24,7 @@ class GastosFinanzasController extends Controller
         $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
         $fechaFin = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
         
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $sucursales = Sucursal::svm()->get();
         $sucursalId = $request->input('sucursal_id');
         $sucursalesSeleccionadas = $sucursalId
             ? $sucursales->where('id_valora_mas', $sucursalId)

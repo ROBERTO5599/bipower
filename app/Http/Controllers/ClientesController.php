@@ -14,7 +14,7 @@ class ClientesController extends Controller
     {
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $sucursales = Sucursal::svm()->get();
 
         return view('clientes.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
     }
@@ -24,7 +24,7 @@ class ClientesController extends Controller
         $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
         $fechaFin = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
         
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $sucursales = Sucursal::svm()->get();
         $sucursalId = $request->input('sucursal_id');
 
         $sucursalesSeleccionadas = $sucursalId
@@ -144,28 +144,29 @@ class ClientesController extends Controller
                     SELECT 
                         UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
                         MIN(c.f_alta) as f_alta,
+                        MIN(act.first_date) as primer_movimiento,
                         MAX(act.last_date) as last_activity,
                         SUM(act.num_trans) as total_transactions,
                         SUM(act.monto) as total_monto
                     FROM clientes c
                     LEFT JOIN (
-                        SELECT cod_cliente, MAX(f_contrato) as last_date, COUNT(*) as num_trans, SUM(prestamo) as monto 
+                        SELECT cod_cliente, MIN(f_contrato) as first_date, MAX(f_contrato) as last_date, COUNT(*) as num_trans, SUM(prestamo) as monto 
                         FROM contratos 
                         WHERE f_contrato <= ?
                         GROUP BY cod_cliente
                         UNION ALL
-                        SELECT ve.cod_cliente, MAX(ve.f_venta) as last_date, COUNT(*) as num_trans, SUM(dv.venta10) as monto 
+                        SELECT ve.cod_cliente, MIN(ve.f_venta) as first_date, MAX(ve.f_venta) as last_date, COUNT(*) as num_trans, SUM(dv.venta10) as monto 
                         FROM ventas ve 
                         INNER JOIN detalle_venta dv ON dv.cod_venta = ve.cod_venta 
                         WHERE ve.f_cancela IS NULL AND ve.f_venta <= ?
                         GROUP BY ve.cod_cliente
                         UNION ALL
-                        SELECT cod_cliente, MAX(f_alta) as last_date, COUNT(*) as num_trans, SUM(monto_garantia) as monto 
+                        SELECT cod_cliente, MIN(f_alta) as first_date, MAX(f_alta) as last_date, COUNT(*) as num_trans, SUM(monto_garantia) as monto 
                         FROM garantias 
                         WHERE f_cancelacion IS NULL AND cod_estatus <> 3 AND f_alta <= ?
                         GROUP BY cod_cliente
                         UNION ALL
-                        SELECT cod_cliente, MAX(f_autorizado) as last_date, COUNT(*) as num_trans, SUM(monto_total) as monto 
+                        SELECT cod_cliente, MIN(f_autorizado) as first_date, MAX(f_autorizado) as last_date, COUNT(*) as num_trans, SUM(monto_total) as monto 
                         FROM creditos 
                         WHERE f_autorizado <= ?
                         GROUP BY cod_cliente
@@ -179,6 +180,7 @@ class ClientesController extends Controller
                         $clientesRFM[$nombre] = [
                             'nombre' => $nombre,
                             'f_alta' => $row->f_alta,
+                            'primer_movimiento' => $row->primer_movimiento ?? $row->f_alta,
                             'last_activity' => $row->last_activity,
                             'total_transactions' => 0,
                             'total_monto' => 0.0,
@@ -187,6 +189,9 @@ class ClientesController extends Controller
                     }
                     if ($row->f_alta && (!$clientesRFM[$nombre]['f_alta'] || $row->f_alta < $clientesRFM[$nombre]['f_alta'])) {
                         $clientesRFM[$nombre]['f_alta'] = $row->f_alta;
+                    }
+                    if ($row->primer_movimiento && (!$clientesRFM[$nombre]['primer_movimiento'] || $row->primer_movimiento < $clientesRFM[$nombre]['primer_movimiento'])) {
+                        $clientesRFM[$nombre]['primer_movimiento'] = $row->primer_movimiento;
                     }
                     if ($row->last_activity && (!$clientesRFM[$nombre]['last_activity'] || $row->last_activity > $clientesRFM[$nombre]['last_activity'])) {
                         $clientesRFM[$nombre]['last_activity'] = $row->last_activity;
@@ -270,8 +275,11 @@ class ClientesController extends Controller
         $topClientes = [];
 
         foreach ($clientesUnicos as $cliente) {
-            // Nuevos vs Recurrentes
-            if ($cliente['f_alta'] >= $fechaInicio) {
+            // Nuevos vs Recurrentes: Tomar la fecha del PRIMER MOVIMIENTO HISTÓRICO del usuario en la empresa
+            $nombre = $cliente['nombre'];
+            $primerMov = $clientesRFM[$nombre]['primer_movimiento'] ?? $cliente['f_alta'];
+            
+            if ($primerMov >= $fechaInicio && $primerMov <= $fechaFin) {
                 $nuevos++;
             } else {
                 $recurrentes++;
@@ -338,13 +346,12 @@ class ClientesController extends Controller
         usort($topClientes, fn($a, $b) => $b['ltv'] <=> $a['ltv']);
         $topClientes = array_slice($topClientes, 0, 15);
 
-        // ========================= RFM Y DESERCIÓN =========================
+        // ========================= PERFILES DE CLIENTE (RFM) Y DESERCIÓN =========================
         $segmentosRFM = [
-            'Campeones' => 0,
-            'Fieles' => 0,
-            'Nuevos / Prometedores' => 0,
-            'En Riesgo / Atención' => 0,
-            'Hibernando / Perdidos' => 0
+            'Oro' => 0,
+            'Preferente' => 0,
+            'Frecuente' => 0,
+            'Tradicional' => 0
         ];
         
         $rfmTable = [];
@@ -359,7 +366,13 @@ class ClientesController extends Controller
             
             // Recency
             if ($lastAct) {
-                $daysSince = $fechaFinCarbon->diffInDays(\Carbon\Carbon::parse($lastAct));
+                $lastActCarbon = \Carbon\Carbon::parse($lastAct);
+                if ($lastActCarbon->greaterThanOrEqualTo($fechaFinCarbon)) {
+                    $daysSince = 0;
+                } else {
+                    $daysSince = (int) floor($lastActCarbon->diffInDays($fechaFinCarbon));
+                }
+
                 if ($daysSince <= 30) {
                     $rScore = 5;
                 } elseif ($daysSince <= 60) {
@@ -408,17 +421,15 @@ class ClientesController extends Controller
                 $mScore = 1;
             }
             
-            // Segment classification
+            // Clasificación por perfil de cliente real
             if ($rScore >= 4 && $fScore >= 4 && $mScore >= 4) {
-                $segment = 'Campeones';
+                $segment = 'Oro';
             } elseif ($rScore >= 3 && $fScore >= 3 && $mScore >= 3) {
-                $segment = 'Fieles';
-            } elseif ($rScore >= 4 && $fScore <= 2) {
-                $segment = 'Nuevos / Prometedores';
-            } elseif ($rScore <= 2 && $fScore >= 3) {
-                $segment = 'En Riesgo / Atención';
+                $segment = 'Preferente';
+            } elseif ($rScore >= 2 || $fScore >= 2) {
+                $segment = 'Frecuente';
             } else {
-                $segment = 'Hibernando / Perdidos';
+                $segment = 'Tradicional';
             }
             
             $segmentosRFM[$segment]++;
@@ -460,19 +471,29 @@ class ClientesController extends Controller
 
         return response()->json([
             'totalClientes' => $totalClientes,
+            'nuevosCount' => $nuevos,
+            'recurrentesCount' => $recurrentes,
             'nuevosPorcentaje' => round($nuevosPorcentaje, 1),
             'recurrentesPorcentaje' => round($recurrentesPorcentaje, 1),
+            'totalEmpenos' => $totalEmpenos,
             'frecuenciaPromedio' => round($frecuenciaPromedio, 1),
             'ltvPromedio' => $ltvPromedio,
             'montoTotalPrestado' => $montoTotalPrestado,
             'interesesTotalesPagados' => $interesesTotalesPagados,
+            'comprasPisoTotal' => $comprasPisoTotal,
+            'certificadosTotal' => $certificadosTotal,
+            'liquidacionesTotal' => $liquidacionesTotal,
+            'totalDesempenos' => $totalDesempenos,
+            'totalPerdidas' => $totalPerdidas,
             'porcentajePerdidas' => round($porcentajePerdidas, 1),
             'porcentajeDesempeno' => round($porcentajeDesempeno, 1),
             'sucursalesPromedioPorCliente' => round($sucursalesPromedioPorCliente, 1),
+            'clientesDesertores' => $clientesDesertores,
+            'totalClientesHistoricos' => $totalClientesHistoricos,
+            'churnRate' => round($churnRate, 1),
             'chartSegmentacionFrecuencia' => $chartSegmentacionFrecuencia,
             'chartLTV' => $chartLTV,
             'topClientes' => $topClientes,
-            'churnRate' => round($churnRate, 1),
             'chartRFM' => [
                 'labels' => array_keys($segmentosRFM),
                 'data' => array_values($segmentosRFM)

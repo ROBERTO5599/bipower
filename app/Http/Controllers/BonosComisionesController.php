@@ -15,9 +15,20 @@ class BonosComisionesController extends Controller
     {
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $sucursales = Sucursal::svm()->get();
 
-        return view('bonos-comisiones.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+        $empleados = DB::table('users')
+            ->where('status', 0)
+            ->select('id', 'nombre', 'primer_apellido', 'segundo_apellido', 'nick_name')
+            ->orderBy('nombre')
+            ->get()
+            ->map(function($u) {
+                $nombreCompleto = trim(preg_replace('/\s+/', ' ', "{$u->nombre} {$u->primer_apellido} {$u->segundo_apellido}"));
+                $u->nombre_completo = $nombreCompleto;
+                return $u;
+            });
+
+        return view('bonos-comisiones.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'empleados'));
     }
 
     public function data(Request $request)
@@ -34,7 +45,7 @@ class BonosComisionesController extends Controller
         $empleadoFiltro = strtolower(trim($request->input('empleado', '')));
         $puestoFiltro = strtolower(trim($request->input('puesto', '')));
 
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $sucursales = Sucursal::svm()->get();
         if ($sucursalId) {
             $sucursalesSeleccionadas = $sucursales->where('id_valora_mas', $sucursalId);
         } else {
@@ -50,6 +61,29 @@ class BonosComisionesController extends Controller
         $totalBonosComisionesPagados = 0;
         $totalUtilidadBrutaGlobal = 0;
         $totalNominaGlobal = 0;
+
+        // Cargar mapa de Sueldos de la tabla `users` de la intranet (status = 0 activo)
+        $intranetNominaMap = [];
+        try {
+            $intranetUsers = DB::table('users')
+                ->where('status', 0)
+                ->get();
+
+            foreach ($intranetUsers as $u) {
+                $fullName = strtolower(trim(preg_replace('/\s+/', ' ', "{$u->nombre} {$u->primer_apellido} {$u->segundo_apellido}")));
+                $shortName = strtolower(trim(preg_replace('/\s+/', ' ', "{$u->nombre} {$u->primer_apellido}")));
+                $nickName = strtolower(trim($u->nick_name ?? ''));
+                $sueldoVal = (float)($u->sueldo ?? 0);
+
+                if ($sueldoVal > 0) {
+                    if (!empty($fullName)) $intranetNominaMap[$fullName] = $sueldoVal;
+                    if (!empty($shortName)) $intranetNominaMap[$shortName] = $sueldoVal;
+                    if (!empty($nickName)) $intranetNominaMap[$nickName] = $sueldoVal;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("No se pudo cargar sueldo desde tabla users intranet: " . $e->getMessage());
+        }
 
         foreach ($sucursalesSeleccionadas as $sucursal) {
             $sucursalNombre = $sucursal->nombre;
@@ -361,12 +395,30 @@ class BonosComisionesController extends Controller
                 // Asignar nómina base y calcular bonos por meta individual
                 foreach ($empleadosMap as $k => &$empData) {
                     if ($empData['sucursal_id'] == $sucursalKey) {
-                        $empNameLower = strtolower(trim($empData['empleado']));
-                        if (isset($nominaPorSolicitante[$empNameLower])) {
+                        $empNameLower = strtolower(trim(preg_replace('/\s+/', ' ', $empData['empleado'])));
+
+                        // 1. Coincidencia exacta o parcial en mapa de sueldos de intranet (`users.sueldo`)
+                        if (isset($intranetNominaMap[$empNameLower])) {
+                            $empData['nomina_base'] = $intranetNominaMap[$empNameLower];
+                        } elseif (isset($nominaPorSolicitante[$empNameLower])) {
                             $empData['nomina_base'] = $nominaPorSolicitante[$empNameLower];
                         } else {
-                            // Asignación promedio de nómina según perfil si no hay registro directo
-                            $empData['nomina_base'] = $empData['perfil_base'] === 'Encargado' ? 12000 : 8000;
+                            // 2. Coincidencia por subcadena/nombre en `users`
+                            $matchSueldo = 0;
+                            foreach ($intranetNominaMap as $uKey => $sVal) {
+                                if (!empty($uKey) && (str_contains($empNameLower, $uKey) || str_contains($uKey, $empNameLower))) {
+                                    $matchSueldo = $sVal;
+                                    break;
+                                }
+                            }
+
+                            if ($matchSueldo > 0) {
+                                $empData['nomina_base'] = $matchSueldo;
+                            } else {
+                                $perfilLower = strtolower($empData['perfil_base']);
+                                $isGerencial = in_array($perfilLower, ['gerente', 'subgerente', 'administrador', 'gerente regional', 'encargado']);
+                                $empData['nomina_base'] = $isGerencial ? 12000 : 8000;
+                            }
                         }
 
                         // Meta individual (proporcional según el número de colaboradores en la sucursal o fija)
@@ -413,7 +465,7 @@ class BonosComisionesController extends Controller
 
         if (!empty($puestoFiltro)) {
             $empleadosList = array_filter($empleadosList, function($item) use ($puestoFiltro) {
-                return str_contains(strtolower($item['perfil_base']), $puestoFiltro);
+                return str_contains(strtolower($item['perfil_base']), $puestoFiltro) || str_contains(strtolower($item['perfil_alcanzado']), $puestoFiltro);
             });
         }
 

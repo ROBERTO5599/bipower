@@ -19,6 +19,14 @@ class Sucursal extends Model
     ];
 
     /**
+     * Scope query to only include SVM sucursales with valid id_valora_mas.
+     */
+    public function scopeSvm($query)
+    {
+        return $query->whereNotNull('id_valora_mas')->where('descripcion', 'SVM');
+    }
+
+    /**
      * Get the database name suffix for this sucursal.
      *
      * @return int|null

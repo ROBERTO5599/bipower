@@ -73,63 +73,45 @@
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
-        /* Tooltip Personalizado */
-        .tooltip .tooltip-inner {
-            max-width: 320px;
-            padding: 12px 16px;
-            background-color: #0f172a;
-            color: #f8fafc;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-            font-size: 0.85rem;
-            text-align: left;
-            line-height: 1.5;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .tooltip .tooltip-inner code {
-            background: rgba(255, 255, 255, 0.15);
-            color: #38bdf8;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        }
-        .tooltip-title {
-            font-weight: 700;
-            color: #38bdf8;
-            font-size: 0.9rem;
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .tooltip-formula-badge {
-            background: rgba(14, 165, 233, 0.18);
-            border: 1px solid rgba(56, 189, 248, 0.35);
-            color: #7dd3fc;
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 0.78rem;
-            margin: 6px 0 2px 0;
-            display: block;
-            word-break: break-word;
-        }
-        .help-icon {
-            cursor: help;
-            color: #94a3b8;
-            font-size: 0.85em;
-            margin-left: 3px;
-            transition: all 0.2s ease;
-        }
-        .help-icon:hover {
-            color: #3b82f6 !important;
-            transform: scale(1.2);
-        }
-        .has-tooltip {
+        /* Dotted underline tooltip trigger en el título (Estilo Depositaría / Flujo) */
+        .metric-tooltip {
+            position: relative;
+            display: inline-block;
+            border-bottom: 1px dotted #6c757d;
             cursor: help;
         }
+        .metric-tooltip:hover {
+            color: #0d6efd;
+        }
+
+        /* Tooltip Personalizado (Estilo Flujo Operativo / Depositaría) */
+        .tooltip-inner {
+            max-width: 340px !important;
+            padding: 10px 14px !important;
+            font-size: 0.8rem !important;
+            background-color: #18181b !important;
+            color: #ffffff !important;
+            border-radius: 8px !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4) !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            text-align: left !important;
+        }
+        .tooltip-inner hr {
+            border-color: rgba(255, 255, 255, 0.2) !important;
+            margin: 6px 0 !important;
+            opacity: 1 !important;
+        }
+        .tooltip-inner .text-muted { color: #cbd5e1 !important; }
+        .tooltip-inner .text-dark { color: #ffffff !important; }
+        .tooltip-inner .text-danger { color: #f87171 !important; }
+        .tooltip-inner .text-success { color: #4ade80 !important; }
+        .tooltip-inner .text-primary { color: #60a5fa !important; }
+        .tooltip-inner .text-info { color: #38bdf8 !important; }
+        .tooltip-inner .text-warning { color: #fbbf24 !important; }
     </style>
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 @endsection
@@ -183,15 +165,34 @@
                     <label class="form-label fw-bold text-secondary small">PUESTO / PERFIL</label>
                     <select name="puesto" id="puesto" class="form-select border-0 bg-light">
                         <option value="">-- Todos los Puestos --</option>
-                        <option value="Encargado">Encargado</option>
-                        <option value="Cajero">Cajero</option>
-                        <option value="Valuador">Valuador</option>
-                        <option value="Promotor">Promotor</option>
+                        <optgroup label="Puestos de Estructura">
+                            <option value="Gerente">Gerente</option>
+                            <option value="Subgerente">Subgerente</option>
+                            <option value="Valuador">Valuador</option>
+                            <option value="Valuador de Oro">Valuador de Oro</option>
+                            <option value="Cajero">Cajero</option>
+                            <option value="Ventas">Ventas</option>
+                            <option value="Creditos">Créditos</option>
+                            <option value="Administrativo">Administrativo</option>
+                            <option value="Administrador">Administrador</option>
+                        </optgroup>
+                        <optgroup label="Nivel / Esquema Alcanzado">
+                            <option value="Junior">Junior</option>
+                            <option value="Senior">Senior</option>
+                            <option value="Master">Master</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-bold text-secondary small">BUSCAR EMPLEADO</label>
-                    <input type="text" name="empleado" id="empleado" class="form-control border-0 bg-light" placeholder="Nombre de colaborador...">
+                    <select name="empleado" id="empleado" class="form-select border-0 bg-light">
+                        <option value="">-- Todos los Colaboradores --</option>
+                        @foreach($empleados ?? [] as $emp)
+                            <option value="{{ $emp->nombre_completo }}">
+                                {{ $emp->nombre_completo }} @if(!empty($emp->nick_name)) ({{ $emp->nick_name }}) @endif
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label fw-bold text-secondary small">FECHA DESDE</label>
@@ -213,17 +214,19 @@
         </div>
     </div>
 
-    <!-- TARJETAS KPIS PRINCIPALES (Indicadores 140, 142, 145, 149) -->
+    <!-- TARJETAS KPIS PRINCIPALES -->
     <div class="row g-4 mb-4">
-        <!-- KPI 140: Total Bonos y Comisiones Pagados -->
+        <!-- Total Bonos y Comisiones Pagados -->
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 card-hover h-100"
-                 data-bs-toggle="tooltip" data-bs-html="true"
-                 data-bs-title="<div class='tooltip-title'><i class='bi-cash-stack'></i> Total Pagado (KPI 140)</div>Suma total de incentivos variables generados por comisiones y bonos de meta.<div class='tooltip-formula-badge'>Comisiones Totales + Bonos de Meta</div>">
+            <div class="card border-0 shadow-sm rounded-4 card-hover h-100">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div>
-                            <span class="text-muted fw-semibold small text-uppercase">Total Pagado (KPI 140) <i class="bi bi-info-circle help-icon"></i></span>
+                            <h6 class="text-muted text-uppercase fw-semibold small mb-0">
+                                <span class="metric-tooltip" id="tooltip-bonos-total" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de total pagado...">
+                                    Total Pagado
+                                </span>
+                            </h6>
                             <h3 class="fw-bold text-dark mt-2 mb-0" id="kpi-total-pagado">$0.00</h3>
                         </div>
                         <div class="icon-shape-lg bg-soft-primary text-primary">
@@ -238,15 +241,17 @@
             </div>
         </div>
 
-        <!-- KPI 142: % Bono Alcanzado vs Meta Individual -->
+        <!-- % Bono Alcanzado vs Meta Individual -->
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 card-hover h-100"
-                 data-bs-toggle="tooltip" data-bs-html="true"
-                 data-bs-title="<div class='tooltip-title'><i class='bi-bullseye'></i> Avance vs Meta (KPI 142)</div>Promedio del porcentaje alcanzado por el personal respecto a su meta de ventas ($30,000 MXN).<div class='tooltip-formula-badge'>Promedio( (Ventas / $30,000) × 100 )</div>">
+            <div class="card border-0 shadow-sm rounded-4 card-hover h-100">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div>
-                            <span class="text-muted fw-semibold small text-uppercase">Avance vs Meta (KPI 142) <i class="bi bi-info-circle help-icon"></i></span>
+                            <h6 class="text-muted text-uppercase fw-semibold small mb-0">
+                                <span class="metric-tooltip" id="tooltip-avance-meta" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de avance vs meta...">
+                                    Avance vs Meta
+                                </span>
+                            </h6>
                             <h3 class="fw-bold text-dark mt-2 mb-0" id="kpi-cumplimiento-meta">0.0%</h3>
                         </div>
                         <div class="icon-shape-lg bg-soft-success text-success">
@@ -264,15 +269,17 @@
             </div>
         </div>
 
-        <!-- KPI 145: Relación Bonos+Comisiones vs Utilidad Bruta -->
+        <!-- Relación Bonos+Comisiones vs Utilidad Bruta -->
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 card-hover h-100"
-                 data-bs-toggle="tooltip" data-bs-html="true"
-                 data-bs-title="<div class='tooltip-title'><i class='bi-percent'></i> % Costo Variable (KPI 145)</div>Porcentaje del margen bruto total de la empresa repartido en bonos y comisiones.<div class='tooltip-formula-badge'>( (Bonos + Comisiones) / Utilidad Bruta ) × 100</div>">
+            <div class="card border-0 shadow-sm rounded-4 card-hover h-100">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div>
-                            <span class="text-muted fw-semibold small text-uppercase">% Costo Variable (KPI 145) <i class="bi bi-info-circle help-icon"></i></span>
+                            <h6 class="text-muted text-uppercase fw-semibold small mb-0">
+                                <span class="metric-tooltip" id="tooltip-costo-variable" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de % costo variable...">
+                                    % Costo Variable
+                                </span>
+                            </h6>
                             <h3 class="fw-bold text-dark mt-2 mb-0" id="kpi-costo-variable">0.00%</h3>
                         </div>
                         <div class="icon-shape-lg bg-soft-warning text-warning">
@@ -286,15 +293,17 @@
             </div>
         </div>
 
-        <!-- KPI 149: Costo Total Bonos/Comisiones % de Nómina -->
+        <!-- Costo Total Bonos/Comisiones % de Nómina -->
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 card-hover h-100"
-                 data-bs-toggle="tooltip" data-bs-html="true"
-                 data-bs-title="<div class='tooltip-title'><i class='bi-calculator'></i> Costo vs Nómina (KPI 149)</div>Proporción del gasto variable respecto al costo de sueldo fijo pactado (Nómina Base).<div class='tooltip-formula-badge'>( (Bonos + Comisiones) / Nómina Base Total ) × 100</div>">
+            <div class="card border-0 shadow-sm rounded-4 card-hover h-100">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div>
-                            <span class="text-muted fw-semibold small text-uppercase">Costo vs Nómina (KPI 149) <i class="bi bi-info-circle help-icon"></i></span>
+                            <h6 class="text-muted text-uppercase fw-semibold small mb-0">
+                                <span class="metric-tooltip" id="tooltip-costo-nomina" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de costo vs nómina...">
+                                    Costo vs Nómina
+                                </span>
+                            </h6>
                             <h3 class="fw-bold text-dark mt-2 mb-0" id="kpi-costo-nomina">0.00%</h3>
                         </div>
                         <div class="icon-shape-lg bg-soft-info text-info">
@@ -309,15 +318,15 @@
         </div>
     </div>
 
-    <!-- SECCIÓN DE GRÁFICOS INTERACTIVOS (143 y 147) -->
+    <!-- SECCIÓN DE GRÁFICOS INTERACTIVOS -->
     <div class="row g-4 mb-4">
-        <!-- Gráfico 143: Comisiones por Empleado vs Meta -->
+        <!-- Gráfico: Comisiones por Empleado vs Meta -->
         <div class="col-xl-7">
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-header bg-transparent border-0 p-4 pb-0 d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="fw-bold text-dark mb-1">
-                            <i class="bi bi-bar-chart-fill text-primary me-2"></i>Comisiones Generadas vs Meta (KPI 143)
+                            <i class="bi bi-bar-chart-fill text-primary me-2"></i>Comisiones Generadas vs Meta
                         </h5>
                         <p class="text-muted small mb-0">Comparativa individual de comisiones alcanzadas contra la meta establecida</p>
                     </div>
@@ -330,12 +339,12 @@
             </div>
         </div>
 
-        <!-- Gráfico 147: Evolución Mensual de Bonos y Comisiones por Sucursal -->
+        <!-- Gráfico: Evolución Mensual de Bonos y Comisiones por Sucursal -->
         <div class="col-xl-5">
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-header bg-transparent border-0 p-4 pb-0">
                     <h5 class="fw-bold text-dark mb-1">
-                        <i class="bi bi-graph-up-arrow text-success me-2"></i>Evolución Mensual (KPI 147)
+                        <i class="bi bi-graph-up-arrow text-success me-2"></i>Evolución Mensual
                     </h5>
                     <p class="text-muted small mb-0">Histórico de bonos y comisiones por sucursal en el tiempo</p>
                 </div>
@@ -354,17 +363,17 @@
             <ul class="nav nav-pills card-header-pills gap-2" id="module-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active px-4 py-2 fw-semibold" id="tab-desglose-btn" data-bs-toggle="pill" data-bs-target="#tab-desglose" type="button" role="tab">
-                        <i class="bi bi-table me-2"></i>Desglose y Compensación (141, 150)
+                        <i class="bi bi-table me-2"></i>Desglose y Compensación
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link px-4 py-2 fw-semibold" id="tab-esquemas-btn" data-bs-toggle="pill" data-bs-target="#tab-esquemas" type="button" role="tab">
-                        <i class="bi bi-layers me-2"></i>Esquemas y Ranking (144, 146)
+                        <i class="bi bi-layers me-2"></i>Esquemas y Ranking
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link px-4 py-2 fw-semibold" id="tab-alertas-btn" data-bs-toggle="pill" data-bs-target="#tab-alertas" type="button" role="tab">
-                        <i class="bi bi-bell me-2"></i>Alertas de Umbral y Puestos (148, 151)
+                        <i class="bi bi-bell me-2"></i>Alertas de Umbral y Puestos
                     </button>
                 </li>
             </ul>
@@ -372,7 +381,7 @@
         <div class="card-body p-4">
             <div class="tab-content" id="module-tabs-content">
 
-                <!-- TAB 1: DESGLOSE COMPLETO POR EMPLEADO (141 & 150) -->
+                <!-- TAB 1: DESGLOSE COMPLETO POR EMPLEADO -->
                 <div class="tab-pane fade show active" id="tab-desglose" role="tabpanel">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="fw-bold text-dark mb-0">
@@ -404,14 +413,14 @@
                     </div>
                 </div>
 
-                <!-- TAB 2: ESQUEMAS ACTIVOS & RANKING TOP (144 & 146) -->
+                <!-- TAB 2: ESQUEMAS ACTIVOS & RANKING TOP -->
                 <div class="tab-pane fade" id="tab-esquemas" role="tabpanel">
                     <div class="row g-4">
-                        <!-- 144. Tabla Esquemas Activos -->
+                        <!-- Tabla Esquemas Activos -->
                         <div class="col-lg-7">
                             <div class="border rounded-4 p-4">
                                 <h6 class="fw-bold text-dark mb-3">
-                                    <i class="bi bi-file-earmark-text text-primary me-2"></i>Esquema de Comisión Activo por Empleado (144)
+                                    <i class="bi bi-file-earmark-text text-primary me-2"></i>Esquema de Comisión Activo por Empleado
                                 </h6>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-striped align-middle mb-0">
@@ -433,11 +442,11 @@
                             </div>
                         </div>
 
-                        <!-- 146. Tabla Ranking Top -->
+                        <!-- Tabla Ranking Top -->
                         <div class="col-lg-5">
                             <div class="border rounded-4 p-4 bg-light">
                                 <h6 class="fw-bold text-dark mb-3">
-                                    <i class="bi bi-trophy text-warning me-2"></i>Top 10 Ranking de Comisiones (146)
+                                    <i class="bi bi-trophy text-warning me-2"></i>Top 10 Ranking de Comisiones
                                 </h6>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-hover align-middle mb-0">
@@ -459,14 +468,14 @@
                     </div>
                 </div>
 
-                <!-- TAB 3: ALERTAS DE UMBRAL & MÉTRICAS POR PUESTO (148 & 151) -->
+                <!-- TAB 3: ALERTAS DE UMBRAL & MÉTRICAS POR PUESTO -->
                 <div class="tab-pane fade" id="tab-alertas" role="tabpanel">
                     <div class="row g-4">
-                        <!-- 148. Tabla de Alertas de Umbral -->
+                        <!-- Tabla de Alertas de Umbral -->
                         <div class="col-lg-6">
                             <div class="border border-warning border-opacity-50 rounded-4 p-4 bg-soft-warning bg-opacity-10">
                                 <h6 class="fw-bold text-warning-emphasis mb-3">
-                                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Empleados Próximos a Cambiar de Umbral (148)
+                                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Empleados Próximos a Cambiar de Umbral
                                 </h6>
                                 <p class="text-muted small">Colaboradores cercanos a alcanzar la meta para cambiar de nivel de comisión</p>
                                 <div class="table-responsive">
@@ -489,11 +498,11 @@
                             </div>
                         </div>
 
-                        <!-- 151. Tabla Métrica Compensación por Puesto -->
+                        <!-- Tabla Métrica Compensación por Puesto -->
                         <div class="col-lg-6">
                             <div class="border rounded-4 p-4">
                                 <h6 class="fw-bold text-dark mb-3">
-                                    <i class="bi bi-briefcase text-info me-2"></i>Compensación Promedio Total por Puesto (151)
+                                    <i class="bi bi-briefcase text-info me-2"></i>Compensación Promedio Total por Puesto
                                 </h6>
                                 <p class="text-muted small">Promedio de nómina base + comisiones y bonos por puesto</p>
                                 <div class="table-responsive">
@@ -525,12 +534,25 @@
 @endsection
 
 @section('scripts')
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     let chartVsMetaInstance = null;
     let chartEvolucionInstance = null;
     let rawDataGlobal = null;
 
     document.addEventListener('DOMContentLoaded', function () {
+        if (typeof $ !== 'undefined' && $.fn.select2) {
+            $('#empleado').select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Todos los Colaboradores --',
+                allowClear: true,
+                width: '100%'
+            }).on('change', function () {
+                cargarDatos();
+            });
+        }
+
         cargarDatos();
 
         document.getElementById('filter-form').addEventListener('submit', function (e) {
@@ -541,7 +563,11 @@
         document.getElementById('btn-reset').addEventListener('click', function () {
             document.getElementById('sucursal_id').value = '';
             document.getElementById('puesto').value = '';
-            document.getElementById('empleado').value = '';
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                $('#empleado').val('').trigger('change.select2');
+            } else {
+                document.getElementById('empleado').value = '';
+            }
             cargarDatos();
         });
     });
@@ -582,6 +608,17 @@
         });
     }
 
+    function setCustomTooltip(id, html) {
+        const el = document.getElementById(id);
+        if (el && typeof bootstrap !== 'undefined') {
+            const existing = bootstrap.Tooltip.getInstance(el);
+            if (existing) existing.dispose();
+            el.setAttribute('data-bs-original-title', html);
+            el.setAttribute('title', html);
+            new bootstrap.Tooltip(el, { html: true, placement: 'top' });
+        }
+    }
+
     function renderKPIs(kpis) {
         document.getElementById('kpi-total-pagado').textContent = formatCurrency(kpis.total_bonos_comisiones);
         document.getElementById('kpi-sub-comisiones').textContent = formatCurrency(kpis.total_comisiones);
@@ -594,6 +631,51 @@
         document.getElementById('kpi-costo-variable').textContent = `${kpis.relacion_costo_variable_utilidad}%`;
         document.getElementById('kpi-costo-nomina').textContent = `${kpis.costo_respecto_nomina}%`;
         document.getElementById('kpi-sub-nomina').textContent = formatCurrency(kpis.total_nomina);
+
+        // Tooltips de desglose (Estilo Depositaría / Flujo Operativo)
+        const totPag = kpis.total_bonos_comisiones || 0;
+        const totCom = kpis.total_comisiones || 0;
+        const totBon = kpis.total_bonos || 0;
+
+        setCustomTooltip('tooltip-bonos-total', `
+            <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 230px;">
+                <strong class="d-block mb-1 border-bottom pb-1 text-white">Desglose de Total Pagado:</strong>
+                <div class="d-flex justify-content-between gap-3"><span class="text-white">Comisiones Totales:</span> <span class="fw-bold text-success">${formatCurrency(totCom)}</span></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-white">Bonos de Meta:</span> <span class="fw-bold text-primary">${formatCurrency(totBon)}</span></div>
+                <hr class="my-1">
+                <div class="d-flex justify-content-between fw-bold"><span class="text-white">TOTAL PAGADO</span> <span class="text-success">${formatCurrency(totPag)}</span></div>
+            </div>
+        `);
+
+        setCustomTooltip('tooltip-avance-meta', `
+            <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 230px;">
+                <strong class="d-block mb-1 border-bottom pb-1 text-white">Desglose de Avance vs Meta:</strong>
+                <div class="d-flex justify-content-between gap-3"><span class="text-white">Cumplimiento Global:</span> <span class="fw-bold text-success">${kpis.promedio_cumplimiento_meta}%</span></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-white">Empleados Medidos:</span> <span class="fw-bold text-white">${kpis.total_empleados} pers.</span></div>
+                <hr class="my-1">
+                <div class="d-flex justify-content-between fw-bold"><span class="text-white">FÓRMULA META</span> <span class="text-primary">Prom((Ventas/$30k)×100)</span></div>
+            </div>
+        `);
+
+        setCustomTooltip('tooltip-costo-variable', `
+            <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                <strong class="d-block mb-1 border-bottom pb-1 text-white">Desglose de % Costo Variable:</strong>
+                <div class="d-flex justify-content-between gap-3"><span class="text-white">Incentivos (Bonos+Com):</span> <span class="fw-bold text-warning">${formatCurrency(totPag)}</span></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-white">Utilidad Bruta Total:</span> <span class="fw-bold text-white">${formatCurrency(kpis.utilidad_bruta_total || 0)}</span></div>
+                <hr class="my-1">
+                <div class="d-flex justify-content-between fw-bold"><span class="text-white">% COSTO VARIABLE</span> <span class="text-warning">${kpis.relacion_costo_variable_utilidad}%</span></div>
+            </div>
+        `);
+
+        setCustomTooltip('tooltip-costo-nomina', `
+            <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                <strong class="d-block mb-1 border-bottom pb-1 text-white">Desglose de Costo vs Nómina:</strong>
+                <div class="d-flex justify-content-between gap-3"><span class="text-white">Incentivos Totales:</span> <span class="fw-bold text-info">${formatCurrency(totPag)}</span></div>
+                <div class="d-flex justify-content-between gap-3"><span class="text-white">Nómina Base Total:</span> <span class="fw-bold text-white">${formatCurrency(kpis.total_nomina)}</span></div>
+                <hr class="my-1">
+                <div class="d-flex justify-content-between fw-bold"><span class="text-white">COSTO VS NÓMINA</span> <span class="text-info">${kpis.costo_respecto_nomina}%</span></div>
+            </div>
+        `);
     }
 
     function renderChartVsMeta(chartData) {

@@ -47,6 +47,66 @@
             border-bottom: 1px dotted #6c757d;
             cursor: help;
         }
+        .metric-tooltip:hover {
+            color: #0d6efd;
+        }
+        .tooltip-inner {
+            max-width: 320px !important;
+            padding: 10px 14px !important;
+            font-size: 0.8rem !important;
+            background-color: #18181b !important;
+            color: #ffffff !important;
+            border-radius: 8px !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            text-align: left !important;
+        }
+
+        /* Estilos Escenarios Empeños Varios y Oro */
+        .table-escenario {
+            border: 3px solid #f39c12 !important;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .table-escenario .title-banner {
+            background-color: #4a154b;
+            color: #ffffff;
+            font-weight: 800;
+            letter-spacing: 1px;
+            font-size: 1.1rem;
+            text-align: center;
+            padding: 10px;
+            border-bottom: 3px solid #f39c12;
+            text-transform: uppercase;
+        }
+        .table-escenario th {
+            background-color: #4a154b !important;
+            color: #ffffff !important;
+            border-bottom: 2px solid #f39c12 !important;
+            border-right: 2px solid #f39c12 !important;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+        .table-escenario th:last-child {
+            border-right: none !important;
+        }
+        .table-escenario td {
+            border-right: 2px solid #f39c12 !important;
+            border-bottom: 2px solid #f39c12 !important;
+            vertical-align: middle;
+            font-size: 0.95rem;
+        }
+        .table-escenario td:last-child {
+            border-right: none !important;
+        }
+        .table-escenario tr:last-child td {
+            border-bottom: none !important;
+        }
+        .row-oro-highlight {
+            background-color: #e8f8f5 !important;
+            font-weight: bold;
+        }
     </style>
 @endsection
 
@@ -107,7 +167,11 @@
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Clientes Activos</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-clientes-activos" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de clientes activos...">
+                                Clientes Activos
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-primary text-primary">
                             <i class="bi bi-people-fill"></i>
                         </div>
@@ -126,7 +190,11 @@
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Frecuencia Promedio</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-frecuencia-promedio" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de frecuencia...">
+                                Frecuencia Promedio
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-info text-info">
                             <i class="bi bi-arrow-repeat"></i>
                         </div>
@@ -142,14 +210,18 @@
             <div class="card shadow-sm border-0 card-hover h-100 rounded-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">LTV Promedio</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-ltv-promedio" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de LTV promedio...">
+                                LTV Promedio
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-success text-success">
                             <i class="bi bi-gem"></i>
                         </div>
                     </div>
                     <h2 class="display-6 fw-bold mb-0 text-dark" id="kpi-ltv-promedio">$ 0.00</h2>
                     <div class="mt-2 text-muted small">
-                        Intereses + Compras + Certificados + Liquidaciones
+                        Intereses + Ventas + Certificados + Liquidaciones
                     </div>
                 </div>
             </div>
@@ -167,7 +239,11 @@
                             <i class="bi bi-unlock-fill"></i>
                         </div>
                         <div>
-                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Comportamiento de Prendas</h6>
+                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                <span class="metric-tooltip" id="tooltip-comportamiento-prendas" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de comportamiento de prendas...">
+                                    Comportamiento de Prendas
+                                </span>
+                            </h6>
                             <h3 class="fw-bold text-dark mb-0"><span id="kpi-desempeno-pct" class="text-success">0%</span> Desempeñadas</h3>
                         </div>
                     </div>
@@ -193,7 +269,11 @@
                             <i class="bi bi-bank"></i>
                         </div>
                         <div>
-                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Monto Global Prestado</h6>
+                            <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                                <span class="metric-tooltip" id="tooltip-monto-prestado" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de monto prestado...">
+                                    Monto Global Prestado
+                                </span>
+                            </h6>
                             <h3 class="fw-bold text-dark mb-0" id="kpi-monto-prestado">$ 0.00</h3>
                         </div>
                     </div>
@@ -216,7 +296,11 @@
             <div class="card shadow-sm border-0 h-100 rounded-3 card-hover">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">Tasa de Deserción</h6>
+                        <h6 class="text-muted text-uppercase fw-bold ls-1 mb-0">
+                            <span class="metric-tooltip" id="tooltip-tasa-desercion" data-bs-toggle="tooltip" data-bs-html="true" title="Cargando desglose de tasa de deserción...">
+                                Tasa de Deserción
+                            </span>
+                        </h6>
                         <div class="icon-shape bg-light-danger text-danger">
                             <i class="bi bi-person-x-fill"></i>
                         </div>
@@ -256,19 +340,17 @@
             </div>
         </div>
 
-        <!-- Distribución RFM -->
+        <!-- Distribución por Perfil de Cliente -->
         <div class="col-md-4 mb-3">
             <div class="card shadow-sm border-0 h-100 rounded-3">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0">Distribución de Segmentos RFM</h5>
+                    <h5 class="fw-bold mb-0">Distribución por Perfil de Cliente</h5>
                 </div>
                 <div class="card-body p-4">
                     <canvas id="rfmChart" height="250"></canvas>
                 </div>
             </div>
         </div>
-    </div>
-
     <!-- Tablas de Análisis -->
     <div class="row mb-4">
         <div class="col-12">
@@ -285,7 +367,7 @@
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link fw-semibold" id="rfm-tab" data-bs-toggle="tab" data-bs-target="#rfm-pane" type="button" role="tab" aria-controls="rfm-pane" aria-selected="false">
-                                    <i class="bi bi-grid-3x3-gap-fill me-1"></i> Segmentación RFM
+                                    <i class="bi bi-grid-3x3-gap-fill me-1"></i> Perfiles de Cliente
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -310,7 +392,7 @@
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-center">Sucursales</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-end">Saldo Actual</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-end">Intereses Históricos</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Compras en Piso</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Ventas</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-end">Certificados</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-end">Liquidaciones</th>
                                             <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">LTV Estimado</th>
@@ -323,7 +405,7 @@
                             </div>
                         </div>
                         
-                        <!-- Tab 2: Segmentación RFM -->
+                        <!-- Tab 2: Perfiles de Cliente -->
                         <div class="tab-pane fade" id="rfm-pane" role="tabpanel" aria-labelledby="rfm-tab" tabindex="0">
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
@@ -334,7 +416,7 @@
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-center">Frecuencia</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-end">Volumen LTV</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-center">Score R-F-M</th>
-                                            <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-center">Segmento</th>
+                                            <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-center">Perfil Asignado</th>
                                         </tr>
                                     </thead>
                                     <tbody id="rfm-clientes-body">
@@ -418,7 +500,27 @@
                     overlay.style.display = 'none';
                     dashboard.style.display = 'block';
                     dashboard.style.opacity = '1';
+                    setTimeout(() => {
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                                const instance = bootstrap.Tooltip.getInstance(el);
+                                if (instance) instance.dispose();
+                                new bootstrap.Tooltip(el, { container: 'body' });
+                            });
+                        }
+                    }, 150);
                 });
+        }
+
+        function setCustomTooltip(id, html) {
+            const el = document.getElementById(id);
+            if (el && typeof bootstrap !== 'undefined') {
+                const existing = bootstrap.Tooltip.getInstance(el);
+                if (existing) existing.dispose();
+                el.setAttribute('data-bs-original-title', html);
+                el.setAttribute('title', html);
+                new bootstrap.Tooltip(el, { html: true, placement: 'top' });
+            }
         }
 
         function updateElementText(id, text) {
@@ -450,6 +552,80 @@
             // New KPI: Churn Rate
             updateElementText('kpi-churn-rate', `${(data.churnRate || 0).toFixed(1)}%`);
 
+            // Tooltips de desglose y fórmula para cada KPI
+            setCustomTooltip('tooltip-clientes-activos', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 280px;">
+                    <strong class="d-block mb-1 border-bottom pb-1 text-white"><i class="bi bi-people-fill text-primary me-1"></i> Desglose y Fórmulas: Clientes Activos</strong>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Clientes Nuevos*:</span> <span class="fw-bold text-success">${numberFormatter.format(data.nuevosCount || 0)} (${(data.nuevosPorcentaje || 0).toFixed(1)}%)</span></div>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Clientes Recurrentes:</span> <span class="fw-bold text-info">${numberFormatter.format(data.recurrentesCount || 0)} (${(data.recurrentesPorcentaje || 0).toFixed(1)}%)</span></div>
+                    <hr class="my-1 border-secondary">
+                    <div class="d-flex justify-content-between fw-bold mb-2"><span class="text-white">TOTAL ACTIVOS</span> <span class="text-primary">${numberFormatter.format(data.totalClientes || 0)} pers.</span></div>
+                    <div class="border-top pt-2 text-light" style="font-size: 0.73rem; line-height: 1.45;">
+                        <div class="mb-1"><strong>Fórmula % Nuevos:</strong> <span class="text-warning">(Nuevos / Total Activos) × 100</span></div>
+                        <div class="mb-1"><strong>Fórmula % Recurrentes:</strong> <span class="text-warning">(Recurrentes / Total Activos) × 100</span></div>
+                        <div class="text-muted mt-1" style="font-size:0.68rem;">*Nuevos: Clientes cuyo 1er movimiento histórico ocurrió dentro del periodo.</div>
+                    </div>
+                </div>
+            `);
+
+            setCustomTooltip('tooltip-frecuencia-promedio', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 240px;">
+                    <strong class="d-block mb-1 border-bottom pb-1 text-white"><i class="bi bi-arrow-repeat text-info me-1"></i> Desglose de Frecuencia:</strong>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Total Empeños Realizados:</span> <span class="fw-bold text-white">${numberFormatter.format(data.totalEmpenos || 0)} empeños</span></div>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Clientes Medidos:</span> <span class="fw-bold text-white">${numberFormatter.format(data.totalClientes || 0)} clientes</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span class="text-white">FÓRMULA FRECUENCIA</span> <span class="text-info">Total Empeños / Total Ctes</span></div>
+                </div>
+            `);
+
+            setCustomTooltip('tooltip-ltv-promedio', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 260px;">
+                    <strong class="d-block mb-1 border-bottom pb-1 text-white"><i class="bi bi-gem text-success me-1"></i> Desglose de LTV Promedio:</strong>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Intereses Pagados:</span> <span class="fw-bold text-success">${formatter.format(data.interesesTotalesPagados || 0)}</span></div>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Ventas:</span> <span class="fw-bold text-white">${formatter.format(data.comprasPisoTotal || 0)}</span></div>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Certificados Confianza:</span> <span class="fw-bold text-white">${formatter.format(data.certificadosTotal || 0)}</span></div>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Liquidaciones Crédito:</span> <span class="fw-bold text-white">${formatter.format(data.liquidacionesTotal || 0)}</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span class="text-white">LTV PROMEDIO</span> <span class="text-success">${formatter.format(data.ltvPromedio || 0)}</span></div>
+                </div>
+            `);
+
+            setCustomTooltip('tooltip-comportamiento-prendas', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 250px;">
+                    <strong class="d-block mb-1 border-bottom pb-1 text-white"><i class="bi bi-unlock-fill text-warning me-1"></i> Desglose de Prendas:</strong>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Prendas Desempeñadas:</span> <span class="fw-bold text-success">${numberFormatter.format(data.totalDesempenos || 0)} (${(data.porcentajeDesempeno || 0).toFixed(1)}%)</span></div>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Perdidas en Remate:</span> <span class="fw-bold text-danger">${numberFormatter.format(data.totalPerdidas || 0)} (${(data.porcentajePerdidas || 0).toFixed(1)}%)</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span class="text-white">FÓRMULA RETENCIÓN</span> <span class="text-warning">Desempeños / Total Resueltas</span></div>
+                </div>
+            `);
+
+            setCustomTooltip('tooltip-monto-prestado', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 290px;">
+                    <strong class="d-block mb-1 border-bottom pb-1 text-white"><i class="bi bi-bank text-secondary me-1"></i> Desglose y Fórmulas: Capital Prestado</strong>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Monto Prestado Colocado:</span> <span class="fw-bold text-white">${formatter.format(data.montoTotalPrestado || 0)}</span></div>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Intereses Generados:</span> <span class="fw-bold text-success">${formatter.format(data.interesesTotalesPagados || 0)}</span></div>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Dispersión Geográfica:</span> <span class="fw-bold text-primary">${(data.sucursalesPromedioPorCliente || 1.0).toFixed(1)} suc/cte</span></div>
+                    <hr class="my-1 border-secondary">
+                    <div class="pt-1 text-light" style="font-size: 0.73rem; line-height: 1.45;">
+                        <div class="mb-1"><strong>Fórmula Prestado:</strong> <span class="text-warning">SUM(prestamos en contratos del periodo)</span></div>
+                        <div class="mb-1"><strong>Fórmula Intereses:</strong> <span class="text-warning">SUM(intereses pagados en movimientos)</span></div>
+                        <div class="mb-1"><strong>Fórmula Dispersión:</strong> <span class="text-warning">Total Sucursales Visitadas / Total Clientes</span></div>
+                        <div class="text-muted mt-1" style="font-size:0.68rem;">*Dispersión: Promedio de sucursales distintas que visita cada cliente.</div>
+                    </div>
+                </div>
+            `);
+
+            setCustomTooltip('tooltip-tasa-desercion', `
+                <div class="text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 250px;">
+                    <strong class="d-block mb-1 border-bottom pb-1 text-white"><i class="bi bi-person-x-fill text-danger me-1"></i> Desglose Tasa de Deserción:</strong>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Clientes Inactivos (>90d):</span> <span class="fw-bold text-danger">${numberFormatter.format(data.clientesDesertores || 0)} pers.</span></div>
+                    <div class="d-flex justify-content-between gap-3"><span class="text-white">Padrón Histórico Total:</span> <span class="fw-bold text-white">${numberFormatter.format(data.totalClientesHistoricos || 0)} pers.</span></div>
+                    <hr class="my-1">
+                    <div class="d-flex justify-content-between fw-bold"><span class="text-white">TASA DE DESERCIÓN</span> <span class="text-danger">${(data.churnRate || 0).toFixed(1)}%</span></div>
+                </div>
+            `);
+
             // Tablas Top Clientes
             const tbody = document.getElementById('top-clientes-body');
             if (data.topClientes && data.topClientes.length > 0) {
@@ -479,11 +655,10 @@
                 let tableHtml = '';
                 data.rfmTable.forEach(item => {
                     let badgeClass = 'bg-secondary';
-                    if (item.segmento === 'Campeones') badgeClass = 'bg-success';
-                    else if (item.segmento === 'Fieles') badgeClass = 'bg-info text-dark';
-                    else if (item.segmento === 'Nuevos / Prometedores') badgeClass = 'bg-primary';
-                    else if (item.segmento === 'En Riesgo / Atención') badgeClass = 'bg-warning text-dark';
-                    else if (item.segmento === 'Hibernando / Perdidos') badgeClass = 'bg-danger';
+                    if (item.segmento === 'Oro') badgeClass = 'bg-success text-white fw-bold';
+                    else if (item.segmento === 'Preferente') badgeClass = 'bg-info text-dark fw-bold';
+                    else if (item.segmento === 'Frecuente') badgeClass = 'bg-warning text-dark fw-bold';
+                    else if (item.segmento === 'Tradicional') badgeClass = 'bg-secondary text-white';
 
                     tableHtml += `
                         <tr>
@@ -610,14 +785,13 @@
                 data: {
                     labels: chartData.labels,
                     datasets: [{
-                        label: 'Clientes por Segmento',
+                        label: 'Clientes por Perfil',
                         data: chartData.data,
                         backgroundColor: [
-                            '#198754', // Campeones
-                            '#0dcaf0', // Fieles
-                            '#0d6efd', // Nuevos / Prometedores
-                            '#ffc107', // En Riesgo
-                            '#dc3545'  // Perdidos
+                            '#198754', // Oro
+                            '#0dcaf0', // Preferente
+                            '#ffc107', // Frecuente
+                            '#6c757d'  // Tradicional
                         ],
                         borderRadius: 4
                     }]
