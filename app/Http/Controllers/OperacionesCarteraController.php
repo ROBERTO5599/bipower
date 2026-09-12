@@ -8,20 +8,26 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use App\Models\Sucursal;
 
+use App\Services\PowerBIPermissionService;
+
 class OperacionesCarteraController extends Controller
 {
     public function index(Request $request)
     {
-        // Filtrar solo sucursales que existen
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        // Filtrar solo sucursales que existen y permitidas
         $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
+        $permittedIds = PowerBIPermissionService::getPermittedSucursalIds(null, $regionalUserId);
         $sucursales = Sucursal::whereNotNull('id_valora_mas')
             ->whereIn('id_valora_mas', $idsQueFuncionan)
+            ->whereIn('id_valora_mas', $permittedIds)
             ->get();
         
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
 
-        return view('operaciones-cartera.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+        return view('operaciones-cartera.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
 
     public function data(Request $request)
@@ -38,11 +44,14 @@ class OperacionesCarteraController extends Controller
             ->toDateString() . ' 23:59:59';
         
         $sucursalId = $request->input('sucursal_id');
+        $regionalUserId = $request->input('regional_user_id');
         
-        // Filtrar solo sucursales que existen
+        // Filtrar solo sucursales que existen y permitidas
         $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
+        $permittedIds = PowerBIPermissionService::getPermittedSucursalIds(null, $regionalUserId);
         $sucursales = Sucursal::whereNotNull('id_valora_mas')
             ->whereIn('id_valora_mas', $idsQueFuncionan)
+            ->whereIn('id_valora_mas', $permittedIds)
             ->get();
 
         if ($sucursalId && in_array((int)$sucursalId, $idsQueFuncionan)) {

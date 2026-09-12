@@ -9,13 +9,17 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Sucursal;
 use Carbon\Carbon;
 
+use App\Services\PowerBIPermissionService;
+
 class BonosComisionesController extends Controller
 {
     public function index(Request $request)
     {
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::svm()->get();
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
         $empleados = DB::table('users')
             ->where('status', 0)
@@ -28,7 +32,7 @@ class BonosComisionesController extends Controller
                 return $u;
             });
 
-        return view('bonos-comisiones.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'empleados'));
+        return view('bonos-comisiones.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'empleados', 'regionales', 'regionalUserId'));
     }
 
     public function data(Request $request)
@@ -42,10 +46,11 @@ class BonosComisionesController extends Controller
         $fechaFin = Carbon::parse($fechaFinRaw)->endOfDay()->toDateTimeString();
 
         $sucursalId = $request->input('sucursal_id');
+        $regionalUserId = $request->input('regional_user_id');
         $empleadoFiltro = strtolower(trim($request->input('empleado', '')));
         $puestoFiltro = strtolower(trim($request->input('puesto', '')));
 
-        $sucursales = Sucursal::svm()->get();
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
         if ($sucursalId) {
             $sucursalesSeleccionadas = $sucursales->where('id_valora_mas', $sucursalId);
         } else {

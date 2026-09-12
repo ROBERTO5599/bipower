@@ -8,20 +8,26 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use App\Models\Sucursal;
 
+use App\Services\PowerBIPermissionService;
+
 class ResumenEjecutivoController extends Controller
 {
     public function index(Request $request)
     {
-        //  MODIFICACIÓN: Filtrar solo sucursales que existen
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        // MODIFICACIÓN: Filtrar solo sucursales que existen y permitidas
         $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
+        $permittedIds = PowerBIPermissionService::getPermittedSucursalIds(null, $regionalUserId);
         $sucursales = Sucursal::whereNotNull('id_valora_mas')
             ->whereIn('id_valora_mas', $idsQueFuncionan)
+            ->whereIn('id_valora_mas', $permittedIds)
             ->get();
 
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
 
-        return view('resumen-ejecutivo.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+        return view('resumen-ejecutivo.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
 
    
@@ -32,12 +38,14 @@ class ResumenEjecutivoController extends Controller
 
         $fechaFinSiguiente = $fechaFin;
 
-        // MODIFICACIÓN: IDs de sucursales que existen
+        $regionalUserId = $request->input('regional_user_id');
+        // MODIFICACIÓN: IDs de sucursales que existen y permitidas
         $idsQueFuncionan = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19];
+        $permittedIds = PowerBIPermissionService::getPermittedSucursalIds(null, $regionalUserId);
         
-        // MODIFICACIÓN: Filtrar directamente en la consulta
         $sucursales = Sucursal::whereNotNull('id_valora_mas')
             ->whereIn('id_valora_mas', $idsQueFuncionan)
+            ->whereIn('id_valora_mas', $permittedIds)
             ->get();
         
         $sucursalId = $request->input('sucursal_id');

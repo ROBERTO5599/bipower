@@ -10,12 +10,15 @@ use Carbon\Carbon;
 use Exception;
 use App\Models\Sucursal;
 
+use App\Services\PowerBIPermissionService;
+
 class HomeController extends Controller
 {
-    public function index()
+    public function index(Request $request = null)
     {
-        // Get active branches (sucursales) with valid DB suffix
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request ? $request->input('regional_user_id') : null;
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
         $totalEmpeno = 0;
         $totalRefrendo = 0;
@@ -132,7 +135,7 @@ class HomeController extends Controller
         return view('employees.home', compact(
             'totalEmpeno', 'totalRefrendo', 'totalDesempeno',
             'sucursalesDetalleEmpeno', 'sucursalesDetalleRefrendo', 'sucursalesDetalleDesempeno',
-            'fechaDel', 'fechaAl'
+            'fechaDel', 'fechaAl', 'regionales', 'regionalUserId'
         ));
     }
 }

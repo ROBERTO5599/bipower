@@ -8,15 +8,19 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use App\Models\Sucursal;
 
+use App\Services\PowerBIPermissionService;
+
 class ReportePagosTarjetaController extends Controller
 {
     public function index(Request $request)
     {
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
-        return view('reporte-pagos-tarjeta.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+        return view('reporte-pagos-tarjeta.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
 
     public function data(Request $request)
@@ -25,7 +29,8 @@ class ReportePagosTarjetaController extends Controller
         $fechaFin = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
         
         $sucursalId = $request->input('sucursal_id');
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
         $sucursalesSeleccionadas = $sucursalId
             ? $sucursales->where('id_valora_mas', $sucursalId)
             : $sucursales;
@@ -106,11 +111,15 @@ class ReportePagosTarjetaController extends Controller
                         $tipoTransaccion = strtoupper($row->tipo_transaccion_nombre);
                     }
 
+                    $configTarjeta = $sucursal->configuracionTarjeta;
+                    $pctClip = ($configTarjeta && !is_null($configTarjeta->comision_clip)) ? ($configTarjeta->comision_clip / 100) : 0.0299;
+                    $pctIva = ($configTarjeta && !is_null($configTarjeta->iva_comision)) ? ($configTarjeta->iva_comision / 100) : 0.16;
+
                     $aplicaComision = ($tipoTransaccion === 'CLIP' || $tipoTransaccion === 'TERMINAL' || $tipoPago === 'TARJETA');
                     $comision_meses = 0.00;
                     if ($aplicaComision && $monto > 0) {
-                        $comision = round(($monto * 0.0299) + $comision_meses + 1, 2);
-                        $iva = round($comision * 0.16, 2);
+                        $comision = round(($monto * $pctClip) + $comision_meses + 1, 2);
+                        $iva = round($comision * $pctIva, 2);
                         $total = round($monto - $comision - $iva, 2);
                     } else {
                         $comision = 0.00;

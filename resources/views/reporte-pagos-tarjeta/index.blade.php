@@ -222,7 +222,20 @@
     <div class="card shadow-sm border-0 mb-4 rounded-3">
         <div class="card-body p-4">
             <form id="filter-form" class="row g-3">
-                <div class="col-md-4">
+                @if(auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin')
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Regional</label>
+                    <select name="regional_user_id" id="regional_user_id" class="form-select">
+                        <option value="">-- Todos los Regionales --</option>
+                        @foreach($regionales ?? [] as $reg)
+                            <option value="{{ $reg->id }}" {{ (isset($regionalUserId) && $regionalUserId == $reg->id) ? 'selected' : '' }}>
+                                {{ $reg->nombre_completo }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+                <div class="{{ (auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin') ? 'col-md-3' : 'col-md-4' }}">
                     <label class="form-label fw-semibold">Sucursal</label>
                     <select name="sucursal_id" id="sucursal_id" class="form-select">
                         <option value="">-- Todas Consolidado --</option>
@@ -233,11 +246,11 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="{{ (auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin') ? 'col-md-2' : 'col-md-3' }}">
                     <label class="form-label fw-semibold">Fecha Desde</label>
                     <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ $fechaInicio }}" class="form-control">
                 </div>
-                <div class="col-md-3">
+                <div class="{{ (auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin') ? 'col-md-2' : 'col-md-3' }}">
                     <label class="form-label fw-semibold">Fecha Hasta (Corte)</label>
                     <input type="date" name="fecha_fin" id="fecha_fin" value="{{ $fechaFin }}" class="form-control">
                 </div>

@@ -8,15 +8,19 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use App\Models\Sucursal;
 
+use App\Services\PowerBIPermissionService;
+
 class VentasController extends Controller
 {
     public function index(Request $request)
     {
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
-        return view('ventas.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+        return view('ventas.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
 
     public function data(Request $request)
@@ -28,8 +32,9 @@ class VentasController extends Controller
         $fechaInicio = \Carbon\Carbon::parse($fechaInicioRaw)->startOfDay()->toDateTimeString();
         $fechaFinQuery = \Carbon\Carbon::parse($fechaFinRaw)->endOfDay()->toDateTimeString();
         $sucursalId = $request->input('sucursal_id');
+        $regionalUserId = $request->input('regional_user_id');
 
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
         if ($sucursalId) {
             $sucursales = $sucursales->where('id_valora_mas', $sucursalId);

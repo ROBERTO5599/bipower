@@ -20,6 +20,22 @@
 		</div>
 	</div>
 
+	@if(auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin')
+	<div class="row mb-4">
+		<div class="col-md-4">
+			<label class="form-label fw-semibold">Filtro por Regional (Super Admin)</label>
+			<select name="regional_user_id" id="regional_user_id" class="form-select" onchange="const url = new URL(window.location.href); if(this.value){ url.searchParams.set('regional_user_id', this.value); } else { url.searchParams.delete('regional_user_id'); } window.location.href = url.toString();">
+				<option value="">-- Todos los Regionales --</option>
+				@foreach($regionales ?? [] as $reg)
+					<option value="{{ $reg->id }}" {{ (isset($regionalUserId) && $regionalUserId == $reg->id) ? 'selected' : '' }}>
+						{{ $reg->nombre_completo }}
+					</option>
+				@endforeach
+			</select>
+		</div>
+	</div>
+	@endif
+
 	<div class="row">
 		<!-- Card Total Empeño -->
 		<div class="col-12 col-md-6 col-lg-4 mb-3">

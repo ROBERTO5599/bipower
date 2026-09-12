@@ -8,15 +8,19 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use App\Models\Sucursal;
 
+use App\Services\PowerBIPermissionService;
+
 class InventarioPisoController extends Controller
 {
     public function index(Request $request)
     {
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
-        return view('inventario-piso.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+        return view('inventario-piso.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
 
     public function data(Request $request)
@@ -27,7 +31,8 @@ class InventarioPisoController extends Controller
         $rawFin = $request->input('fecha_fin', now()->toDateString());
         $fechaFin = (strlen($rawFin) <= 10 ? $rawFin . ' 23:59:59' : $rawFin);
 
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
         $sucursalId = $request->input('sucursal_id');
 
         $sucursalesSeleccionadas = $sucursalId

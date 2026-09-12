@@ -9,15 +9,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 
+use App\Services\PowerBIPermissionService;
+
 class ColaboradoresController extends Controller
 {
     public function index(Request $request)
     {
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
-        return view('colaboradores.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+        return view('colaboradores.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
 
     private function normalizarCategoria($catRaw)
@@ -34,7 +38,8 @@ class ColaboradoresController extends Controller
         $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
         $fechaFin = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
         
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
         $sucursalId = $request->input('sucursal_id');
         $sucursalesSeleccionadas = $sucursalId
             ? $sucursales->where('id_valora_mas', $sucursalId)

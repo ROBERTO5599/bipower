@@ -25,6 +25,22 @@
                         </div>
                     @endif
 
+                    <!-- Alerta de Errores y Permisos (No cuentas con permisos, dirígete a Presidencia) -->
+                    @if ($errors->any())
+                        <div class="alert alert-danger alert-dismissible fade show rounded-3 mb-4 shadow-sm" role="alert">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-exclamation-triangle-fill fs-4 me-3 text-danger"></i>
+                                <div>
+                                    <strong class="d-block text-danger fw-bold">Acceso Denegado:</strong>
+                                    @foreach ($errors->all() as $error)
+                                        <span class="fw-semibold">{{ $error }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    @endif
+
                     <form method="POST" action="{{ route('login') }}">
                         @csrf
 
@@ -47,7 +63,7 @@
                                 >
                             </div>
                             @error('nick_name')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                                <div class="invalid-feedback d-block mt-2 font-semibold">{{ $message }}</div>
                             @enderror
                         </div>
 

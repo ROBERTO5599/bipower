@@ -8,15 +8,19 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use App\Models\Sucursal;
 
+use App\Services\PowerBIPermissionService;
+
 class InventarioApartadosController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $fechaInicio = now()->startOfMonth()->toDateString() . ' 00:00:00';
         $fechaFin = now()->toDateString() . ' 23:59:59';
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
-        return view('inventario-apartados.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+        return view('inventario-apartados.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
 
     public function data(Request $request)
@@ -26,7 +30,8 @@ class InventarioApartadosController extends Controller
         $fechaFinSiguiente = $fechaFin;
 
         $sucursalId = $request->input('sucursal_id');
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
         
         if ($sucursalId) {
             $sucursalesSeleccionadas = $sucursales->filter(fn($s) => (string)$s->id_valora_mas === (string)$sucursalId);

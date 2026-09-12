@@ -46,6 +46,14 @@ class LoginRequest extends FormRequest
                 'nick_name' => __('auth.failed'),
             ]);
         }
+
+        $user = Auth::user();
+        if (!$user || is_null($user->getPbiRoleType())) {
+            Auth::guard('web')->logout();
+            throw ValidationException::withMessages([
+                'nick_name' => 'No cuentas con permisos, dirígete a Presidencia.',
+            ]);
+        }
     }
 
     /**

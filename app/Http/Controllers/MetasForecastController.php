@@ -9,18 +9,22 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Sucursal;
 use Carbon\Carbon;
 
+use App\Services\PowerBIPermissionService;
+
 class MetasForecastController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $mesesHistorico = 12;
         $crecimiento = 5; // 5% por defeto
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
         $fechaInicio = Carbon::now()->startOfMonth()->toDateString();
         $fechaFin = Carbon::now()->toDateString();
 
-        return view('metas-forecast.index', compact('mesesHistorico', 'crecimiento', 'sucursales', 'fechaInicio', 'fechaFin'));
+        return view('metas-forecast.index', compact('mesesHistorico', 'crecimiento', 'sucursales', 'fechaInicio', 'fechaFin', 'regionales', 'regionalUserId'));
     }
 
     public function data(Request $request)
@@ -28,6 +32,7 @@ class MetasForecastController extends Controller
         $mesesHistorico = (int) $request->input('meses_historico', 12);
         $crecimientoPorcentaje = (float) $request->input('crecimiento', 5);
         $sucursalId = $request->input('sucursal_id');
+        $regionalUserId = $request->input('regional_user_id');
 
         $fechaInicio = $request->input('fecha_inicio', Carbon::now()->startOfMonth()->toDateString());
         $fechaFin = $request->input('fecha_fin', Carbon::now()->toDateString());
@@ -41,7 +46,7 @@ class MetasForecastController extends Controller
         $fechaInicioHistorico = Carbon::parse($fechaInicio)->subMonths($mesesHistorico)->startOfMonth()->toDateString();
         $fechaTopeActual = Carbon::parse($fechaFin)->endOfDay()->toDateString(); 
 
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
         if ($sucursalId) {
             $sucursales = $sucursales->where('id_valora_mas', $sucursalId);
         }

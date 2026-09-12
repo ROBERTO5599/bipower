@@ -9,15 +9,19 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Sucursal;
 use Carbon\Carbon;
 
+use App\Services\PowerBIPermissionService;
+
 class TableroControlController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
-        return view('tablero-control.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+        return view('tablero-control.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
 
     public function data(Request $request)
@@ -27,9 +31,10 @@ class TableroControlController extends Controller
         $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
         $fechaFin = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
         $sucursalId = $request->input('sucursal_id');
+        $regionalUserId = $request->input('regional_user_id');
 
         $sistema = $request->input('sistema', 'varamas');
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
         // Sucursales pertenecientes a MySonda (IDs 3, 5, 7, 9, 10 en la tabla sucursals)
         $mySondaIds = [3, 5, 7, 9, 10];

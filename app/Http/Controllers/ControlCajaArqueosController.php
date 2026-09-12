@@ -9,15 +9,19 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
+use App\Services\PowerBIPermissionService;
+
 class ControlCajaArqueosController extends Controller
 {
     public function index(Request $request)
     {
         $fechaInicio = now()->startOfMonth()->toDateString();
         $fechaFin = now()->toDateString();
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $regionales = PowerBIPermissionService::getRegionales();
+        $regionalUserId = $request->input('regional_user_id');
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
 
-        return view('control-caja-arqueos.index', compact('fechaInicio', 'fechaFin', 'sucursales'));
+        return view('control-caja-arqueos.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
 
     public function data(Request $request)
@@ -27,8 +31,9 @@ class ControlCajaArqueosController extends Controller
         $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString());
         $fechaFin = $request->input('fecha_fin', now()->toDateString());
         $sucursalId = $request->input('sucursal_id');
+        $regionalUserId = $request->input('regional_user_id');
 
-        $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
         if ($sucursalId) {
             $sucursalesSeleccionadas = $sucursales->where('id_valora_mas', $sucursalId);
         } else {

@@ -138,12 +138,25 @@
     <div class="card shadow-sm border-0 mb-4 rounded-4 bg-white">
         <div class="card-body p-4">
             <form id="filter-form" class="row g-3 align-items-end">
+                @if(auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin')
                 <div class="col-md-3">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Regional</label>
+                    <select name="regional_user_id" id="regional_user_id" class="form-select border-2 rounded-3" onchange="const url = new URL(window.location.href); if(this.value){ url.searchParams.set('regional_user_id', this.value); } else { url.searchParams.delete('regional_user_id'); } url.searchParams.delete('sucursal_id'); window.location.href = url.toString();">
+                        <option value="">-- Todos los Regionales --</option>
+                        @foreach($regionales ?? [] as $reg)
+                            <option value="{{ $reg->id }}" {{ (isset($regionalUserId) && $regionalUserId == $reg->id) ? 'selected' : '' }}>
+                                {{ $reg->nombre_completo }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+                <div class="{{ (auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin') ? 'col-md-3' : 'col-md-3' }}">
                     <label class="form-label fw-bold text-muted small text-uppercase">Sucursal</label>
                     <select name="sucursal_id" id="sucursal_id" class="form-select border-2 rounded-3">
                         <option value="">-- Todas las Sucursales --</option>
                         @foreach($sucursales ?? [] as $sucursal)
-                            <option value="{{ $sucursal->id_valora_mas }}">
+                            <option value="{{ $sucursal->id_valora_mas }}" {{ request('sucursal_id') == $sucursal->id_valora_mas ? 'selected' : '' }}>
                                 {{ $sucursal->nombre }}
                             </option>
                         @endforeach
