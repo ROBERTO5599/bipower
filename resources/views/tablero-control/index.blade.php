@@ -486,6 +486,10 @@
                             <td class="label-col">PRESTAMO:</td>
                             <td class="val-col mysonda-val-blue" id="ms-empenos-prestamo">$0.00</td>
                         </tr>
+                        <tr>
+                            <td class="label-col" style="background-color: #fff3cd; color: #856404; font-weight: 800; border-top: 2px solid #ffeeba;">META EMPEÑO:</td>
+                            <td class="val-col" style="background-color: #fffdf5; font-weight: 800; border-top: 2px solid #ffeeba;" id="ms-empenos-meta">$0.00</td>
+                        </tr>
                     </table>
                 </div>
             </div>
@@ -526,6 +530,10 @@
                         <tr>
                             <td class="label-col">TOTAL COBRADO:</td>
                             <td class="val-col mysonda-val-blue" id="ms-refrendos-total-cobrado">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col" style="background-color: #fff3cd; color: #856404; font-weight: 800; border-top: 2px solid #ffeeba;">META REFRENDOS:</td>
+                            <td class="val-col" style="background-color: #fffdf5; font-weight: 800; border-top: 2px solid #ffeeba;" id="ms-refrendos-meta">$0.00</td>
                         </tr>
                     </table>
                 </div>
@@ -568,6 +576,10 @@
                             <td class="label-col" style="background-color: #d4edda; color: #155724;">INTERES TOTAL:</td>
                             <td class="val-col mysonda-val-green" id="ms-interes-total">$0.00</td>
                         </tr>
+                        <tr>
+                            <td class="label-col" style="background-color: #fff3cd; color: #856404; font-weight: 800; border-top: 2px solid #ffeeba;">META DESEMPEÑO:</td>
+                            <td class="val-col" style="background-color: #fffdf5; font-weight: 800; border-top: 2px solid #ffeeba;" id="ms-desempenos-meta">$0.00</td>
+                        </tr>
                     </table>
                 </div>
             </div>
@@ -605,6 +617,10 @@
                             <td class="label-col" style="background-color: #cff4fc; color: #055160;">UTILIDAD DE VENTA:</td>
                             <td class="val-col mysonda-val-teal" id="ms-utilidad-venta">$0.00</td>
                         </tr>
+                        <tr>
+                            <td class="label-col" style="background-color: #fff3cd; color: #856404; font-weight: 800; border-top: 2px solid #ffeeba;">META VENTAS:</td>
+                            <td class="val-col" style="background-color: #fffdf5; font-weight: 800; border-top: 2px solid #ffeeba;" id="ms-ventas-meta">$0.00</td>
+                        </tr>
                     </table>
                 </div>
             </div>
@@ -633,6 +649,10 @@
                         <tr>
                             <td class="label-col">ABONADO:</td>
                             <td class="val-col mysonda-val-teal" id="ms-apartados-abonado">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col" style="background-color: #fff3cd; color: #856404; font-weight: 800; border-top: 2px solid #ffeeba;">META APARTADOS:</td>
+                            <td class="val-col" style="background-color: #fffdf5; font-weight: 800; border-top: 2px solid #ffeeba;" id="ms-apartados-meta">$0.00</td>
                         </tr>
                     </table>
                 </div>
@@ -670,6 +690,10 @@
                         <tr>
                             <td class="label-col">TOTAL:</td>
                             <td class="val-col mysonda-val-blue" id="ms-abonos-total">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col" style="background-color: #fff3cd; color: #856404; font-weight: 800; border-top: 2px solid #ffeeba;">META BAZAR / REMATE:</td>
+                            <td class="val-col" style="background-color: #fffdf5; font-weight: 800; border-top: 2px solid #ffeeba;" id="ms-bazar-meta">$0.00</td>
                         </tr>
                     </table>
                 </div>
@@ -956,7 +980,7 @@
                 .then(data => {
                     renderTablero(data);
                     renderSummaryKPIs(data);
-                    renderMySondaCards(data._mysonda_detail);
+                    renderMySondaCards(data._mysonda_detail, data);
                 })
                 .catch(err => {
                     console.error("Error loading tablero data:", err);
@@ -968,7 +992,7 @@
                 });
         }
 
-        function renderMySondaCards(detail) {
+        function renderMySondaCards(detail, data) {
             const container = document.getElementById('mysonda-cards-container');
             const mainTableRow = document.getElementById('tablero-main-table-row');
             const summaryKpisRow = document.getElementById('summary-kpis-row');
@@ -976,10 +1000,10 @@
             if (summaryKpisRow) summaryKpisRow.style.display = 'flex';
 
             if (activeSistema === 'mysonda') {
-                if (mainTableRow) mainTableRow.style.display = 'none';
+                if (mainTableRow) mainTableRow.style.display = 'flex';
                 container.style.display = 'block';
             } else if (activeSistema === 'todas') {
-                if (mainTableRow) mainTableRow.style.display = 'none';
+                if (mainTableRow) mainTableRow.style.display = 'flex';
                 container.style.display = 'none';
             } else { // 'varamas'
                 if (mainTableRow) mainTableRow.style.display = 'flex';
@@ -1075,6 +1099,69 @@
             document.getElementById('ms-efectivo-boveda').innerText = formatter.format(detail.efectivo_boveda || 0);
             document.getElementById('ms-reimpresiones-total').innerText = formatter.format(detail.reimpresiones_total || 0);
             document.getElementById('ms-comision-tarjetas-total').innerText = formatter.format(detail.comision_tarjetas_total || 0);
+
+            // Actualizar Metas y Porcentajes al final de cada cuadro de MySonda
+            if (data) {
+                // 1. Empeños Meta
+                const empenosMeta = Number(data['Empeño']?._total?.meta || 0);
+                const empenosAvance = Number(detail.empenos_prestamo || data['Empeño']?._total?.avance || 0);
+                const msEmpenosMetaEl = document.getElementById('ms-empenos-meta');
+                if (msEmpenosMetaEl) {
+                    const pct = empenosMeta > 0 ? Math.round((empenosAvance / empenosMeta) * 100) : 0;
+                    const badgeClass = getBadgeColorClass(pct);
+                    msEmpenosMetaEl.innerHTML = `<span class="fw-bold text-dark me-2">${formatter.format(empenosMeta)}</span> <span class="badge ${badgeClass} badge-progress">${pct}%</span>`;
+                }
+
+                // 2. Refrendos Meta
+                const refrendosMeta = Number(data['Refrendos']?._total?.meta || 0);
+                const refrendosAvance = Number(detail.refrendos_prestamo || data['Refrendos']?._total?.avance || 0);
+                const msRefrendosMetaEl = document.getElementById('ms-refrendos-meta');
+                if (msRefrendosMetaEl) {
+                    const pct = refrendosMeta > 0 ? Math.round((refrendosAvance / refrendosMeta) * 100) : 0;
+                    const badgeClass = getBadgeColorClass(pct);
+                    msRefrendosMetaEl.innerHTML = `<span class="fw-bold text-dark me-2">${formatter.format(refrendosMeta)}</span> <span class="badge ${badgeClass} badge-progress">${pct}%</span>`;
+                }
+
+                // 3. Desempeño Meta
+                const desempenosMeta = Number(data['Desempeño']?._total?.meta || 0);
+                const desempenosAvance = Number(detail.desempenos_prestamo || data['Desempeño']?._total?.avance || 0);
+                const msDesempenosMetaEl = document.getElementById('ms-desempenos-meta');
+                if (msDesempenosMetaEl) {
+                    const pct = desempenosMeta > 0 ? Math.round((desempenosAvance / desempenosMeta) * 100) : 0;
+                    const badgeClass = getBadgeColorClass(pct);
+                    msDesempenosMetaEl.innerHTML = `<span class="fw-bold text-dark me-2">${formatter.format(desempenosMeta)}</span> <span class="badge ${badgeClass} badge-progress">${pct}%</span>`;
+                }
+
+                // 4. Ventas Meta
+                const ventasMeta = Number(data['Ventas']?._total?.meta || 0);
+                const ventasAvance = Number(vtVal || data['Ventas']?._total?.avance || 0);
+                const msVentasMetaEl = document.getElementById('ms-ventas-meta');
+                if (msVentasMetaEl) {
+                    const pct = ventasMeta > 0 ? Math.round((ventasAvance / ventasMeta) * 100) : 0;
+                    const badgeClass = getBadgeColorClass(pct);
+                    msVentasMetaEl.innerHTML = `<span class="fw-bold text-dark me-2">${formatter.format(ventasMeta)}</span> <span class="badge ${badgeClass} badge-progress">${pct}%</span>`;
+                }
+
+                // 5. Apartados Liquidados Meta
+                const apartadosMeta = Number(data['Apartados Liquidados']?._total?.meta || 0);
+                const apartadosAvance = Number(detail.apartados_liquidados_precio || data['Apartados Liquidados']?._total?.avance || 0);
+                const msApartadosMetaEl = document.getElementById('ms-apartados-meta');
+                if (msApartadosMetaEl) {
+                    const pct = apartadosMeta > 0 ? Math.round((apartadosAvance / apartadosMeta) * 100) : 0;
+                    const badgeClass = getBadgeColorClass(pct);
+                    msApartadosMetaEl.innerHTML = `<span class="fw-bold text-dark me-2">${formatter.format(apartadosMeta)}</span> <span class="badge ${badgeClass} badge-progress">${pct}%</span>`;
+                }
+
+                // 6. Bazar Meta
+                const bazarMeta = Number(data['Bazar']?._total?.meta || 0);
+                const bazarAvance = Number(data['Bazar']?._total?.avance || 0);
+                const msBazarMetaEl = document.getElementById('ms-bazar-meta');
+                if (msBazarMetaEl) {
+                    const pct = bazarMeta > 0 ? Math.round((bazarAvance / bazarMeta) * 100) : 0;
+                    const badgeClass = getBadgeColorClass(pct);
+                    msBazarMetaEl.innerHTML = `<span class="fw-bold text-dark me-2">${formatter.format(bazarMeta)}</span> <span class="badge ${badgeClass} badge-progress">${pct}%</span>`;
+                }
+            }
         }
 
         function calculatePercentage(avance, meta) {

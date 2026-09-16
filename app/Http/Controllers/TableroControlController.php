@@ -111,6 +111,8 @@ class TableroControlController extends Controller
 
         $baseConfig = Config::get('database.connections.mysql');
 
+        $sucursalesConMetaCargada = [];
+
         // 1. Procesar sucursales de Sistema Varamas (SVM) desde sus bases de datos prendarias
         foreach ($varamasSucursales as $sucursal) {
             $dbName = 'sistema_prendario_' . $sucursal->id_valora_mas;
@@ -137,6 +139,10 @@ class TableroControlController extends Controller
                     'mesInicio' => $mesInicio,
                     'mesFin' => $mesFin
                 ]);
+
+                if (count($metasQuery) > 0) {
+                    $sucursalesConMetaCargada[] = (int)$sucursal->id;
+                }
 
                 foreach ($metasQuery as $metaRow) {
                     $dbInd = $metaRow->indicador;
@@ -1053,6 +1059,38 @@ class TableroControlController extends Controller
                 ->first();
         }
 
+        // 3. Procesar metas desde valorama_intranet.resumen_operaciones_metas para sucursales pendientes (incluyendo MySonda)
+        $sucursalesParaIntranetMetas = $sucursalesSeleccionadas->reject(function($s) use ($sucursalesConMetaCargada) {
+            return in_array((int)$s->id, $sucursalesConMetaCargada);
+        });
+
+        if ($sucursalesParaIntranetMetas->count() > 0) {
+            $intranetSucursalIds = $sucursalesParaIntranetMetas->pluck('id')->toArray();
+            $intranetMetas = DB::table('resumen_operaciones_metas')
+                ->whereIn('sucursal_id', $intranetSucursalIds)
+                ->where('anio', $anio)
+                ->whereBetween('mes', [$mesInicio, $mesFin])
+                ->get();
+
+            foreach ($intranetMetas as $metaRow) {
+                $dbInd = $metaRow->indicador;
+
+                // Omitir agregados pre-calculados para que el controlador los calcule dinámicamente
+                if (in_array($dbInd, ['Interés + Util Vta', 'Utilidad Neta del Mes'])) {
+                    continue;
+                }
+
+                foreach ($standardIndicators as $stdInd) {
+                    if ($this->matchMeta($dbInd, $stdInd)) {
+                        $tablero[$stdInd]['MERCANCIA GENERAL']['meta'] += (float)($metaRow->mg_meta ?? 0);
+                        $tablero[$stdInd]['ORO']['meta'] += (float)($metaRow->oro_meta ?? 0);
+                        $tablero[$stdInd]['PLATA']['meta'] += (float)($metaRow->plata_meta ?? 0);
+                        $tablero[$stdInd]['AUTOS']['meta'] += (float)($metaRow->autos_meta ?? 0);
+                    }
+                }
+            }
+        }
+
         // Calculate derived/calculated indicators for each category
         foreach ($categories as $cat) {
             // Interés + Util Vta
@@ -1170,8 +1208,10 @@ class TableroControlController extends Controller
             $derecha = trim($partes[1]);
             
             if (strpos($stdInd, 'garantias') === 0) {
-                if ($dbInd === 'garantias - ' . $derecha || $dbInd === $derecha || strpos($dbInd, $derecha) !== false) {
-                    return true;
+                if (strpos($dbInd, 'garantias') === 0) {
+                    if ($dbInd === 'garantias - ' . $derecha || $cleanDb === 'garantias ' . $derecha || strpos($dbInd, $derecha) !== false) {
+                        return true;
+                    }
                 }
             } else {
                 if ($dbInd === $izquierda || strpos($dbInd, $izquierda) !== false) {
