@@ -433,7 +433,7 @@
                         <strong class="d-block mb-1 border-bottom pb-1">Desglose de Ingresos (Entradas):</strong>
                         <div class="d-flex justify-content-between"><span>Inventario Inicial:</span> <span class="fw-bold text-success">${formatter.format(data.inventarioInicial || 0)}</span></div>
                         <div class="d-flex justify-content-between"><span>Dotaciones (+):</span> <span class="fw-bold">${formatter.format(data.dotaciones || 0)}</span></div>
-                        <div class="d-flex justify-content-between"><span>Depositaria (+):</span> <span class="fw-bold">${formatter.format(data.depositaria || 0)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Pase a Almoneda (+):</span> <span class="fw-bold">${formatter.format(data.depositaria || 0)}</span></div>
                         <div class="d-flex justify-content-between"><span>Devolución Crédito (+):</span> <span class="fw-bold">${formatter.format(data.devolucion || 0)}</span></div>
                         <div class="d-flex justify-content-between"><span>Remate Apartados (+):</span> <span class="fw-bold">${formatter.format(data.remate || 0)}</span></div>
                         <hr class="my-1">

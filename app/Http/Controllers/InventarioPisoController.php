@@ -270,17 +270,17 @@ class InventarioPisoController extends Controller
 
                 // ================= NUEVOS CÁLCULOS DE FLUJO (PISO DE VENTA) =================
                 
-                // 1. Inventario Inicial: Items que ya estaban en Piso de Venta (status 9) antes de la fecha de inicio
+                // 1. Inventario Inicial: Items que estaban en Piso de Venta (status 9) al inicio de la fecha seleccionada (usando histórico)
                 $invInicialQ = DB::connection($connectionName)->selectOne("
-                    SELECT COALESCE(SUM(prestamo), 0) AS total
+                    SELECT COALESCE(SUM(h.prestamo), 0) AS total
                     FROM (
-                        SELECT prestamo FROM alhajas WHERE cod_estatus_prenda = 9 AND (p_venta IS NULL OR p_venta < :fIni1)
-                        UNION ALL
-                        SELECT prestamo FROM varios WHERE cod_estatus_prenda = 9 AND (p_venta IS NULL OR p_venta < :fIni2)
-                        UNION ALL
-                        SELECT prestamo FROM autos WHERE cod_estatus_prenda = 9 AND (p_venta IS NULL OR p_venta < :fIni3)
-                    ) as t
-                ", [':fIni1' => $fechaInicio, ':fIni2' => $fechaInicio, ':fIni3' => $fechaInicio]);
+                        SELECT h.prestamo, h.cod_estatus_prenda,
+                               ROW_NUMBER() OVER (PARTITION BY h.cod_prenda, h.cod_tipo_prenda ORDER BY h.f_movimiento DESC, h.id_historico DESC) AS rn
+                        FROM historico_articulos h
+                        WHERE h.f_movimiento < :fIni
+                    ) h
+                    WHERE h.rn = 1 AND h.cod_estatus_prenda = 9
+                ", [':fIni' => $fechaInicio]);
                 $globalInventarioInicial += (float)($invInicialQ->total ?? 0);
 
                 // 2. Dotaciones (Transferencias/Sourcing y Compras Directas): Items que entraron a Piso de Venta sin contrato (cod_contrato IS NULL)

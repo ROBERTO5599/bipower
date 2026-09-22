@@ -71,19 +71,22 @@ class InventarioCreditoController extends Controller
                     throw new \Exception("Base MySQL configuration not found.");
                 }
 
-                // ========== 1. INVENTARIO INICIAL (Artículos en crédito estatus 12) ==========
+                // ========== 1. INVENTARIO INICIAL (Artículos en crédito estatus 11 o 12 al inicio de la fecha seleccionada) ==========
                 $inventarioActual = DB::connection($connectionName)->selectOne("
                     SELECT 
-                        COALESCE(SUM(prestamo), 0) AS total_prestamo,
+                        COALESCE(SUM(h.prestamo), 0) AS total_prestamo,
                         COUNT(*) AS cantidad
                     FROM (
-                        SELECT prestamo FROM alhajas WHERE cod_estatus_prenda = 12
-                        UNION ALL
-                        SELECT prestamo FROM varios WHERE cod_estatus_prenda = 12
-                        UNION ALL
-                        SELECT prestamo FROM autos WHERE cod_estatus_prenda = 12
-                    ) AS inventario
-                ");
+                        SELECT h.prestamo, h.cod_estatus_prenda,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY h.cod_tipo_prenda, h.cod_prenda 
+                                   ORDER BY h.f_movimiento DESC, h.id_historico DESC
+                               ) AS rn
+                        FROM historico_articulos h
+                        WHERE h.f_movimiento < :fIni
+                    ) h
+                    WHERE h.rn = 1 AND h.cod_estatus_prenda IN (11, 12)
+                ", [':fIni' => $fechaInicio]);
                 
                 $inventarioSucursal = (float) ($inventarioActual->total_prestamo ?? 0);
                 $totalInventarioInicialGlobal += $inventarioSucursal;

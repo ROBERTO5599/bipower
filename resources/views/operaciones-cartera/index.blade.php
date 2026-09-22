@@ -139,7 +139,7 @@
                         <div class="icon-shape bg-light-danger text-danger"><i class="bi bi-arrow-up-right-circle-fill"></i></div>
                     </div>
                     <h2 class="fw-bold text-dark mb-0" id="kpi-egresos-total">$ 0.00</h2>
-                    <span class="text-muted small">Desempeños + Abonos a Capital</span>
+                    <span class="text-muted small">Desempeños + Abonos + Pase Almoneda</span>
                 </div>
             </div>
         </div>
@@ -542,16 +542,17 @@
         function updateDashboard(data) {
             // Balance calculations based on user requirements:
             // Ingresos (Entradas de Depositaria) = Empeños + Refrendos Extemporáneos
-            // Egresos (Salidas de Depositaria) = Desempeños + Abonos a Capital
+            // Egresos (Salidas de Depositaria) = Desempeños + Abonos a Capital + Pase a Almoneda
             // Total Inventario en Depositaria = Ingresos - Egresos
             const refrendosMonto = data.refrendos ? (data.refrendos.monto || 0) : 0;
             const refrendosExtMonto = data.refrendos_extemporaneos ? (data.refrendos_extemporaneos.monto || 0) : 0;
             const abonosMonto = data.abonos_capital ? (data.abonos_capital.monto || 0) : 0;
             const desempenosMonto = data.desempenos ? (data.desempenos.monto || 0) : 0;
             const empenosMonto = data.empenos ? (data.empenos.monto_total || 0) : 0;
+            const paseAlmonedaMonto = data.pase_almoneda ? (data.pase_almoneda.monto || 0) : 0;
 
             const ingresosTotal = empenosMonto + refrendosExtMonto;
-            const egresosTotal = desempenosMonto + abonosMonto;
+            const egresosTotal = desempenosMonto + abonosMonto + paseAlmonedaMonto;
             const depositariaTotalFlow = ingresosTotal - egresosTotal;
             
             updateElement('kpi-ingresos-total', formatter.format(ingresosTotal));
@@ -581,10 +582,11 @@
             const tooltipEgresosEl = document.getElementById('tooltip-egresos');
             if (tooltipEgresosEl && typeof bootstrap !== 'undefined') {
                 let tooltipHtmlEgresos = `
-                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 220px;">
+                    <div class="custom-tooltip text-start" style="font-size:0.8rem; line-height: 1.5; min-width: 230px;">
                         <strong class="d-block mb-1 border-bottom pb-1">Desglose de Egresos:</strong>
-                        <div class="d-flex justify-content-between"><span>Desempeños:</span> <span class="fw-bold">${formatter.format(desempenosMonto)}</span></div>
-                        <div class="d-flex justify-content-between"><span>Abonos a Capital:</span> <span class="fw-bold">${formatter.format(abonosMonto)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Desempeños (-):</span> <span class="fw-bold">${formatter.format(desempenosMonto)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Abonos a Capital (-):</span> <span class="fw-bold">${formatter.format(abonosMonto)}</span></div>
+                        <div class="d-flex justify-content-between"><span>Pase a Almoneda (-):</span> <span class="fw-bold">${formatter.format(paseAlmonedaMonto)}</span></div>
                         <hr class="my-1">
                         <div class="d-flex justify-content-between fw-bold"><span>EGRESOS TOTALES</span> <span class="text-danger">${formatter.format(egresosTotal)}</span></div>
                     </div>

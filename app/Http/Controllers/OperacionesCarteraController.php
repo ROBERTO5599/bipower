@@ -106,6 +106,18 @@ class OperacionesCarteraController extends Controller
                     'SIN CATEGORIA' => ['contratos' => 0, 'monto' => 0]
                 ]
             ],
+            'pase_almoneda' => [
+                'total' => 0,
+                'monto' => 0,
+                'categorias' => [
+                    'AUTOS' => ['contratos' => 0, 'monto' => 0],
+                    'ORO' => ['contratos' => 0, 'monto' => 0],
+                    'PLATA' => ['contratos' => 0, 'monto' => 0],
+                    'OTROS METALES' => ['contratos' => 0, 'monto' => 0],
+                    'MERCANCIA GENERAL' => ['contratos' => 0, 'monto' => 0],
+                    'SIN CATEGORIA' => ['contratos' => 0, 'monto' => 0]
+                ]
+            ],
             'cartera' => [
                 'vigente' => 0,
                 'vencida' => 0,
@@ -466,6 +478,64 @@ class OperacionesCarteraController extends Controller
                 }
 
                 // ============================================
+                // 3.2 PASE A ALMONEDA (Salida de Depositaria a Piso de Venta / Status 9)
+                // ============================================
+                $paseAlmonedaRes = DB::connection($connectionName)->select("
+                    SELECT 
+                        categoria,
+                        COUNT(DISTINCT cod_contrato) AS contratos,
+                        COALESCE(SUM(prestamo), 0) AS monto
+                    FROM (
+                        SELECT 
+                            cod_contrato,
+                            prestamo,
+                            CASE
+                                WHEN kilataje BETWEEN 8   AND 26  THEN 'ORO'
+                                WHEN kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                ELSE 'OTROS METALES'
+                            END AS categoria
+                        FROM alhajas 
+                        WHERE cod_estatus_prenda = 9 AND cod_contrato IS NOT NULL AND p_venta BETWEEN :fIni1 AND :fFin1
+
+                        UNION ALL
+
+                        SELECT 
+                            cod_contrato,
+                            prestamo,
+                            'MERCANCIA GENERAL' AS categoria
+                        FROM varios 
+                        WHERE cod_estatus_prenda = 9 AND cod_contrato IS NOT NULL AND p_venta BETWEEN :fIni2 AND :fFin2
+
+                        UNION ALL
+
+                        SELECT 
+                            cod_contrato,
+                            prestamo,
+                            'AUTOS' AS categoria
+                        FROM autos 
+                        WHERE cod_estatus_prenda = 9 AND cod_contrato IS NOT NULL AND p_venta BETWEEN :fIni3 AND :fFin3
+                    ) AS t
+                    GROUP BY categoria
+                ", [
+                    ':fIni1' => $fechaInicio, ':fFin1' => $fechaFinQuery,
+                    ':fIni2' => $fechaInicio, ':fFin2' => $fechaFinQuery,
+                    ':fIni3' => $fechaInicio, ':fFin3' => $fechaFinQuery
+                ]);
+
+                foreach ($paseAlmonedaRes as $row) {
+                    $cat = $row->categoria;
+                    $monto = (float)$row->monto;
+                    $contratos = (int)$row->contratos;
+
+                    $data['pase_almoneda']['total'] += $contratos;
+                    $data['pase_almoneda']['monto'] += $monto;
+                    if (isset($data['pase_almoneda']['categorias'][$cat])) {
+                        $data['pase_almoneda']['categorias'][$cat]['contratos'] += $contratos;
+                        $data['pase_almoneda']['categorias'][$cat]['monto'] += $monto;
+                    }
+                }
+
+                // ============================================
                 // 4. CARTERA VIGENTE/VENCIDA (MovimientosIndicadorBC - Depositaria / INVENTARIO)
                 // ============================================
                 $inventarioResult = DB::connection($connectionName)->select("
@@ -488,12 +558,12 @@ class OperacionesCarteraController extends Controller
                                 WHEN h.cod_estatus_prenda = 2 OR (c.f_vencimiento IS NOT NULL AND c.f_vencimiento < :f1) THEN 'Vencida'
                                 ELSE 'Vigente'
                             END AS estado_cartera,
-                            (h.prestamo - COALESCE(c.abono, 0)) AS prestamo,
+                            h.prestamo AS prestamo,
                             h.cod_prenda
                         FROM (
                             SELECT h.cod_prenda, h.prestamo, h.cod_estatus_prenda, h.cod_contrato,
                                    ROW_NUMBER() OVER (
-                                       PARTITION BY h.cod_prenda
+                                       PARTITION BY h.cod_tipo_prenda, h.cod_prenda
                                        ORDER BY h.f_movimiento DESC, h.id_historico DESC
                                    ) AS rn
                             FROM historico_articulos h
@@ -515,12 +585,12 @@ class OperacionesCarteraController extends Controller
                                 WHEN h.cod_estatus_prenda = 2 OR (c.f_vencimiento IS NOT NULL AND c.f_vencimiento < :f2) THEN 'Vencida'
                                 ELSE 'Vigente'
                             END AS estado_cartera,
-                            (h.prestamo - COALESCE(c.abono, 0)) AS prestamo,
+                            h.prestamo AS prestamo,
                             h.cod_prenda
                         FROM (
                             SELECT h.cod_prenda, h.prestamo, h.cod_estatus_prenda, h.cod_contrato,
                                    ROW_NUMBER() OVER (
-                                       PARTITION BY h.cod_prenda
+                                       PARTITION BY h.cod_tipo_prenda, h.cod_prenda
                                        ORDER BY h.f_movimiento DESC, h.id_historico DESC
                                    ) AS rn
                             FROM historico_articulos h
@@ -541,12 +611,12 @@ class OperacionesCarteraController extends Controller
                                 WHEN h.cod_estatus_prenda = 2 OR (c.f_vencimiento IS NOT NULL AND c.f_vencimiento < :f3) THEN 'Vencida'
                                 ELSE 'Vigente'
                             END AS estado_cartera,
-                            (h.prestamo - COALESCE(c.abono, 0)) AS prestamo,
+                            h.prestamo AS prestamo,
                             h.cod_prenda
                         FROM (
                             SELECT h.cod_prenda, h.prestamo, h.cod_estatus_prenda, h.cod_contrato,
                                    ROW_NUMBER() OVER (
-                                       PARTITION BY h.cod_prenda
+                                       PARTITION BY h.cod_tipo_prenda, h.cod_prenda
                                        ORDER BY h.f_movimiento DESC, h.id_historico DESC
                                    ) AS rn
                             FROM historico_articulos h
