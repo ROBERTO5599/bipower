@@ -21,6 +21,17 @@
 			border-color: #4f46e5 !important;
 			box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3) !important;
 		}
+		.btn-view-toggle {
+			border-radius: 6px;
+			font-weight: 600;
+			transition: all 0.2s ease;
+		}
+		.btn-view-toggle.active {
+			background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%) !important;
+			color: #fff !important;
+			border-color: #4f46e5 !important;
+			box-shadow: 0 3px 8px rgba(79, 70, 229, 0.25) !important;
+		}
 		.chart-container-movs {
 			position: relative;
 			height: 330px;
@@ -164,40 +175,63 @@
 				<div class="col-lg-7 col-12">
 					<div class="d-flex flex-wrap gap-2 justify-content-lg-end align-items-center">
 						<!-- Selector de Sucursal -->
-						<div style="min-width: 180px;">
+						<div style="min-width: 190px;">
 							<label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-shop me-1 text-primary"></i>Sucursal</label>
 							<select id="mov-sucursal" class="form-select form-select-sm fw-semibold shadow-none">
+								<option value="all" selected>-- Todas las Sucursales --</option>
 								@if(isset($sucursalesList))
 									@foreach($sucursalesList as $s)
-										<option value="{{ $s->id_valora_mas }}" {{ $s->id_valora_mas == 2 ? 'selected' : '' }}>
+										<option value="{{ $s->id_valora_mas }}">
 											{{ $s->nombre }}
 										</option>
 									@endforeach
 								@endif
-								<option value="all">-- Todas las Sucursales --</option>
 							</select>
 						</div>
 
-						<!-- Selector de Periodo: Día / Semana / Mes -->
+						<!-- Selector de Periodo: Hoy / Ayer / Semana / Mes / Rango -->
 						<div>
 							<label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-calendar-range me-1 text-primary"></i>Periodo</label>
 							<div class="btn-group btn-group-sm w-100" role="group">
-								<button type="button" class="btn btn-outline-primary btn-periodo active" data-periodo="dia">
-									<i class="bi bi-calendar-day me-1"></i>Día
+								<button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="hoy" title="Consultar operaciones de hoy">
+									Hoy
 								</button>
-								<button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="semana">
-									<i class="bi bi-calendar-week me-1"></i>Semana
+								<button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="ayer" title="Consultar operaciones de ayer">
+									Ayer
 								</button>
-								<button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="mes">
-									<i class="bi bi-calendar-month me-1"></i>Mes
+								<button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="dia" title="Consultar un día específico">
+									Día
+								</button>
+								<button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="semana" title="Consultar semana">
+									Semana
+								</button>
+								<button type="button" class="btn btn-outline-primary btn-periodo active" data-periodo="mes" title="Consultar mes">
+									Mes
+								</button>
+								<button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="rango" title="Filtrar por rango de fechas">
+									Rango
 								</button>
 							</div>
 						</div>
 
-						<!-- Selector de Fecha -->
-						<div style="min-width: 135px;">
+						<!-- Selector de Fecha Única (para Hoy, Ayer, Semana, Mes) -->
+						<div id="container-fecha-unica" style="min-width: 130px;">
 							<label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-calendar3 me-1 text-primary"></i>Fecha</label>
 							<input type="date" id="mov-fecha" class="form-control form-control-sm shadow-none" value="{{ now()->toDateString() }}">
+						</div>
+
+						<!-- Selector de Rango de Fechas (para Rango personalizado) -->
+						<div id="container-fecha-rango" class="d-none" style="min-width: 250px;">
+							<div class="row g-1">
+								<div class="col-6">
+									<label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-calendar-event me-1 text-primary"></i>Desde</label>
+									<input type="date" id="mov-fecha-inicio" class="form-control form-control-sm shadow-none" value="{{ now()->startOfMonth()->toDateString() }}">
+								</div>
+								<div class="col-6">
+									<label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-calendar-check me-1 text-primary"></i>Hasta</label>
+									<input type="date" id="mov-fecha-fin" class="form-control form-control-sm shadow-none" value="{{ now()->toDateString() }}">
+								</div>
+							</div>
 						</div>
 
 						<!-- Selector de Tipo de Movimiento -->
@@ -214,10 +248,11 @@
 								<option value="7">Anticipo Apartado</option>
 								<option value="8">Abono Apartado</option>
 								<option value="12">Liquidación Apartado</option>
-								<option value="9">Dotación Caja</option>
-								<option value="15">Inicio Caja</option>
 								<option value="19">Enganche Crédito</option>
 								<option value="20">Pago Crédito</option>
+								<option value="21">Liquidación Crédito</option>
+								<option value="23">Devolución Crédito</option>
+								<option value="18">Gastos</option>
 							</select>
 						</div>
 
@@ -238,7 +273,7 @@
 						<i class="bi bi-clock me-1"></i>Consultando...
 					</span>
 					<span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold" id="label-sucursal-activa">
-						<i class="bi bi-geo-alt-fill text-danger me-1"></i>ATLACOMULCO
+						<i class="bi bi-geo-alt-fill text-danger me-1"></i>Todas las Sucursales
 					</span>
 				</div>
 				<div id="mov-loading-spinner" class="d-none align-items-center text-primary">
@@ -323,7 +358,7 @@
 				<!-- Gráfica Principal: Por Hora / Evolución del Periodo -->
 				<div class="col-12 col-xl-8">
 					<div class="card border-0 shadow-sm rounded-3 p-3 h-100">
-						<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
+						<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-2">
 							<div>
 								<h6 class="fw-bold mb-0 text-dark">
 									<i class="bi bi-bar-chart-fill text-primary me-2"></i>
@@ -331,13 +366,26 @@
 								</h6>
 								<small class="text-muted" id="chart-main-subtitle">Conteo de transacciones por cada hora</small>
 							</div>
-							<div class="btn-group btn-group-sm mt-2 mt-sm-0" role="group">
-								<button type="button" class="btn btn-outline-secondary active btn-metric-toggle" data-metric="counts">
-									<i class="bi bi-hash me-1"></i>Conteo (#)
-								</button>
-								<button type="button" class="btn btn-outline-secondary btn-metric-toggle" data-metric="montos">
-									<i class="bi bi-currency-dollar me-1"></i>Monto ($)
-								</button>
+							<div class="d-flex flex-wrap align-items-center gap-2">
+								<!-- Selector de Vista: Por Horas vs Por Días (Visible en Mes y Semana) -->
+								<div class="btn-group btn-group-sm" role="group" id="view-toggle-container" style="display: none;">
+									<button type="button" class="btn btn-outline-primary active btn-view-toggle" data-view="horas" id="btn-view-horas" title="Ver movimientos agrupados por hora (07:00 a 20:00 hrs)">
+										<i class="bi bi-clock-history me-1"></i>Por Horas
+									</button>
+									<button type="button" class="btn btn-outline-primary btn-view-toggle" data-view="dias" id="btn-view-dias" title="Ver evolución día a día">
+										<i class="bi bi-calendar-date me-1"></i>Por Días
+									</button>
+								</div>
+
+								<!-- Selector de Métrica: Conteo (#) vs Monto ($) -->
+								<div class="btn-group btn-group-sm" role="group">
+									<button type="button" class="btn btn-outline-secondary active btn-metric-toggle" data-metric="counts">
+										<i class="bi bi-hash me-1"></i>Conteo (#)
+									</button>
+									<button type="button" class="btn btn-outline-secondary btn-metric-toggle" data-metric="montos">
+										<i class="bi bi-currency-dollar me-1"></i>Monto ($)
+									</button>
+								</div>
 							</div>
 						</div>
 						<div class="chart-container-movs">
@@ -350,10 +398,13 @@
 				<div class="col-12 col-xl-4">
 					<div class="card border-0 shadow-sm rounded-3 p-3 h-100 d-flex flex-column">
 						<div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
-							<h6 class="fw-bold mb-0 text-dark">
-								<i class="bi bi-pie-chart-fill text-success me-2"></i>
-								Por Tipo de Movimiento
-							</h6>
+							<div>
+								<h6 class="fw-bold mb-0 text-dark">
+									<i class="bi bi-pie-chart-fill text-success me-2"></i>
+									Por Tipo de Movimiento
+								</h6>
+								<small class="text-muted" style="font-size: 0.72rem;">Sin dotaciones ni inicios de caja</small>
+							</div>
 						</div>
 						<div style="position: relative; height: 180px;" class="mb-3">
 							<canvas id="chartTipos"></canvas>
@@ -555,7 +606,8 @@
 			let chartMovimientosInstance = null;
 			let chartTiposInstance = null;
 			let currentMetric = 'counts'; // 'counts' o 'montos'
-			let currentPeriodo = 'dia';   // 'dia', 'semana', 'mes'
+			let currentPeriodo = 'mes';   // Por defecto 'mes' con horas y todas las sucursales
+			let currentView = 'horas';    // 'horas' o 'dias'
 			let cachedData = null;
 			let allMovements = [];
 			let filteredMovements = [];
@@ -579,25 +631,33 @@
 				6: { bg: '#dc3545', color: '#ffffff' },  // Venta Mayoreo (Rojo)
 				7: { bg: '#8b5cf6', color: '#ffffff' },  // Anticipo Apartado (Morado)
 				8: { bg: '#059669', color: '#ffffff' },  // Abono Apartado (Esmeralda)
-				9: { bg: '#4b5563', color: '#ffffff' },  // Dotación Caja (Gris carbón)
-				10: { bg: '#475569', color: '#ffffff' }, // Dotación Bóveda (Pizarra)
+				10: { bg: '#475569', color: '#ffffff' }, // Retiro de Bóveda (Pizarra)
 				12: { bg: '#6366f1', color: '#ffffff' }, // Liquidación Apartado (Índigo vivo)
-				14: { bg: '#4b5563', color: '#ffffff' }, // Retiro a Bóveda
-				15: { bg: '#1f2937', color: '#ffffff' }, // Inicio Caja (Gris oscuro)
-				16: { bg: '#111827', color: '#ffffff' }, // Cierre Caja
+				14: { bg: '#64748b', color: '#ffffff' }, // Retiro Caja a Bóveda
+				16: { bg: '#94a3b8', color: '#ffffff' }, // Cierre Caja
+				18: { bg: '#e11d48', color: '#ffffff' }, // Gastos
 				19: { bg: '#0284c7', color: '#ffffff' }, // Enganche Crédito (Sky)
 				20: { bg: '#15803d', color: '#ffffff' }, // Pago Crédito (Verde bosque)
-				21: { bg: '#374151', color: '#ffffff' }  // Liquidación Crédito
+				21: { bg: '#374151', color: '#ffffff' }, // Liquidación Crédito
+				22: { bg: '#d97706', color: '#ffffff' }, // Devolución Garantía
+				23: { bg: '#78716c', color: '#ffffff' }, // Devolución Crédito
+				24: { bg: '#0891b2', color: '#ffffff' }  // Retiro Bancos
 			};
 
 			// Elementos del DOM
 			const sucursalSelect = document.getElementById('mov-sucursal');
 			const fechaInput = document.getElementById('mov-fecha');
+			const containerFechaUnica = document.getElementById('container-fecha-unica');
+			const containerFechaRango = document.getElementById('container-fecha-rango');
+			const fechaInicioInput = document.getElementById('mov-fecha-inicio');
+			const fechaFinInput = document.getElementById('mov-fecha-fin');
 			const tipoSelect = document.getElementById('mov-tipo');
 			const btnRecargar = document.getElementById('btn-recargar-movs');
 			const iconReload = document.getElementById('icon-reload');
 			const periodoButtons = document.querySelectorAll('.btn-periodo');
 			const metricButtons = document.querySelectorAll('.btn-metric-toggle');
+			const viewToggleContainer = document.getElementById('view-toggle-container');
+			const viewButtons = document.querySelectorAll('.btn-view-toggle');
 			const searchInput = document.getElementById('mov-search-input');
 			const loadingSpinner = document.getElementById('mov-loading-spinner');
 			const tableBody = document.getElementById('movs-table-body');
@@ -607,13 +667,74 @@
 			const btnNextPage = document.getElementById('btn-next-page');
 			const btnExportCsv = document.getElementById('btn-export-csv');
 
-			// Manejador de cambio de periodo (Día / Semana / Mes)
+			// Actualiza visibilidad y estado de botones Por Horas / Por Días
+			function updateViewButtons() {
+				if (!viewToggleContainer) return;
+				if (currentPeriodo === 'dia' || currentPeriodo === 'hoy' || currentPeriodo === 'ayer') {
+					viewToggleContainer.style.display = 'none';
+				} else {
+					viewToggleContainer.style.display = 'inline-flex';
+					viewButtons.forEach(b => {
+						if (b.getAttribute('data-view') === currentView) {
+							b.classList.add('active');
+						} else {
+							b.classList.remove('active');
+						}
+					});
+				}
+			}
+
+			// Manejador de cambio de periodo (Hoy / Ayer / Semana / Mes / Rango)
 			periodoButtons.forEach(btn => {
 				btn.addEventListener('click', function () {
 					periodoButtons.forEach(b => b.classList.remove('active'));
 					this.classList.add('active');
 					currentPeriodo = this.getAttribute('data-periodo');
+
+					if (currentPeriodo === 'rango') {
+						if (containerFechaUnica) containerFechaUnica.classList.add('d-none');
+						if (containerFechaRango) containerFechaRango.classList.remove('d-none');
+					} else {
+						if (containerFechaUnica) containerFechaUnica.classList.remove('d-none');
+						if (containerFechaRango) containerFechaRango.classList.add('d-none');
+						if (currentPeriodo === 'hoy') {
+							fechaInput.value = new Date().toISOString().slice(0, 10);
+						} else if (currentPeriodo === 'ayer') {
+							const d = new Date();
+							d.setDate(d.getDate() - 1);
+							fechaInput.value = d.toISOString().slice(0, 10);
+						}
+					}
+
+					// Al cambiar a Mes, Semana o Rango, la vista predeterminada es por horas
+					currentView = 'horas';
+					updateViewButtons();
 					fetchMovimientos();
+				});
+			});
+
+			// Eventos de cambio en inputs de fecha rango
+			if (fechaInicioInput) {
+				fechaInicioInput.addEventListener('change', function () {
+					if (currentPeriodo === 'rango') fetchMovimientos();
+				});
+			}
+			if (fechaFinInput) {
+				fechaFinInput.addEventListener('change', function () {
+					if (currentPeriodo === 'rango') fetchMovimientos();
+				});
+			}
+
+			// Manejador de cambio de vista (Por Horas vs Por Días)
+			viewButtons.forEach(btn => {
+				btn.addEventListener('click', function () {
+					viewButtons.forEach(b => b.classList.remove('active'));
+					this.classList.add('active');
+					currentView = this.getAttribute('data-view');
+					if (cachedData) {
+						updateKPIs(cachedData);
+						renderMainChart(cachedData);
+					}
 				});
 			});
 
@@ -680,6 +801,8 @@
 			function fetchMovimientos() {
 				const sucursalId = sucursalSelect.value;
 				const fecha = fechaInput.value;
+				const fechaInicio = fechaInicioInput ? fechaInicioInput.value : '';
+				const fechaFin = fechaFinInput ? fechaFinInput.value : '';
 				const tipo = tipoSelect.value;
 
 				// Mostrar spinner
@@ -688,7 +811,10 @@
 				if (iconReload) iconReload.classList.add('spin-animation');
 				btnRecargar.disabled = true;
 
-				const url = `/home/movimientos-data?sucursal_id=${encodeURIComponent(sucursalId)}&periodo=${encodeURIComponent(currentPeriodo)}&fecha=${encodeURIComponent(fecha)}&tipo_movimiento=${encodeURIComponent(tipo)}`;
+				let url = `/home/movimientos-data?sucursal_id=${encodeURIComponent(sucursalId)}&periodo=${encodeURIComponent(currentPeriodo)}&fecha=${encodeURIComponent(fecha)}&tipo_movimiento=${encodeURIComponent(tipo)}`;
+				if (currentPeriodo === 'rango') {
+					url += `&fecha_inicio=${encodeURIComponent(fechaInicio)}&fecha_fin=${encodeURIComponent(fechaFin)}`;
+				}
 
 				fetch(url)
 					.then(response => {
@@ -739,7 +865,10 @@
 				// Etiquetas de periodo y sucursal
 				const labelPeriodo = document.getElementById('label-periodo-activo');
 				if (labelPeriodo) {
-					labelPeriodo.innerHTML = `<i class="bi bi-calendar3 me-1"></i>${data.periodoLabel || ''}`;
+					let infoHoras = (currentPeriodo === 'mes' || currentPeriodo === 'semana' || currentPeriodo === 'rango')
+						? (currentView === 'horas' ? ' • <i class="bi bi-clock me-1"></i>07:00 a 20:00 hrs' : ' • <i class="bi bi-calendar-date me-1"></i>Vista Diaria')
+						: ' • <i class="bi bi-clock me-1"></i>07:00 a 20:00 hrs';
+					labelPeriodo.innerHTML = `<i class="bi bi-calendar3 me-1"></i>${data.periodoLabel || ''} <span class="badge bg-white text-primary border ms-1 py-1 px-2 fw-semibold">${infoHoras}</span>`;
 				}
 
 				const labelSucursal = document.getElementById('label-sucursal-activa');
@@ -760,25 +889,57 @@
 				const titleEl = document.getElementById('chart-main-title');
 				const subtitleEl = document.getElementById('chart-main-subtitle');
 
+				updateViewButtons();
+
 				let labels = [];
 				let datasetValues = [];
 				let labelMetric = currentMetric === 'counts' ? 'Cantidad de Movimientos' : 'Monto Operado ($)';
 
-				if (currentPeriodo === 'dia') {
+				if (currentPeriodo === 'dia' || currentPeriodo === 'hoy' || currentPeriodo === 'ayer') {
 					labels = data.por_hora.labels;
 					datasetValues = currentMetric === 'counts' ? data.por_hora.counts : data.por_hora.montos;
-					if (titleEl) titleEl.textContent = `Afluencia de Movimientos por Hora (${data.fecha})`;
+					if (titleEl) {
+						if (currentPeriodo === 'hoy') titleEl.textContent = `Afluencia de Movimientos de Hoy (${data.fecha})`;
+						else if (currentPeriodo === 'ayer') titleEl.textContent = `Afluencia de Movimientos de Ayer (${data.fecha})`;
+						else titleEl.textContent = `Afluencia de Movimientos por Hora (${data.fecha})`;
+					}
 					if (subtitleEl) subtitleEl.textContent = 'Distribución horaria detallada (07:00 a 20:00 hrs)';
 				} else if (currentPeriodo === 'semana') {
-					labels = data.por_periodo.labels;
-					datasetValues = currentMetric === 'counts' ? data.por_periodo.counts : data.por_periodo.montos;
-					if (titleEl) titleEl.textContent = `Movimientos por Día de la Semana (${data.periodoLabel})`;
-					if (subtitleEl) subtitleEl.textContent = 'Evolución de operaciones de Lunes a Domingo';
+					if (currentView === 'horas') {
+						labels = data.por_hora.labels;
+						datasetValues = currentMetric === 'counts' ? data.por_hora.counts : data.por_hora.montos;
+						if (titleEl) titleEl.textContent = `Movimientos por Hora en la Semana (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = 'Distribución horaria acumulada de Lunes a Domingo (07:00 a 20:00 hrs)';
+					} else {
+						labels = data.por_periodo.labels;
+						datasetValues = currentMetric === 'counts' ? data.por_periodo.counts : data.por_periodo.montos;
+						if (titleEl) titleEl.textContent = `Movimientos por Día de la Semana (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = 'Evolución de operaciones de Lunes a Domingo';
+					}
 				} else if (currentPeriodo === 'mes') {
-					labels = data.por_periodo.labels;
-					datasetValues = currentMetric === 'counts' ? data.por_periodo.counts : data.por_periodo.montos;
-					if (titleEl) titleEl.textContent = `Evolución Diaria del Mes (${data.periodoLabel})`;
-					if (subtitleEl) subtitleEl.textContent = 'Distribución día a día a lo largo del mes';
+					if (currentView === 'horas') {
+						labels = data.por_hora.labels;
+						datasetValues = currentMetric === 'counts' ? data.por_hora.counts : data.por_hora.montos;
+						if (titleEl) titleEl.textContent = `Afluencia de Movimientos por Hora en el Mes (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = 'Distribución horaria acumulada de las operaciones del mes (07:00 a 20:00 hrs)';
+					} else {
+						labels = data.por_periodo.labels;
+						datasetValues = currentMetric === 'counts' ? data.por_periodo.counts : data.por_periodo.montos;
+						if (titleEl) titleEl.textContent = `Evolución Diaria del Mes (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = 'Distribución día a día a lo largo del mes (haz clic en un día para ver sus horas)';
+					}
+				} else if (currentPeriodo === 'rango') {
+					if (currentView === 'horas') {
+						labels = data.por_hora.labels;
+						datasetValues = currentMetric === 'counts' ? data.por_hora.counts : data.por_hora.montos;
+						if (titleEl) titleEl.textContent = `Afluencia de Movimientos por Hora en el Rango (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = 'Distribución horaria acumulada en el rango seleccionado (07:00 a 20:00 hrs)';
+					} else {
+						labels = data.por_periodo.labels;
+						datasetValues = currentMetric === 'counts' ? data.por_periodo.counts : data.por_periodo.montos;
+						if (titleEl) titleEl.textContent = `Evolución Diaria en el Rango (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = 'Distribución día a día del rango seleccionado (haz clic en un día para ver sus horas)';
+					}
 				}
 
 				if (chartMovimientosInstance) {
@@ -812,6 +973,46 @@
 					options: {
 						responsive: true,
 						maintainAspectRatio: false,
+						onClick: function (evt, elements) {
+							// Si está en vista por días en el mes o rango, al hacer clic en un día, abre sus horas
+							if (elements && elements.length > 0 && currentView === 'dias' && (currentPeriodo === 'mes' || currentPeriodo === 'rango')) {
+								const idx = elements[0].index;
+								let selectedDateStr = null;
+								if (currentPeriodo === 'mes') {
+									const dayNum = idx + 1;
+									const curDate = new Date(fechaInput.value + 'T00:00:00');
+									curDate.setDate(dayNum);
+									const yyyy = curDate.getFullYear();
+									const mm = String(curDate.getMonth() + 1).padStart(2, '0');
+									const dd = String(dayNum).padStart(2, '0');
+									selectedDateStr = `${yyyy}-${mm}-${dd}`;
+								} else if (currentPeriodo === 'rango' && fechaInicioInput && fechaInicioInput.value) {
+									const curDate = new Date(fechaInicioInput.value + 'T00:00:00');
+									curDate.setDate(curDate.getDate() + idx);
+									const yyyy = curDate.getFullYear();
+									const mm = String(curDate.getMonth() + 1).padStart(2, '0');
+									const dd = String(curDate.getDate()).padStart(2, '0');
+									selectedDateStr = `${yyyy}-${mm}-${dd}`;
+								}
+
+								if (selectedDateStr) {
+									fechaInput.value = selectedDateStr;
+									if (containerFechaUnica) containerFechaUnica.classList.remove('d-none');
+									if (containerFechaRango) containerFechaRango.classList.add('d-none');
+
+									periodoButtons.forEach(b => {
+										if (b.getAttribute('data-periodo') === 'dia') {
+											b.classList.add('active');
+										} else {
+											b.classList.remove('active');
+										}
+									});
+									currentPeriodo = 'dia';
+									currentView = 'horas';
+									fetchMovimientos();
+								}
+							}
+						},
 						plugins: {
 							legend: {
 								display: false
@@ -822,12 +1023,25 @@
 								bodyFont: { size: 12 },
 								padding: 10,
 								callbacks: {
+									title: function (items) {
+										const item = items[0];
+										const lbl = item.label || '';
+										const isHourly = (currentView === 'horas' || currentPeriodo === 'dia' || currentPeriodo === 'hoy' || currentPeriodo === 'ayer');
+										if (isHourly) {
+											return `${lbl} hrs (${data.periodoLabel || data.fecha})`;
+										}
+										return `${lbl} (${data.periodoLabel || data.fecha})`;
+									},
 									label: function (context) {
-										const val = context.raw || 0;
+										const idx = context.dataIndex;
+										const isHourly = (currentView === 'horas' || currentPeriodo === 'dia' || currentPeriodo === 'hoy' || currentPeriodo === 'ayer');
+										const c = isHourly ? (data.por_hora.counts[idx] || 0) : (data.por_periodo.counts[idx] || 0);
+										const m = isHourly ? (data.por_hora.montos[idx] || 0) : (data.por_periodo.montos[idx] || 0);
+
 										if (currentMetric === 'counts') {
-											return ` Movimientos: ${numberFormatter.format(val)}`;
+											return ` Movimientos: ${numberFormatter.format(c)} (${currencyFormatter.format(m)})`;
 										} else {
-											return ` Monto: ${currencyFormatter.format(val)}`;
+											return ` Monto: ${currencyFormatter.format(m)} (${numberFormatter.format(c)} movs)`;
 										}
 									}
 								}

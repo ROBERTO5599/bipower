@@ -102,6 +102,14 @@
                         <i class="bi bi-funnel-fill me-2"></i> Filtrar
                     </button>
                 </div>
+                <div class="col-12 mt-2 pt-2 border-top d-flex flex-wrap gap-2 align-items-center">
+                    <span class="text-muted small fw-semibold me-1"><i class="bi bi-calendar-range me-1 text-primary"></i>Filtros rápidos de fecha:</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-fecha" data-quick="hoy">Hoy</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-fecha" data-quick="ayer">Ayer</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-fecha" data-quick="semana">Esta Semana</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary btn-quick-fecha active" data-quick="mes">Este Mes</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-fecha" data-quick="mes_anterior">Mes Anterior</button>
+                </div>
             </form>
         </div>
     </div>
@@ -466,6 +474,54 @@
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             loadData();
+        });
+
+        const quickButtons = document.querySelectorAll('.btn-quick-fecha');
+        quickButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                quickButtons.forEach(b => {
+                    b.classList.remove('active', 'btn-outline-primary');
+                    b.classList.add('btn-outline-secondary');
+                });
+                this.classList.remove('btn-outline-secondary');
+                this.classList.add('active', 'btn-outline-primary');
+
+                const range = this.getAttribute('data-quick');
+                const now = new Date();
+                const pad = n => String(n).padStart(2, '0');
+                const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+                const inputInicio = document.getElementById('fecha_inicio');
+                const inputFin = document.getElementById('fecha_fin');
+
+                if (range === 'hoy') {
+                    inputInicio.value = fmt(now);
+                    inputFin.value = fmt(now);
+                } else if (range === 'ayer') {
+                    const yesterday = new Date(now);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    inputInicio.value = fmt(yesterday);
+                    inputFin.value = fmt(yesterday);
+                } else if (range === 'semana') {
+                    const startOfWeek = new Date(now);
+                    const day = startOfWeek.getDay();
+                    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Lunes
+                    startOfWeek.setDate(diff);
+                    inputInicio.value = fmt(startOfWeek);
+                    inputFin.value = fmt(now);
+                } else if (range === 'mes') {
+                    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                    inputInicio.value = fmt(startOfMonth);
+                    inputFin.value = fmt(now);
+                } else if (range === 'mes_anterior') {
+                    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+                    inputInicio.value = fmt(startOfLastMonth);
+                    inputFin.value = fmt(endOfLastMonth);
+                }
+
+                loadData();
+            });
         });
 
         function loadData() {

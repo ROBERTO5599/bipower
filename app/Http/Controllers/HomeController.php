@@ -153,32 +153,67 @@ class HomeController extends Controller
         try {
             ini_set('max_execution_time', 120);
 
-            $sucursalId = $request->input('sucursal_id', '2'); // Por defecto Atlacomulco (2)
-            $periodo = $request->input('periodo', 'dia'); // 'dia', 'semana', 'mes'
+            $sucursalId = $request->input('sucursal_id', 'all'); // Por defecto todas las sucursales
+            $periodo = $request->input('periodo', 'mes'); // Por defecto 'mes' (o 'hoy'/'dia')
             $fecha = $request->input('fecha', now()->toDateString());
+            $fechaInicioReq = $request->input('fecha_inicio');
+            $fechaFinReq = $request->input('fecha_fin');
             $tipoFiltro = $request->input('tipo_movimiento', 'todos');
 
             $carbonFecha = Carbon::parse($fecha);
 
-            if ($periodo === 'semana') {
+            if ($periodo === 'rango' && $fechaInicioReq && $fechaFinReq) {
+                $cIni = Carbon::parse($fechaInicioReq);
+                $cFin = Carbon::parse($fechaFinReq);
+                $fechaInicio = $cIni->format('Y-m-d 00:00:00');
+                $fechaFin = $cFin->format('Y-m-d 23:59:59');
+                $periodoLabel = 'Rango del ' . $cIni->format('d/m/Y') . ' al ' . $cFin->format('d/m/Y');
+            } elseif ($periodo === 'rango') {
+                $cIni = Carbon::parse($fecha)->copy()->startOfMonth();
+                $cFin = Carbon::parse($fecha);
+                $fechaInicio = $cIni->format('Y-m-d 00:00:00');
+                $fechaFin = $cFin->format('Y-m-d 23:59:59');
+                $periodoLabel = 'Rango del ' . $cIni->format('d/m/Y') . ' al ' . $cFin->format('d/m/Y');
+            } elseif ($periodo === 'ayer') {
+                $carbonAyer = Carbon::now()->subDay();
+                $fechaInicio = $carbonAyer->format('Y-m-d 00:00:00');
+                $fechaFin = $carbonAyer->format('Y-m-d 23:59:59');
+                $periodoLabel = 'Ayer ' . $carbonAyer->format('d/m/Y');
+            } elseif ($periodo === 'hoy') {
+                $carbonHoy = Carbon::now();
+                $fechaInicio = $carbonHoy->format('Y-m-d 00:00:00');
+                $fechaFin = $carbonHoy->format('Y-m-d 23:59:59');
+                $periodoLabel = 'Hoy ' . $carbonHoy->format('d/m/Y');
+            } elseif ($periodo === 'semana') {
                 $fechaInicio = $carbonFecha->copy()->startOfWeek()->format('Y-m-d 00:00:00');
                 $fechaFin = $carbonFecha->copy()->endOfWeek()->format('Y-m-d 23:59:59');
                 $periodoLabel = 'Semana del ' . $carbonFecha->copy()->startOfWeek()->format('d/m/Y') . ' al ' . $carbonFecha->copy()->endOfWeek()->format('d/m/Y');
             } elseif ($periodo === 'mes') {
                 $fechaInicio = $carbonFecha->copy()->startOfMonth()->format('Y-m-d 00:00:00');
                 $fechaFin = $carbonFecha->copy()->endOfMonth()->format('Y-m-d 23:59:59');
-                $periodoLabel = 'Mes de ' . $carbonFecha->format('m/Y');
+                $mesesNombres = [
+                    1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+                    5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+                    9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+                ];
+                $mesNombre = $mesesNombres[(int)$carbonFecha->format('n')] ?? $carbonFecha->format('m');
+                $periodoLabel = "Mes de {$mesNombre} " . $carbonFecha->format('Y');
             } else { // 'dia'
                 $fechaInicio = $carbonFecha->format('Y-m-d 00:00:00');
                 $fechaFin = $carbonFecha->format('Y-m-d 23:59:59');
-                $periodoLabel = 'Día ' . $carbonFecha->format('d/m/Y');
+                $diasNombres = [
+                    0 => 'Domingo', 1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles',
+                    4 => 'Jueves', 5 => 'Viernes', 6 => 'Sábado'
+                ];
+                $diaNombre = $diasNombres[(int)$carbonFecha->format('w')] ?? '';
+                $periodoLabel = "Día {$diaNombre} " . $carbonFecha->format('d/m/Y');
             }
 
             $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
             $permittedIds = PowerBIPermissionService::getPermittedSucursalIds();
 
             $sucursalesToQuery = [];
-            if ($sucursalId === 'all') {
+            if ($sucursalId === 'all' || empty($sucursalId)) {
                 $sucursales = Sucursal::whereNotNull('id_valora_mas')
                     ->whereIn('id_valora_mas', $availableDbs)
                     ->whereIn('id_valora_mas', $permittedIds)
@@ -189,10 +224,11 @@ class HomeController extends Controller
                 if ($sucursal && in_array((int)$sucursal->id_valora_mas, $availableDbs) && in_array((int)$sucursal->id_valora_mas, $permittedIds)) {
                     $sucursalesToQuery = [$sucursal];
                 } else {
-                    $fallback = Sucursal::where('id_valora_mas', 2)->first();
-                    if ($fallback) {
-                        $sucursalesToQuery = [$fallback];
-                    }
+                    $sucursales = Sucursal::whereNotNull('id_valora_mas')
+                        ->whereIn('id_valora_mas', $availableDbs)
+                        ->whereIn('id_valora_mas', $permittedIds)
+                        ->get();
+                    $sucursalesToQuery = $sucursales->all();
                 }
             }
 
@@ -224,10 +260,20 @@ class HomeController extends Controller
 
                 try {
                     $params = [$fechaInicio, $fechaFin];
-                    $typeCondition = "";
+                    
+                    // Excluir dotaciones e inicios de caja de la contabilización operativa
+                    // (9: Dotación Caja, 15: Inicio Caja, 17: Dotación Bóveda, 25: Dotación Bancos)
+                    $excludedTypes = [9, 15, 17, 25];
+                    $excludedList = implode(',', $excludedTypes);
+
+                    $typeCondition = " AND m.cod_tipo_movimiento NOT IN ({$excludedList})";
                     if ($tipoFiltro !== 'todos' && is_numeric($tipoFiltro)) {
-                        $typeCondition = " AND m.cod_tipo_movimiento = ?";
-                        $params[] = (int)$tipoFiltro;
+                        if (in_array((int)$tipoFiltro, $excludedTypes)) {
+                            $typeCondition = " AND 1 = 0";
+                        } else {
+                            $typeCondition = " AND m.cod_tipo_movimiento = ?";
+                            $params[] = (int)$tipoFiltro;
+                        }
                     }
 
                     // 1. Agrupado por Hora
@@ -249,8 +295,8 @@ class HomeController extends Controller
                         }
                     }
 
-                    // 2. Agrupado por Día (si es semana o mes)
-                    if ($periodo === 'semana' || $periodo === 'mes') {
+                    // 2. Agrupado por Día (si es semana, mes o rango)
+                    if ($periodo === 'semana' || $periodo === 'mes' || $periodo === 'rango') {
                         $qPeriod = "
                             SELECT CAST(m.f_alta AS DATE) as fecha_dia, COUNT(*) as conteo, COALESCE(SUM(m.monto), 0) as total_monto
                             FROM movimientos m
@@ -272,7 +318,7 @@ class HomeController extends Controller
                         }
                     }
 
-                    // 3. Agrupado por Tipo de Movimiento
+                    // 3. Agrupado por Tipo de Movimiento (excluyendo dotaciones e inicios de caja)
                     $qTypes = "
                         SELECT m.cod_tipo_movimiento, COALESCE(tm.tipo_movimiento, 'OTRO') as tipo_nombre,
                                COUNT(*) as conteo, COALESCE(SUM(m.monto), 0) as total_monto
@@ -281,6 +327,7 @@ class HomeController extends Controller
                         WHERE m.f_cancela IS NULL
                           AND m.f_alta BETWEEN ? AND ?
                           {$typeCondition}
+                          AND (tm.tipo_movimiento IS NULL OR (tm.tipo_movimiento NOT LIKE '%DOTACI%' AND tm.tipo_movimiento NOT LIKE '%INICIO%'))
                         GROUP BY m.cod_tipo_movimiento, tm.tipo_movimiento
                         ORDER BY conteo DESC
                     ";
@@ -312,6 +359,7 @@ class HomeController extends Controller
                         WHERE m.f_cancela IS NULL
                           AND m.f_alta BETWEEN ? AND ?
                           {$typeCondition}
+                          AND (tm.tipo_movimiento IS NULL OR (tm.tipo_movimiento NOT LIKE '%DOTACI%' AND tm.tipo_movimiento NOT LIKE '%INICIO%'))
                         ORDER BY m.f_alta DESC
                         LIMIT 300
                     ";
@@ -390,6 +438,26 @@ class HomeController extends Controller
                     $periodCountsArr[] = $periodoCounts[$key] ?? 0;
                     $periodMontosArr[] = $periodoMontos[$key] ?? 0.0;
                 }
+            } elseif ($periodo === 'rango') {
+                $cStart = Carbon::parse($fechaInicio);
+                $cEnd = Carbon::parse($fechaFin);
+                $diffDays = $cStart->diffInDays($cEnd);
+                if ($diffDays <= 45) {
+                    for ($d = 0; $d <= $diffDays; $d++) {
+                        $cur = $cStart->copy()->addDays($d);
+                        $key = $cur->toDateString();
+                        $periodLabels[] = $cur->format('d/m');
+                        $periodCountsArr[] = $periodoCounts[$key] ?? 0;
+                        $periodMontosArr[] = $periodoMontos[$key] ?? 0.0;
+                    }
+                } else {
+                    ksort($periodoCounts);
+                    foreach ($periodoCounts as $key => $cnt) {
+                        $periodLabels[] = Carbon::parse($key)->format('d/m');
+                        $periodCountsArr[] = $cnt;
+                        $periodMontosArr[] = $periodoMontos[$key] ?? 0.0;
+                    }
+                }
             }
 
             // Ordenar desglose de tipos
@@ -411,15 +479,17 @@ class HomeController extends Controller
                 6 => '#d63384', // Venta mayoreo: Rosa
                 7 => '#6f42c1', // Anticipo apartado: Morado
                 8 => '#20c997', // Abono apartado: Teal
-                9 => '#4b5563', // Dotación caja
-                10 => '#475569', // Dotación bóveda
+                10 => '#475569', // Retiro de bóveda: Pizarra
                 12 => '#6366f1', // Liq apartado: Índigo vivo
-                14 => '#4b5563', // Retiro a bóveda
-                15 => '#1f2937', // Inicio caja
-                16 => '#111827', // Cierre caja
-                19 => '#0284c7', // Enganche crédito
-                20 => '#15803d', // Pago crédito
-                21 => '#374151', // Liq crédito
+                14 => '#64748b', // Retiro de caja a bóveda: Slate
+                16 => '#94a3b8', // Cierre caja: Gris neutro
+                18 => '#e11d48', // Gastos: Carmesí
+                19 => '#0284c7', // Enganche crédito: Sky
+                20 => '#15803d', // Pago crédito: Verde bosque
+                21 => '#374151', // Liq crédito: Gris oscuro
+                22 => '#d97706', // Devolución garantía: Ámbar
+                23 => '#78716c', // Devolución crédito: Piedra
+                24 => '#0891b2', // Retiro de bancos: Cyan oscuro
             ];
 
             foreach ($typesMap as &$item) {
