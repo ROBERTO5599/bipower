@@ -50,8 +50,13 @@ class HomeController extends Controller
             ]);
         }
 
+        $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
+
         foreach ($sucursales as $sucursal) {
             $suffix = $sucursal->id_valora_mas;
+            if (!$suffix || !in_array((int)$suffix, $availableDbs)) {
+                continue;
+            }
             $dbName = 'sistema_prendario_' . $suffix;
             $connectionName = 'dynamic_mysql';
 
@@ -70,30 +75,131 @@ class HomeController extends Controller
                 // Purge the connection to ensure fresh connection with new config
                 DB::purge($connectionName);
 
-                // Updated Query:
-                // - Movement types 1 (Empeno), 2 (Refrendo), 4 (Desempeno)
-                // - Using conditional aggregation to get all 3 sums in one query
-                // - Filter on mo.f_alta using precise DATETIME range using CAST AS DATE as requested
-                // - Embedding dates directly into query string for precise control/debugging
+                // Consulta idéntica a Tablero de Control para Empeño, Refrendos y Desempeño
                 $query = "
                     SELECT
-                        SUM(CASE WHEN mo.cod_tipo_movimiento = 1 THEN con.prestamo ELSE 0 END) as total_empeno,
-                        SUM(CASE WHEN mo.cod_tipo_movimiento = 2 THEN con.prestamo ELSE 0 END) as total_refrendo,
-                        SUM(CASE WHEN mo.cod_tipo_movimiento = 4 THEN con.prestamo ELSE 0 END) as total_desempeno
-                    FROM movimientos mo
-                    INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                    WHERE con.f_cancelacion IS NULL
-                    AND mo.cod_tipo_movimiento IN (1, 2, 4)
-                    AND CAST(mo.f_alta AS DATE) BETWEEN '$fechaDel' AND '$fechaAl'
-                    AND con.cod_tipo_prenda IN (1, 2, 3)
+                        COALESCE(SUM(CASE WHEN indicador = 'Empeño' THEN avance ELSE 0 END), 0) AS total_empeno,
+                        COALESCE(SUM(CASE WHEN indicador = 'Refrendos' THEN avance ELSE 0 END), 0) AS total_refrendo,
+                        COALESCE(SUM(CASE WHEN indicador = 'Desempeño' THEN avance ELSE 0 END), 0) AS total_desempeno
+                    FROM (
+                        -- Empeño
+                        SELECT 'Empeño' AS indicador,
+                            CASE
+                                WHEN con.cod_tipo_prenda = 2 THEN 'AUTOS'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8   AND 26  THEN 'ORO'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN con.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
+                                ELSE 'SIN CATEGORIA'
+                            END AS categoria,
+                            COALESCE(
+                                CASE
+                                    WHEN con.cod_tipo_prenda = 1 THEN al.prestamo
+                                    WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
+                                    WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
+                                END
+                            , 0) AS avance
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
+                        LEFT JOIN autos   au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
+                        LEFT JOIN varios  va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                        WHERE con.f_cancelacion IS NULL                             
+                          AND mo.cod_tipo_movimiento = 1
+                          AND mo.f_alta BETWEEN ? AND ?
+
+                        UNION ALL
+
+                        -- Refrendos (incluye mov 2 y mov 3)
+                        SELECT 'Refrendos' AS indicador,
+                            CASE
+                                WHEN con.cod_tipo_prenda = 2 THEN 'AUTOS'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8   AND 26  THEN 'ORO'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN con.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
+                                ELSE 'SIN CATEGORIA'
+                            END AS categoria,
+                            COALESCE(
+                                CASE
+                                    WHEN con.cod_tipo_prenda = 1 THEN al.prestamo
+                                    WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
+                                    WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
+                                END
+                            , 0) AS avance
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
+                        LEFT JOIN autos   au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
+                        LEFT JOIN varios  va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                        WHERE mo.f_alta BETWEEN ? AND ?
+                          AND mo.f_cancela IS NULL
+                          AND mo.cod_tipo_movimiento IN (2, 3)
+
+                        UNION ALL
+
+                        -- Desempeño Parte 1 (mov 4)
+                        SELECT 'Desempeño' AS indicador,
+                            CASE
+                                WHEN con.cod_tipo_prenda = 2 THEN 'AUTOS'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8   AND 26  THEN 'ORO'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN con.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
+                                ELSE 'SIN CATEGORIA'
+                            END AS categoria,
+                            COALESCE(CASE
+                                WHEN con.cod_tipo_prenda = 1 THEN al.prestamo
+                                WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
+                                WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
+                            END, 0) AS avance
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
+                        LEFT JOIN autos   au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
+                        LEFT JOIN varios  va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                        WHERE con.f_cancelacion IS NULL
+                          AND mo.cod_tipo_movimiento = 4
+                          AND mo.f_alta BETWEEN ? AND ?
+
+                        UNION ALL
+
+                        -- Desempeño Parte 2 (abono a capital en mov 3)
+                        SELECT 'Desempeño' AS indicador,
+                            CASE
+                                WHEN con.cod_tipo_prenda = 2 THEN 'AUTOS'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8   AND 26  THEN 'ORO'
+                                WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN con.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
+                                ELSE 'SIN CATEGORIA'
+                            END AS categoria,
+                            COALESCE((SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior ORDER BY f_contrato DESC LIMIT 1), 0) AS avance
+                        FROM movimientos mo
+                        INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
+                        LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1 
+                             AND al.id = (SELECT MIN(id) FROM alhajas WHERE cod_contrato = con.cod_seguimiento)
+                        LEFT JOIN autos   au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2 
+                             AND au.id = (SELECT MIN(id) FROM autos WHERE cod_contrato = con.cod_seguimiento)
+                        LEFT JOIN varios  va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3 
+                             AND va.id = (SELECT MIN(id) FROM varios WHERE cod_contrato = con.cod_seguimiento)
+                        WHERE con.f_cancelacion IS NULL
+                          AND mo.cod_tipo_movimiento = 3
+                          AND mo.f_alta BETWEEN ? AND ?
+                    ) t
+                    WHERE avance > 0
+                      AND categoria IN ('MERCANCIA GENERAL', 'ORO', 'PLATA', 'AUTOS')
                 ";
 
-                $result = DB::connection($connectionName)->selectOne($query);
+                $params = [
+                    $fechaDel, $fechaAl,
+                    $fechaDel, $fechaAl,
+                    $fechaDel, $fechaAl,
+                    $fechaDel, $fechaAl
+                ];
+
+                $result = DB::connection($connectionName)->selectOne($query, $params);
 
                 if ($result) {
-                    $empeno = $result->total_empeno ?? 0;
-                    $refrendo = $result->total_refrendo ?? 0;
-                    $desempeno = $result->total_desempeno ?? 0;
+                    $empeno = (float)($result->total_empeno ?? 0);
+                    $refrendo = (float)($result->total_refrendo ?? 0);
+                    $desempeno = (float)($result->total_desempeno ?? 0);
 
                     $totalEmpeno += $empeno;
                     $totalRefrendo += $refrendo;
@@ -162,35 +268,45 @@ class HomeController extends Controller
 
             $carbonFecha = Carbon::parse($fecha);
 
+            $rangoFechas = '';
             if ($periodo === 'rango' && $fechaInicioReq && $fechaFinReq) {
                 $cIni = Carbon::parse($fechaInicioReq);
                 $cFin = Carbon::parse($fechaFinReq);
                 $fechaInicio = $cIni->format('Y-m-d 00:00:00');
                 $fechaFin = $cFin->format('Y-m-d 23:59:59');
                 $periodoLabel = 'Rango del ' . $cIni->format('d/m/Y') . ' al ' . $cFin->format('d/m/Y');
+                $rangoFechas = $cIni->format('d/m/Y') . ' al ' . $cFin->format('d/m/Y');
             } elseif ($periodo === 'rango') {
                 $cIni = Carbon::parse($fecha)->copy()->startOfMonth();
                 $cFin = Carbon::parse($fecha);
                 $fechaInicio = $cIni->format('Y-m-d 00:00:00');
                 $fechaFin = $cFin->format('Y-m-d 23:59:59');
                 $periodoLabel = 'Rango del ' . $cIni->format('d/m/Y') . ' al ' . $cFin->format('d/m/Y');
+                $rangoFechas = $cIni->format('d/m/Y') . ' al ' . $cFin->format('d/m/Y');
             } elseif ($periodo === 'ayer') {
                 $carbonAyer = Carbon::now()->subDay();
                 $fechaInicio = $carbonAyer->format('Y-m-d 00:00:00');
                 $fechaFin = $carbonAyer->format('Y-m-d 23:59:59');
                 $periodoLabel = 'Ayer ' . $carbonAyer->format('d/m/Y');
+                $rangoFechas = $carbonAyer->format('d/m/Y');
             } elseif ($periodo === 'hoy') {
                 $carbonHoy = Carbon::now();
                 $fechaInicio = $carbonHoy->format('Y-m-d 00:00:00');
                 $fechaFin = $carbonHoy->format('Y-m-d 23:59:59');
                 $periodoLabel = 'Hoy ' . $carbonHoy->format('d/m/Y');
+                $rangoFechas = $carbonHoy->format('d/m/Y');
             } elseif ($periodo === 'semana') {
-                $fechaInicio = $carbonFecha->copy()->startOfWeek()->format('Y-m-d 00:00:00');
-                $fechaFin = $carbonFecha->copy()->endOfWeek()->format('Y-m-d 23:59:59');
-                $periodoLabel = 'Semana del ' . $carbonFecha->copy()->startOfWeek()->format('d/m/Y') . ' al ' . $carbonFecha->copy()->endOfWeek()->format('d/m/Y');
+                $cStart = $carbonFecha->copy()->startOfWeek();
+                $cEnd = $carbonFecha->copy()->endOfWeek();
+                $fechaInicio = $cStart->format('Y-m-d 00:00:00');
+                $fechaFin = $cEnd->format('Y-m-d 23:59:59');
+                $periodoLabel = 'Semana del ' . $cStart->format('d/m/Y') . ' al ' . $cEnd->format('d/m/Y');
+                $rangoFechas = $cStart->format('d/m/Y') . ' al ' . $cEnd->format('d/m/Y');
             } elseif ($periodo === 'mes') {
-                $fechaInicio = $carbonFecha->copy()->startOfMonth()->format('Y-m-d 00:00:00');
-                $fechaFin = $carbonFecha->copy()->endOfMonth()->format('Y-m-d 23:59:59');
+                $cStart = $carbonFecha->copy()->startOfMonth();
+                $cEnd = $carbonFecha->copy()->endOfMonth();
+                $fechaInicio = $cStart->format('Y-m-d 00:00:00');
+                $fechaFin = $cEnd->format('Y-m-d 23:59:59');
                 $mesesNombres = [
                     1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
                     5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
@@ -198,6 +314,7 @@ class HomeController extends Controller
                 ];
                 $mesNombre = $mesesNombres[(int)$carbonFecha->format('n')] ?? $carbonFecha->format('m');
                 $periodoLabel = "Mes de {$mesNombre} " . $carbonFecha->format('Y');
+                $rangoFechas = $cStart->format('d/m/Y') . ' al ' . $cEnd->format('d/m/Y');
             } else { // 'dia'
                 $fechaInicio = $carbonFecha->format('Y-m-d 00:00:00');
                 $fechaFin = $carbonFecha->format('Y-m-d 23:59:59');
@@ -207,29 +324,37 @@ class HomeController extends Controller
                 ];
                 $diaNombre = $diasNombres[(int)$carbonFecha->format('w')] ?? '';
                 $periodoLabel = "Día {$diaNombre} " . $carbonFecha->format('d/m/Y');
+                $rangoFechas = $carbonFecha->format('d/m/Y');
             }
 
             $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
             $permittedIds = PowerBIPermissionService::getPermittedSucursalIds();
 
+            // Procesar si se filtran una, múltiples o todas las sucursales
+            $selectedIds = [];
+            if (is_array($sucursalId)) {
+                $selectedIds = array_filter($sucursalId, function($id) { return $id !== 'all' && !empty($id); });
+            } elseif (is_string($sucursalId) && strpos($sucursalId, ',') !== false) {
+                $selectedIds = array_filter(explode(',', $sucursalId), function($id) { return $id !== 'all' && !empty($id); });
+            } elseif ($sucursalId !== 'all' && !empty($sucursalId)) {
+                $selectedIds = [$sucursalId];
+            }
+            $selectedIds = array_map('intval', $selectedIds);
+
             $sucursalesToQuery = [];
-            if ($sucursalId === 'all' || empty($sucursalId)) {
+            if (empty($selectedIds)) {
                 $sucursales = Sucursal::whereNotNull('id_valora_mas')
                     ->whereIn('id_valora_mas', $availableDbs)
                     ->whereIn('id_valora_mas', $permittedIds)
                     ->get();
                 $sucursalesToQuery = $sucursales->all();
             } else {
-                $sucursal = Sucursal::where('id_valora_mas', $sucursalId)->first();
-                if ($sucursal && in_array((int)$sucursal->id_valora_mas, $availableDbs) && in_array((int)$sucursal->id_valora_mas, $permittedIds)) {
-                    $sucursalesToQuery = [$sucursal];
-                } else {
-                    $sucursales = Sucursal::whereNotNull('id_valora_mas')
-                        ->whereIn('id_valora_mas', $availableDbs)
-                        ->whereIn('id_valora_mas', $permittedIds)
-                        ->get();
-                    $sucursalesToQuery = $sucursales->all();
-                }
+                $sucursales = Sucursal::whereNotNull('id_valora_mas')
+                    ->whereIn('id_valora_mas', $availableDbs)
+                    ->whereIn('id_valora_mas', $permittedIds)
+                    ->whereIn('id_valora_mas', $selectedIds)
+                    ->get();
+                $sucursalesToQuery = $sucursales->all();
             }
 
             $baseConfig = Config::get('database.connections.mysql');
@@ -247,6 +372,7 @@ class HomeController extends Controller
             $movimientosList = [];
             $totalMovimientos = 0;
             $totalMonto = 0.0;
+            $sucursalesData = [];
 
             foreach ($sucursalesToQuery as $suc) {
                 $suffix = $suc->id_valora_mas;
@@ -261,9 +387,17 @@ class HomeController extends Controller
                 try {
                     $params = [$fechaInicio, $fechaFin];
                     
-                    // Excluir dotaciones e inicios de caja de la contabilización operativa
-                    // (9: Dotación Caja, 15: Inicio Caja, 17: Dotación Bóveda, 25: Dotación Bancos)
-                    $excludedTypes = [9, 15, 17, 25];
+                    // Contadores específicos de esta sucursal
+                    $sucHourlyCounts = array_fill(0, 24, 0);
+                    $sucHourlyMontos = array_fill(0, 24, 0.0);
+                    $sucPeriodoCounts = [];
+                    $sucPeriodoMontos = [];
+                    $sucTotalMovimientos = 0;
+                    $sucTotalMonto = 0.0;
+
+                    // Excluir dotaciones, inicios de caja, retiros y cierres de la contabilización operativa
+                    // (9: Dotación Caja, 10: Retiro Bóveda, 14: Retiro Caja a Bóveda, 15: Inicio Caja, 16: Cierre Caja, 17: Dotación Bóveda, 25: Dotación Bancos)
+                    $excludedTypes = [9, 10, 14, 15, 16, 17, 25];
                     $excludedList = implode(',', $excludedTypes);
 
                     $typeCondition = " AND m.cod_tipo_movimiento NOT IN ({$excludedList})";
@@ -276,10 +410,22 @@ class HomeController extends Controller
                         }
                     }
 
+                    // El monto operado corresponde al valor préstamo del contrato en operaciones prendarias (empeño, refrendo, abono capital, desempeño)
+                    $montoOperadoSql = "COALESCE(
+                        CASE 
+                            WHEN m.cod_tipo_movimiento IN (1, 2, 3, 4) AND con.prestamo IS NOT NULL AND con.prestamo > 0 
+                                THEN con.prestamo
+                            ELSE m.monto
+                        END,
+                        m.monto,
+                        0
+                    )";
+
                     // 1. Agrupado por Hora
                     $qHourly = "
-                        SELECT HOUR(m.f_alta) as hora, COUNT(*) as conteo, COALESCE(SUM(m.monto), 0) as total_monto
+                        SELECT HOUR(m.f_alta) as hora, COUNT(*) as conteo, COALESCE(SUM({$montoOperadoSql}), 0) as total_monto
                         FROM movimientos m
+                        LEFT JOIN contratos con ON con.cod_contrato = COALESCE(m.cod_contrato, m.contrato)
                         WHERE m.f_cancela IS NULL
                           AND m.f_alta BETWEEN ? AND ?
                           {$typeCondition}
@@ -290,16 +436,21 @@ class HomeController extends Controller
                     foreach ($resHourly as $h) {
                         $hr = (int)$h->hora;
                         if ($hr >= 0 && $hr < 24) {
-                            $hourlyCounts[$hr] += (int)$h->conteo;
-                            $hourlyMontos[$hr] += (float)$h->total_monto;
+                            $cnt = (int)$h->conteo;
+                            $mnt = (float)$h->total_monto;
+                            $hourlyCounts[$hr] += $cnt;
+                            $hourlyMontos[$hr] += $mnt;
+                            $sucHourlyCounts[$hr] += $cnt;
+                            $sucHourlyMontos[$hr] += $mnt;
                         }
                     }
 
                     // 2. Agrupado por Día (si es semana, mes o rango)
                     if ($periodo === 'semana' || $periodo === 'mes' || $periodo === 'rango') {
                         $qPeriod = "
-                            SELECT CAST(m.f_alta AS DATE) as fecha_dia, COUNT(*) as conteo, COALESCE(SUM(m.monto), 0) as total_monto
+                            SELECT CAST(m.f_alta AS DATE) as fecha_dia, COUNT(*) as conteo, COALESCE(SUM({$montoOperadoSql}), 0) as total_monto
                             FROM movimientos m
+                            LEFT JOIN contratos con ON con.cod_contrato = COALESCE(m.cod_contrato, m.contrato)
                             WHERE m.f_cancela IS NULL
                               AND m.f_alta BETWEEN ? AND ?
                               {$typeCondition}
@@ -313,21 +464,26 @@ class HomeController extends Controller
                                 $periodoCounts[$fKey] = 0;
                                 $periodoMontos[$fKey] = 0.0;
                             }
-                            $periodoCounts[$fKey] += (int)$p->conteo;
-                            $periodoMontos[$fKey] += (float)$p->total_monto;
+                            $cnt = (int)$p->conteo;
+                            $mnt = (float)$p->total_monto;
+                            $periodoCounts[$fKey] += $cnt;
+                            $periodoMontos[$fKey] += $mnt;
+                            $sucPeriodoCounts[$fKey] = ($sucPeriodoCounts[$fKey] ?? 0) + $cnt;
+                            $sucPeriodoMontos[$fKey] = ($sucPeriodoMontos[$fKey] ?? 0.0) + $mnt;
                         }
                     }
 
                     // 3. Agrupado por Tipo de Movimiento (excluyendo dotaciones e inicios de caja)
                     $qTypes = "
                         SELECT m.cod_tipo_movimiento, COALESCE(tm.tipo_movimiento, 'OTRO') as tipo_nombre,
-                               COUNT(*) as conteo, COALESCE(SUM(m.monto), 0) as total_monto
+                               COUNT(*) as conteo, COALESCE(SUM({$montoOperadoSql}), 0) as total_monto
                         FROM movimientos m
+                        LEFT JOIN contratos con ON con.cod_contrato = COALESCE(m.cod_contrato, m.contrato)
                         LEFT JOIN tipo_movimiento tm ON tm.cod_tipo_movimiento = m.cod_tipo_movimiento
                         WHERE m.f_cancela IS NULL
                           AND m.f_alta BETWEEN ? AND ?
                           {$typeCondition}
-                          AND (tm.tipo_movimiento IS NULL OR (tm.tipo_movimiento NOT LIKE '%DOTACI%' AND tm.tipo_movimiento NOT LIKE '%INICIO%'))
+                          AND (tm.tipo_movimiento IS NULL OR (tm.tipo_movimiento NOT LIKE '%DOTACI%' AND tm.tipo_movimiento NOT LIKE '%INICIO%' AND tm.tipo_movimiento NOT LIKE '%CIERRE%' AND tm.tipo_movimiento NOT LIKE '%RETIRO%'))
                         GROUP BY m.cod_tipo_movimiento, tm.tipo_movimiento
                         ORDER BY conteo DESC
                     ";
@@ -342,24 +498,36 @@ class HomeController extends Controller
                                 'monto' => 0.0
                             ];
                         }
-                        $typesMap[$tid]['conteo'] += (int)$t->conteo;
-                        $typesMap[$tid]['monto'] += (float)$t->total_monto;
-                        $totalMovimientos += (int)$t->conteo;
-                        $totalMonto += (float)$t->total_monto;
+                        $cnt = (int)$t->conteo;
+                        $mnt = (float)$t->total_monto;
+                        $typesMap[$tid]['conteo'] += $cnt;
+                        $typesMap[$tid]['monto'] += $mnt;
+                        $totalMovimientos += $cnt;
+                        $totalMonto += $mnt;
+
+                        $sucTotalMovimientos += $cnt;
+                        $sucTotalMonto += $mnt;
                     }
 
                     // 4. Detalle de movimientos con tiempo
                     $qList = "
                         SELECT m.cod_movimiento, m.cod_contrato, m.contrato, m.cod_caja, m.cod_usuario,
-                               m.monto, m.monto_efectivo, m.monto_tarjeta, m.f_alta,
+                               COALESCE(u.nombre, CONCAT('Usuario ', m.cod_usuario)) as usuario_nombre,
+                               u.usuario as usuario_login,
+                               {$montoOperadoSql} as monto,
+                               m.monto as monto_transaccion,
+                               con.prestamo as valor_prestamo,
+                               m.monto_efectivo, m.monto_tarjeta, m.f_alta,
                                m.cod_tipo_movimiento, COALESCE(tm.tipo_movimiento, 'OTRO') as tipo_nombre,
                                m.referencia
                         FROM movimientos m
+                        LEFT JOIN contratos con ON con.cod_contrato = COALESCE(m.cod_contrato, m.contrato)
                         LEFT JOIN tipo_movimiento tm ON tm.cod_tipo_movimiento = m.cod_tipo_movimiento
+                        LEFT JOIN usuarios u ON u.cod_usuario = m.cod_usuario
                         WHERE m.f_cancela IS NULL
                           AND m.f_alta BETWEEN ? AND ?
                           {$typeCondition}
-                          AND (tm.tipo_movimiento IS NULL OR (tm.tipo_movimiento NOT LIKE '%DOTACI%' AND tm.tipo_movimiento NOT LIKE '%INICIO%'))
+                          AND (tm.tipo_movimiento IS NULL OR (tm.tipo_movimiento NOT LIKE '%DOTACI%' AND tm.tipo_movimiento NOT LIKE '%INICIO%' AND tm.tipo_movimiento NOT LIKE '%CIERRE%' AND tm.tipo_movimiento NOT LIKE '%RETIRO%'))
                         ORDER BY m.f_alta DESC
                         LIMIT 300
                     ";
@@ -372,7 +540,11 @@ class HomeController extends Controller
                             'sucursal' => $suc->nombre,
                             'cod_caja' => (int)$item->cod_caja,
                             'cod_usuario' => (int)$item->cod_usuario,
+                            'usuario_nombre' => $item->usuario_nombre ?: ('Usuario ' . $item->cod_usuario),
+                            'usuario_login' => $item->usuario_login ?? '',
                             'monto' => (float)$item->monto,
+                            'monto_transaccion' => (float)$item->monto_transaccion,
+                            'valor_prestamo' => $item->valor_prestamo !== null ? (float)$item->valor_prestamo : null,
                             'monto_efectivo' => (float)$item->monto_efectivo,
                             'monto_tarjeta' => (float)$item->monto_tarjeta,
                             'f_alta' => $item->f_alta,
@@ -384,6 +556,18 @@ class HomeController extends Controller
                             'referencia' => $item->referencia ?? ''
                         ];
                     }
+
+                    $sucursalesData[] = [
+                        'id' => $suc->id ?? $suc->id_valora_mas,
+                        'id_valora_mas' => $suc->id_valora_mas,
+                        'nombre' => $suc->nombre,
+                        'total_movimientos' => $sucTotalMovimientos,
+                        'total_monto' => $sucTotalMonto,
+                        'hourly_counts' => $sucHourlyCounts,
+                        'hourly_montos' => $sucHourlyMontos,
+                        'periodo_counts' => $sucPeriodoCounts,
+                        'periodo_montos' => $sucPeriodoMontos,
+                    ];
                 } catch (\Exception $e) {
                     Log::error("Error querying movimientos for {$dbName}: " . $e->getMessage());
                 }
@@ -460,14 +644,123 @@ class HomeController extends Controller
                 }
             }
 
+            // Cálculo de días y horas operativas según el periodo
+            // Fórmula solicitada por el usuario:
+            // Horas operativas = (64 / 7) * (número de días o día)
+            // Promedio por hora = Total movimientos / Horas operativas
+            // Ejemplo: 64/7 = 9.1 * 19 = 173.7 hrs -> 2348 / 173.7 = 13.5 movs/hr
+            $diasPeriodo = 1;
+            if ($periodo === 'dia' || $periodo === 'hoy' || $periodo === 'ayer') {
+                $diasPeriodo = 1;
+            } elseif ($periodo === 'semana') {
+                $startOfWeek = $carbonFecha->copy()->startOfWeek();
+                $diasPeriodo = $carbonFecha->isCurrentWeek()
+                    ? min(7, max(1, $startOfWeek->diffInDays($carbonFecha) + 1))
+                    : 7;
+            } elseif ($periodo === 'mes') {
+                $diasPeriodo = $carbonFecha->isCurrentMonth()
+                    ? min((int)$carbonFecha->daysInMonth, max(1, (int)$carbonFecha->day))
+                    : (int)$carbonFecha->daysInMonth;
+            } elseif ($periodo === 'rango') {
+                $cIni = Carbon::parse($fechaInicioReq ?? $fechaInicio);
+                $cFin = Carbon::parse($fechaFinReq ?? $fechaFin);
+                $diasPeriodo = max(1, $cIni->diffInDays($cFin) + 1);
+            }
+
+            $horasOperativas = (64.0 / 7.0) * $diasPeriodo;
+            $horasOperativasRedondeadas = round($horasOperativas, 1);
+            $promedioPorHora = $horasOperativasRedondeadas > 0 ? round($totalMovimientos / $horasOperativasRedondeadas, 1) : 0;
+
+            // Armar datos por cada sucursal individual para comparar gráficas
+            $porSucursalResult = [];
+            foreach ($sucursalesData as $sd) {
+                $sdHourlyCounts = [];
+                $sdHourlyMontos = [];
+                $sdMaxCount = -1;
+                $sdHoraPico = 'Sin movimientos';
+
+                for ($h = 7; $h <= 20; $h++) {
+                    $c = $sd['hourly_counts'][$h] ?? 0;
+                    $m = $sd['hourly_montos'][$h] ?? 0.0;
+                    $sdHourlyCounts[] = $c;
+                    $sdHourlyMontos[] = $m;
+
+                    if ($c > $sdMaxCount && $c > 0) {
+                        $sdMaxCount = $c;
+                        $sdHoraPico = sprintf('%02d:00 a %02d:00 hrs (%d movs)', $h, $h + 1, $c);
+                    }
+                }
+
+                $sdPeriodCounts = [];
+                $sdPeriodMontos = [];
+
+                if ($periodo === 'semana') {
+                    $startOfWeek = $carbonFecha->copy()->startOfWeek();
+                    for ($d = 0; $d < 7; $d++) {
+                        $cur = $startOfWeek->copy()->addDays($d);
+                        $key = $cur->toDateString();
+                        $sdPeriodCounts[] = $sd['periodo_counts'][$key] ?? 0;
+                        $sdPeriodMontos[] = $sd['periodo_montos'][$key] ?? 0.0;
+                    }
+                } elseif ($periodo === 'mes') {
+                    $daysInMonth = $carbonFecha->daysInMonth;
+                    for ($d = 1; $d <= $daysInMonth; $d++) {
+                        $key = $carbonFecha->copy()->day($d)->toDateString();
+                        $sdPeriodCounts[] = $sd['periodo_counts'][$key] ?? 0;
+                        $sdPeriodMontos[] = $sd['periodo_montos'][$key] ?? 0.0;
+                    }
+                } elseif ($periodo === 'rango') {
+                    $cStart = Carbon::parse($fechaInicio);
+                    $cEnd = Carbon::parse($fechaFin);
+                    $diffDays = $cStart->diffInDays($cEnd);
+                    if ($diffDays <= 45) {
+                        for ($d = 0; $d <= $diffDays; $d++) {
+                            $cur = $cStart->copy()->addDays($d);
+                            $key = $cur->toDateString();
+                            $sdPeriodCounts[] = $sd['periodo_counts'][$key] ?? 0;
+                            $sdPeriodMontos[] = $sd['periodo_montos'][$key] ?? 0.0;
+                        }
+                    } else {
+                        ksort($periodoCounts);
+                        foreach ($periodoCounts as $key => $cnt) {
+                            $sdPeriodCounts[] = $sd['periodo_counts'][$key] ?? 0;
+                            $sdPeriodMontos[] = $sd['periodo_montos'][$key] ?? 0.0;
+                        }
+                    }
+                }
+
+                $sdPromedio = $horasOperativasRedondeadas > 0 ? round($sd['total_movimientos'] / $horasOperativasRedondeadas, 1) : 0;
+
+                $porSucursalResult[] = [
+                    'id' => $sd['id'],
+                    'id_valora_mas' => $sd['id_valora_mas'],
+                    'nombre' => $sd['nombre'],
+                    'total_movimientos' => $sd['total_movimientos'],
+                    'total_monto' => $sd['total_monto'],
+                    'hora_pico' => $sdHoraPico,
+                    'promedio_por_hora' => $sdPromedio,
+                    'por_hora' => [
+                        'labels' => $hourlyLabels,
+                        'counts' => $sdHourlyCounts,
+                        'montos' => $sdHourlyMontos,
+                    ],
+                    'por_periodo' => [
+                        'labels' => $periodLabels,
+                        'counts' => $sdPeriodCounts,
+                        'montos' => $sdPeriodMontos,
+                    ],
+                ];
+            }
+
+            // Ordenar por total_movimientos de mayor a menor
+            usort($porSucursalResult, function($a, $b) {
+                return $b['total_movimientos'] <=> $a['total_movimientos'];
+            });
+
             // Ordenar desglose de tipos
             usort($typesMap, function($a, $b) {
                 return $b['conteo'] <=> $a['conteo'];
             });
-
-            // Promedio por hora con actividad
-            $activeHours = count(array_filter($hourlyDataCounts, function($c) { return $c > 0; }));
-            $promedioPorHora = $activeHours > 0 ? round($totalMovimientos / $activeHours, 1) : 0;
 
             // Paleta de colores para tipos de movimiento
             $colorPalette = [
@@ -501,12 +794,16 @@ class HomeController extends Controller
                 'success' => true,
                 'periodo' => $periodo,
                 'periodoLabel' => $periodoLabel,
+                'rango_fechas' => $rangoFechas,
                 'fecha' => $fecha,
-                'sucursal_id' => $sucursalId,
+                'sucursal_id' => is_array($sucursalId) ? implode(',', $sucursalId) : (string)$sucursalId,
+                'sucursales_count' => count($sucursalesToQuery),
                 'total_movimientos' => $totalMovimientos,
                 'total_monto' => $totalMonto,
                 'hora_pico' => $horaPico,
                 'promedio_por_hora' => $promedioPorHora,
+                'dias_periodo' => $diasPeriodo,
+                'horas_operativas' => $horasOperativasRedondeadas,
                 'por_hora' => [
                     'labels' => $hourlyLabels,
                     'counts' => $hourlyDataCounts,
@@ -518,6 +815,7 @@ class HomeController extends Controller
                     'montos' => $periodMontosArr,
                 ],
                 'por_tipo' => array_values($typesMap),
+                'por_sucursal' => $porSucursalResult,
                 'movimientos' => $movimientosList,
             ]);
 

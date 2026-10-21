@@ -41,6 +41,47 @@
 			max-height: 480px;
 			overflow-y: auto;
 		}
+		.hover-bg:hover {
+			background-color: #f1f5f9;
+		}
+		.sucursal-check-item {
+			transition: background-color 0.15s ease;
+		}
+		.select-tipo-movimiento {
+			min-width: 240px;
+			font-size: 0.90rem;
+			font-weight: 600;
+			color: #1e293b;
+			border: 2px solid #6366f1 !important;
+			background-color: #f8faff;
+			border-radius: 8px;
+			padding: 0.42rem 2.2rem 0.42rem 0.85rem;
+			box-shadow: 0 2px 6px rgba(99, 102, 241, 0.12);
+			transition: all 0.2s ease-in-out;
+		}
+		.select-tipo-movimiento:hover {
+			border-color: #4f46e5 !important;
+			box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+			background-color: #ffffff;
+		}
+		.select-tipo-movimiento:focus {
+			border-color: #4338ca !important;
+			box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25) !important;
+			background-color: #ffffff;
+			outline: 0;
+		}
+		.select-tipo-movimiento optgroup {
+			font-weight: 700;
+			color: #4338ca;
+			background-color: #f1f5f9;
+			padding: 4px 0;
+		}
+		.select-tipo-movimiento option {
+			font-weight: 500;
+			color: #1e293b;
+			background-color: #ffffff;
+			padding: 6px 12px;
+		}
 		.badge-time {
 			font-family: monospace;
 			font-size: 0.85rem;
@@ -161,7 +202,7 @@
 		<!-- Barra Superior de Filtros y Control -->
 		<div class="card-body p-4 bg-white border-bottom">
 			<div class="row align-items-center g-3">
-				<div class="col-lg-5 col-12">
+				<div class="col-xl-4 col-12">
 					<h5 class="fw-bold mb-1 text-dark d-flex align-items-center">
 						<span class="p-2 bg-primary bg-opacity-10 text-primary rounded-3 me-2 d-inline-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
 							<i class="bi bi-clock-history fs-5"></i>
@@ -172,21 +213,60 @@
 						Consulta cuántos movimientos se realizaron por hora y filtra por Día, Semana o Mes en tiempo real.
 					</p>
 				</div>
-				<div class="col-lg-7 col-12">
-					<div class="d-flex flex-wrap gap-2 justify-content-lg-end align-items-center">
-						<!-- Selector de Sucursal -->
-						<div style="min-width: 190px;">
-							<label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-shop me-1 text-primary"></i>Sucursal</label>
-							<select id="mov-sucursal" class="form-select form-select-sm fw-semibold shadow-none">
-								<option value="all" selected>-- Todas las Sucursales --</option>
-								@if(isset($sucursalesList))
-									@foreach($sucursalesList as $s)
-										<option value="{{ $s->id_valora_mas }}">
-											{{ $s->nombre }}
-										</option>
-									@endforeach
-								@endif
-							</select>
+				<div class="col-xl-8 col-12">
+					<div class="d-flex flex-wrap gap-2 justify-content-xl-end align-items-center">
+						<!-- Selector de Sucursales (Múltiple con Checkboxes y Búsqueda) -->
+						<div class="dropdown" style="min-width: 220px;" id="dropdown-sucursal-container">
+							<div class="d-flex justify-content-between align-items-center mb-1">
+								<label class="form-label small fw-bold text-muted mb-0"><i class="bi bi-shop me-1 text-primary"></i>Sucursales</label>
+								<span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0 px-2 fw-semibold" id="badge-sucursales-count" style="font-size: 0.72rem;">Todas</span>
+							</div>
+							<button class="btn btn-outline-secondary form-select form-select-sm fw-semibold text-start d-flex justify-content-between align-items-center bg-white shadow-none" 
+									type="button" 
+									id="dropdownSucursalesBtn" 
+									data-bs-toggle="dropdown" 
+									data-bs-auto-close="outside" 
+									aria-expanded="false"
+									style="border-color: #dee2e6; color: #212529;">
+								<span class="text-truncate me-2" id="dropdownSucursalesLabel">-- Todas las Sucursales --</span>
+							</button>
+							<div class="dropdown-menu shadow-lg p-2 rounded-3 border" aria-labelledby="dropdownSucursalesBtn" style="min-width: 280px; max-width: 330px; z-index: 1050;">
+								<!-- Búsqueda y acciones rápidas -->
+								<div class="px-1 pb-2 border-bottom mb-2">
+									<div class="input-group input-group-sm">
+										<span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+										<input type="text" class="form-control bg-light border-start-0" id="search-sucursales-input" placeholder="Buscar sucursal...">
+									</div>
+									<div class="d-flex justify-content-between align-items-center mt-2 px-1">
+										<button type="button" class="btn btn-link p-0 text-primary text-decoration-none small fw-semibold" id="btn-select-all-sucursales">
+											<i class="bi bi-check-all me-1"></i>Todas
+										</button>
+										<button type="button" class="btn btn-link p-0 text-muted text-decoration-none small fw-semibold" id="btn-clear-sucursales">
+											<i class="bi bi-x-circle me-1"></i>Limpiar
+										</button>
+									</div>
+								</div>
+								<!-- Lista de sucursales con checkboxes -->
+								<div class="overflow-auto" id="sucursales-checkboxes-list" style="max-height: 240px;">
+									<div class="form-check py-1 px-3 rounded hover-bg sucursal-check-item">
+										<input class="form-check-input cursor-pointer" type="checkbox" value="all" id="check-suc-all" checked>
+										<label class="form-check-label fw-bold cursor-pointer text-primary w-100" for="check-suc-all">
+											-- Todas las Sucursales --
+										</label>
+									</div>
+									<hr class="my-1 text-muted opacity-25">
+									@if(isset($sucursalesList))
+										@foreach($sucursalesList as $s)
+											<div class="form-check py-1 px-3 rounded hover-bg sucursal-check-item" data-nombre="{{ strtolower($s->nombre) }}">
+												<input class="form-check-input check-sucursal cursor-pointer" type="checkbox" value="{{ $s->id_valora_mas }}" id="check-suc-{{ $s->id_valora_mas }}" data-nombre="{{ $s->nombre }}">
+												<label class="form-check-label cursor-pointer text-dark w-100" for="check-suc-{{ $s->id_valora_mas }}">
+													{{ $s->nombre }}
+												</label>
+											</div>
+										@endforeach
+									@endif
+								</div>
+							</div>
 						</div>
 
 						<!-- Selector de Periodo: Hoy / Ayer / Semana / Mes / Rango -->
@@ -234,25 +314,36 @@
 							</div>
 						</div>
 
-						<!-- Selector de Tipo de Movimiento -->
-						<div style="min-width: 155px;">
-							<label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-tag me-1 text-primary"></i>Tipo Mov.</label>
-							<select id="mov-tipo" class="form-select form-select-sm shadow-none">
-								<option value="todos">Todos los movimientos</option>
-								<option value="1">Empeño</option>
-								<option value="2">Refrendo</option>
-								<option value="3">Abono a Capital</option>
-								<option value="4">Desempeño</option>
-								<option value="5">Venta Menudeo</option>
-								<option value="6">Venta Mayoreo</option>
-								<option value="7">Anticipo Apartado</option>
-								<option value="8">Abono Apartado</option>
-								<option value="12">Liquidación Apartado</option>
-								<option value="19">Enganche Crédito</option>
-								<option value="20">Pago Crédito</option>
-								<option value="21">Liquidación Crédito</option>
-								<option value="23">Devolución Crédito</option>
-								<option value="18">Gastos</option>
+						<!-- Selector de Tipo de Movimiento (Grande y Visible) -->
+						<div style="min-width: 240px;">
+							<div class="d-flex justify-content-between align-items-center mb-1">
+								<label class="form-label small fw-bold text-dark mb-0">
+									<i class="bi bi-funnel-fill text-primary me-1"></i>Tipo de Movimiento
+								</label>
+								<span class="badge bg-indigo-subtle text-indigo border border-indigo-subtle py-0 px-2 fw-semibold" id="badge-tipo-filtro" style="font-size: 0.72rem; color: #4f46e5; background-color: #eef2ff;">Todos</span>
+							</div>
+							<select id="mov-tipo" class="form-select select-tipo-movimiento shadow-sm">
+								<option value="todos" selected>Todos los movimientos</option>
+								<optgroup label="── Operaciones Prendarias ──">
+									<option value="1">Empeño</option>
+									<option value="2">Refrendo</option>
+									<option value="3">Abono a Capital</option>
+									<option value="4">Desempeño</option>
+								</optgroup>
+								<optgroup label="── Ventas y Apartados ──">
+									<option value="5">Venta Menudeo</option>
+									<option value="6">Venta Mayoreo</option>
+									<option value="7">Anticipo Apartado</option>
+									<option value="8">Abono Apartado</option>
+									<option value="12">Liquidación Apartado</option>
+								</optgroup>
+								<optgroup label="── Crédito y Gastos ──">
+									<option value="19">Enganche Crédito</option>
+									<option value="20">Pago Crédito</option>
+									<option value="21">Liquidación Crédito</option>
+									<option value="23">Devolución Crédito</option>
+									<option value="18">Gastos</option>
+								</optgroup>
 							</select>
 						</div>
 
@@ -274,6 +365,9 @@
 					</span>
 					<span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold" id="label-sucursal-activa">
 						<i class="bi bi-geo-alt-fill text-danger me-1"></i>Todas las Sucursales
+					</span>
+					<span class="badge border px-3 py-2 rounded-pill fw-semibold d-none" id="label-tipo-activo" style="color: #4f46e5; background-color: #eef2ff; border-color: #c7d2fe !important;">
+						<i class="bi bi-funnel-fill me-1"></i>Todos los Tipos
 					</span>
 				</div>
 				<div id="mov-loading-spinner" class="d-none align-items-center text-primary">
@@ -314,7 +408,7 @@
 								<i class="bi bi-cash-stack fs-4"></i>
 							</div>
 						</div>
-						<small class="text-muted mt-2 d-block">Monto total acumulado</small>
+						<small class="text-muted mt-2 d-block">Basado en valor préstamo</small>
 					</div>
 				</div>
 
@@ -346,7 +440,7 @@
 								<i class="bi bi-speedometer2 fs-4"></i>
 							</div>
 						</div>
-						<small class="text-muted mt-2 d-block">Horas con actividad registrada</small>
+						<small class="text-muted mt-2 d-block" id="kpi-sub-promedio">Base: 64/7 hrs operativas/día</small>
 					</div>
 				</div>
 			</div>
@@ -376,16 +470,6 @@
 										<i class="bi bi-calendar-date me-1"></i>Por Días
 									</button>
 								</div>
-
-								<!-- Selector de Métrica: Conteo (#) vs Monto ($) -->
-								<div class="btn-group btn-group-sm" role="group">
-									<button type="button" class="btn btn-outline-secondary active btn-metric-toggle" data-metric="counts">
-										<i class="bi bi-hash me-1"></i>Conteo (#)
-									</button>
-									<button type="button" class="btn btn-outline-secondary btn-metric-toggle" data-metric="montos">
-										<i class="bi bi-currency-dollar me-1"></i>Monto ($)
-									</button>
-								</div>
 							</div>
 						</div>
 						<div class="chart-container-movs">
@@ -403,7 +487,7 @@
 									<i class="bi bi-pie-chart-fill text-success me-2"></i>
 									Por Tipo de Movimiento
 								</h6>
-								<small class="text-muted" style="font-size: 0.72rem;">Sin dotaciones ni inicios de caja</small>
+								<small class="text-muted" style="font-size: 0.72rem;">Sin dotaciones, inicios, cierres ni retiros</small>
 							</div>
 						</div>
 						<div style="position: relative; height: 180px;" class="mb-3">
@@ -415,6 +499,23 @@
 						</div>
 					</div>
 				</div>
+			</div>
+		</div>
+
+		<!-- Contenedor de Gráficas Divididas por Sucursal (cuando se filtran 2 o más sucursales específicas) -->
+		<div id="container-graficas-sucursales" class="card-body p-4 pt-0 bg-white" style="display: none;">
+			<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-2">
+				<div>
+					<h6 class="fw-bold mb-0 text-dark">
+						<i class="bi bi-grid-1x2-fill text-primary me-2"></i>
+						Gráficas Divididas por Sucursal
+					</h6>
+					<small class="text-muted" style="font-size: 0.78rem;" id="container-graficas-sucursales-sub">Gráficas individuales separadas para cada una de las sucursales filtradas</small>
+				</div>
+				<span id="badge-count-sucursales-graficas" class="badge bg-primary rounded-pill px-3 py-1 fw-semibold">0 sucursales</span>
+			</div>
+			<div class="row g-3" id="grid-graficas-sucursales">
+				<!-- Tarjetas de gráficas por sucursal generadas dinámicamente con JS -->
 			</div>
 		</div>
 
@@ -431,7 +532,7 @@
 				<div class="col-12 col-md-4">
 					<div class="input-group input-group-sm shadow-none">
 						<span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-						<input type="text" id="mov-search-input" class="form-control border-start-0" placeholder="Buscar folio, tipo, contrato, monto, caja...">
+						<input type="text" id="mov-search-input" class="form-control border-start-0" placeholder="Buscar sucursal o usuario...">
 					</div>
 				</div>
 				<div class="col-12 col-md-3 text-md-end">
@@ -447,13 +548,13 @@
 					<thead class="table-light sticky-top">
 						<tr>
 							<th class="text-center" style="width: 80px;">Folio</th>
-							<th style="min-width: 140px;"><i class="bi bi-clock-history me-1 text-primary"></i>Tiempo Exacto</th>
+							<th style="min-width: 140px;"><i class="bi bi-clock-history me-1 text-primary"></i>Hora de Movimiento</th>
 							<th>Sucursal</th>
 							<th>Tipo de Movimiento</th>
 							<th class="text-center">Contrato</th>
 							<th class="text-center">Caja</th>
-							<th class="text-center">Usuario</th>
-							<th class="text-end">Monto Total</th>
+							<th style="min-width: 160px;">Usuario</th>
+							<th class="text-end" title="Valor préstamo en operaciones prendarias">Monto Operado</th>
 							<th>Referencia / Obs.</th>
 						</tr>
 					</thead>
@@ -605,6 +706,7 @@
 			// ==========================================
 			let chartMovimientosInstance = null;
 			let chartTiposInstance = null;
+			let chartSucursalesInstances = [];
 			let currentMetric = 'counts'; // 'counts' o 'montos'
 			let currentPeriodo = 'mes';   // Por defecto 'mes' con horas y todas las sucursales
 			let currentView = 'horas';    // 'horas' o 'dias'
@@ -644,8 +746,81 @@
 				24: { bg: '#0891b2', color: '#ffffff' }  // Retiro Bancos
 			};
 
+			// Elementos del Selector Múltiple de Sucursales
+			const checkSucAll = document.getElementById('check-suc-all');
+			const branchCheckboxes = document.querySelectorAll('.check-sucursal');
+			const dropdownSucursalesBtn = document.getElementById('dropdownSucursalesBtn');
+			const dropdownSucursalesLabel = document.getElementById('dropdownSucursalesLabel');
+			const badgeSucursalesCount = document.getElementById('badge-sucursales-count');
+			const searchSucursalesInput = document.getElementById('search-sucursales-input');
+			const btnSelectAllSucursales = document.getElementById('btn-select-all-sucursales');
+			const btnClearSucursales = document.getElementById('btn-clear-sucursales');
+
+			function getSelectedSucursalesInfo() {
+				const checked = Array.from(branchCheckboxes).filter(cb => cb.checked);
+				if (checked.length === 0 || (checkSucAll && checkSucAll.checked)) {
+					return {
+						isAll: true,
+						ids: ['all'],
+						names: ['Todas las Sucursales'],
+						param: 'all',
+						count: branchCheckboxes.length
+					};
+				}
+				const ids = checked.map(cb => cb.value);
+				const names = checked.map(cb => cb.getAttribute('data-nombre') || cb.value);
+				return {
+					isAll: false,
+					ids: ids,
+					names: names,
+					param: ids.join(','),
+					count: checked.length
+				};
+			}
+
+			function updateSucursalesDropdownUI() {
+				const info = getSelectedSucursalesInfo();
+				if (info.isAll) {
+					if (dropdownSucursalesLabel) dropdownSucursalesLabel.textContent = '-- Todas las Sucursales --';
+					if (badgeSucursalesCount) {
+						badgeSucursalesCount.textContent = 'Todas';
+						badgeSucursalesCount.className = 'badge bg-primary-subtle text-primary border border-primary-subtle py-0 px-2 fw-semibold';
+					}
+				} else if (info.count === 1) {
+					if (dropdownSucursalesLabel) dropdownSucursalesLabel.textContent = info.names[0];
+					if (badgeSucursalesCount) {
+						badgeSucursalesCount.textContent = '1 selec.';
+						badgeSucursalesCount.className = 'badge bg-primary text-white border-0 py-0 px-2 fw-semibold';
+					}
+				} else if (info.count === 2) {
+					if (dropdownSucursalesLabel) dropdownSucursalesLabel.textContent = info.names.join(', ');
+					if (badgeSucursalesCount) {
+						badgeSucursalesCount.textContent = '2 selec.';
+						badgeSucursalesCount.className = 'badge bg-primary text-white border-0 py-0 px-2 fw-semibold';
+					}
+				} else {
+					if (dropdownSucursalesLabel) dropdownSucursalesLabel.textContent = `${info.count} sucursales seleccionadas`;
+					if (badgeSucursalesCount) {
+						badgeSucursalesCount.textContent = `${info.count} selec.`;
+						badgeSucursalesCount.className = 'badge bg-primary text-white border-0 py-0 px-2 fw-semibold';
+					}
+				}
+
+				const labelSucursal = document.getElementById('label-sucursal-activa');
+				if (labelSucursal) {
+					if (info.isAll) {
+						labelSucursal.innerHTML = '<i class="bi bi-geo-alt-fill text-danger me-1"></i>Todas las Sucursales';
+					} else if (info.count === 1) {
+						labelSucursal.innerHTML = `<i class="bi bi-geo-alt-fill text-danger me-1"></i>${info.names[0]}`;
+					} else if (info.count <= 3) {
+						labelSucursal.innerHTML = `<i class="bi bi-geo-alt-fill text-danger me-1"></i>${info.names.join(', ')}`;
+					} else {
+						labelSucursal.innerHTML = `<i class="bi bi-geo-alt-fill text-danger me-1"></i>${info.count} Sucursales seleccionadas`;
+					}
+				}
+			}
+
 			// Elementos del DOM
-			const sucursalSelect = document.getElementById('mov-sucursal');
 			const fechaInput = document.getElementById('mov-fecha');
 			const containerFechaUnica = document.getElementById('container-fecha-unica');
 			const containerFechaRango = document.getElementById('container-fecha-rango');
@@ -734,6 +909,7 @@
 					if (cachedData) {
 						updateKPIs(cachedData);
 						renderMainChart(cachedData);
+						renderSucursalesCharts(cachedData);
 					}
 				});
 			});
@@ -747,12 +923,71 @@
 					if (cachedData) {
 						renderMainChart(cachedData);
 						renderTiposChart(cachedData);
+						renderSucursalesCharts(cachedData);
 					}
 				});
 			});
 
+			// Eventos del Selector Múltiple de Sucursales
+			if (checkSucAll) {
+				checkSucAll.addEventListener('change', function () {
+					if (this.checked) {
+						branchCheckboxes.forEach(cb => cb.checked = false);
+					} else {
+						const anyChecked = Array.from(branchCheckboxes).some(cb => cb.checked);
+						if (!anyChecked) this.checked = true;
+					}
+					updateSucursalesDropdownUI();
+					fetchMovimientos();
+				});
+			}
+
+			branchCheckboxes.forEach(cb => {
+				cb.addEventListener('change', function () {
+					if (this.checked && checkSucAll) {
+						checkSucAll.checked = false;
+					}
+					const checkedCount = Array.from(branchCheckboxes).filter(c => c.checked).length;
+					if (checkedCount === 0 && checkSucAll) {
+						checkSucAll.checked = true;
+					} else if (checkedCount === branchCheckboxes.length && checkSucAll) {
+						checkSucAll.checked = true;
+						branchCheckboxes.forEach(c => c.checked = false);
+					}
+					updateSucursalesDropdownUI();
+					fetchMovimientos();
+				});
+			});
+
+			if (btnSelectAllSucursales) {
+				btnSelectAllSucursales.addEventListener('click', function () {
+					if (checkSucAll) checkSucAll.checked = true;
+					branchCheckboxes.forEach(cb => cb.checked = false);
+					updateSucursalesDropdownUI();
+					fetchMovimientos();
+				});
+			}
+
+			if (btnClearSucursales) {
+				btnClearSucursales.addEventListener('click', function () {
+					if (checkSucAll) checkSucAll.checked = true;
+					branchCheckboxes.forEach(cb => cb.checked = false);
+					updateSucursalesDropdownUI();
+					fetchMovimientos();
+				});
+			}
+
+			if (searchSucursalesInput) {
+				searchSucursalesInput.addEventListener('input', function () {
+					const q = this.value.toLowerCase().trim();
+					document.querySelectorAll('.sucursal-check-item[data-nombre]').forEach(item => {
+						const name = item.getAttribute('data-nombre') || '';
+						item.style.display = name.includes(q) ? '' : 'none';
+					});
+				});
+			}
+
 			// Cambios en selectores
-			sucursalSelect.addEventListener('change', fetchMovimientos);
 			fechaInput.addEventListener('change', fetchMovimientos);
 			tipoSelect.addEventListener('change', fetchMovimientos);
 			btnRecargar.addEventListener('click', fetchMovimientos);
@@ -764,13 +999,15 @@
 					filteredMovements = [...allMovements];
 				} else {
 					filteredMovements = allMovements.filter(m => {
-						return (m.cod_movimiento && String(m.cod_movimiento).toLowerCase().includes(query)) ||
+						return (m.sucursal && m.sucursal.toLowerCase().includes(query)) ||
+							(m.usuario_nombre && m.usuario_nombre.toLowerCase().includes(query)) ||
+							(m.usuario_login && m.usuario_login.toLowerCase().includes(query)) ||
+							(m.cod_usuario && String(m.cod_usuario).toLowerCase().includes(query)) ||
+							(m.cod_movimiento && String(m.cod_movimiento).toLowerCase().includes(query)) ||
 							(m.cod_contrato && String(m.cod_contrato).toLowerCase().includes(query)) ||
 							(m.tipo_nombre && m.tipo_nombre.toLowerCase().includes(query)) ||
-							(m.sucursal && m.sucursal.toLowerCase().includes(query)) ||
 							(m.hora && m.hora.toLowerCase().includes(query)) ||
 							(m.cod_caja && String(m.cod_caja).toLowerCase().includes(query)) ||
-							(m.cod_usuario && String(m.cod_usuario).toLowerCase().includes(query)) ||
 							(m.monto && String(m.monto).includes(query));
 					});
 				}
@@ -799,7 +1036,8 @@
 
 			// Función para consultar endpoint AJAX
 			function fetchMovimientos() {
-				const sucursalId = sucursalSelect.value;
+				const sucursalInfo = getSelectedSucursalesInfo();
+				const sucursalId = sucursalInfo.param;
 				const fecha = fechaInput.value;
 				const fechaInicio = fechaInicioInput ? fechaInicioInput.value : '';
 				const fechaFin = fechaFinInput ? fechaFinInput.value : '';
@@ -829,6 +1067,7 @@
 						updateKPIs(data);
 						renderMainChart(data);
 						renderTiposChart(data);
+						renderSucursalesCharts(data);
 
 						allMovements = data.movimientos || [];
 						filteredMovements = [...allMovements];
@@ -861,6 +1100,14 @@
 				document.getElementById('kpi-total-monto').textContent = currencyFormatter.format(data.total_monto || 0);
 				document.getElementById('kpi-hora-pico').textContent = data.hora_pico || 'Sin actividad';
 				document.getElementById('kpi-promedio-hora').textContent = data.promedio_por_hora ? (data.promedio_por_hora + ' movs/hr') : '0';
+				const kpiSubPromedio = document.getElementById('kpi-sub-promedio');
+				if (kpiSubPromedio) {
+					if (data.horas_operativas && data.dias_periodo) {
+						kpiSubPromedio.textContent = `Base ${data.horas_operativas} hrs (${data.dias_periodo} ${data.dias_periodo === 1 ? 'día' : 'días'})`;
+					} else {
+						kpiSubPromedio.textContent = 'Base: 64/7 hrs operativas/día';
+					}
+				}
 
 				// Etiquetas de periodo y sucursal
 				const labelPeriodo = document.getElementById('label-periodo-activo');
@@ -871,16 +1118,69 @@
 					labelPeriodo.innerHTML = `<i class="bi bi-calendar3 me-1"></i>${data.periodoLabel || ''} <span class="badge bg-white text-primary border ms-1 py-1 px-2 fw-semibold">${infoHoras}</span>`;
 				}
 
-				const labelSucursal = document.getElementById('label-sucursal-activa');
-				if (labelSucursal) {
-					const selectedOption = sucursalSelect.options[sucursalSelect.selectedIndex];
-					labelSucursal.innerHTML = `<i class="bi bi-geo-alt-fill text-danger me-1"></i>${selectedOption ? selectedOption.text : ''}`;
+				// Actualizar estado del selector múltiple y etiqueta de sucursal
+				updateSucursalesDropdownUI();
+
+				// Actualizar badge y etiqueta de tipo de movimiento
+				const badgeTipo = document.getElementById('badge-tipo-filtro');
+				const labelTipo = document.getElementById('label-tipo-activo');
+				const selectedTypeVal = tipoSelect ? tipoSelect.value : 'todos';
+				const selectedTypeText = tipoSelect && tipoSelect.selectedIndex >= 0 
+					? tipoSelect.options[tipoSelect.selectedIndex].text.replace(/^[^\w\s]+/g, '').trim() 
+					: 'Todos';
+
+				if (badgeTipo) {
+					if (selectedTypeVal === 'todos') {
+						badgeTipo.textContent = 'Todos';
+						badgeTipo.className = 'badge bg-indigo-subtle text-indigo border border-indigo-subtle py-0 px-2 fw-semibold';
+					} else {
+						badgeTipo.textContent = selectedTypeText;
+						badgeTipo.className = 'badge bg-primary text-white border-0 py-0 px-2 fw-semibold';
+					}
+				}
+
+				if (labelTipo) {
+					if (selectedTypeVal === 'todos') {
+						labelTipo.classList.add('d-none');
+					} else {
+						labelTipo.classList.remove('d-none');
+						labelTipo.innerHTML = `<i class="bi bi-funnel-fill me-1 text-primary"></i>Tipo: <strong>${selectedTypeText}</strong>`;
+					}
 				}
 
 				const subTotal = document.getElementById('kpi-sub-total');
 				if (subTotal) {
 					subTotal.textContent = `En ${data.periodoLabel || 'el periodo'}`;
 				}
+			}
+
+			// Obtener rango de fechas para el cursor de la gráfica
+			function getTooltipDateRange(data) {
+				if (!data) return '';
+				if (data.rango_fechas) return data.rango_fechas;
+				if (currentPeriodo === 'mes') {
+					const dateVal = (fechaInput && fechaInput.value) || data.fecha || '';
+					const parts = dateVal.split('-');
+					if (parts.length === 3) {
+						const y = parseInt(parts[0], 10);
+						const m = parseInt(parts[1], 10);
+						const lastDay = new Date(y, m, 0).getDate();
+						const mm = String(m).padStart(2, '0');
+						return `01/${mm}/${y} al ${String(lastDay).padStart(2, '0')}/${mm}/${y}`;
+					}
+				}
+				if (currentPeriodo === 'semana' && data.periodoLabel) {
+					return data.periodoLabel.replace(/^Semana del\s+/i, '');
+				}
+				if (currentPeriodo === 'rango' && data.periodoLabel) {
+					return data.periodoLabel.replace(/^Rango del\s+/i, '');
+				}
+				if (data.fecha) {
+					const parts = data.fecha.split('-');
+					if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+					return data.fecha;
+				}
+				return data.periodoLabel || '';
 			}
 
 			// Renderizar Gráfica Principal (Por hora o por periodo)
@@ -891,54 +1191,64 @@
 
 				updateViewButtons();
 
+				const isMontos = currentMetric === 'montos';
+				const sucursalInfo = getSelectedSucursalesInfo();
+				const isMulti = !sucursalInfo.isAll && sucursalInfo.count >= 2;
+				const sucursalNames = isMulti ? ` (${sucursalInfo.names.join(' + ')})` : '';
+
 				let labels = [];
 				let datasetValues = [];
-				let labelMetric = currentMetric === 'counts' ? 'Cantidad de Movimientos' : 'Monto Operado ($)';
+				let labelMetric = isMontos ? 'Monto Operado' : 'Cantidad de Movimientos';
 
 				if (currentPeriodo === 'dia' || currentPeriodo === 'hoy' || currentPeriodo === 'ayer') {
 					labels = data.por_hora.labels;
-					datasetValues = currentMetric === 'counts' ? data.por_hora.counts : data.por_hora.montos;
+					datasetValues = isMontos ? data.por_hora.montos : data.por_hora.counts;
 					if (titleEl) {
-						if (currentPeriodo === 'hoy') titleEl.textContent = `Afluencia de Movimientos de Hoy (${data.fecha})`;
+						if (isMulti) titleEl.textContent = `Afluencia General Consolidada${sucursalNames} (${data.fecha})`;
+						else if (currentPeriodo === 'hoy') titleEl.textContent = `Afluencia de Movimientos de Hoy (${data.fecha})`;
 						else if (currentPeriodo === 'ayer') titleEl.textContent = `Afluencia de Movimientos de Ayer (${data.fecha})`;
 						else titleEl.textContent = `Afluencia de Movimientos por Hora (${data.fecha})`;
 					}
-					if (subtitleEl) subtitleEl.textContent = 'Distribución horaria detallada (07:00 a 20:00 hrs)';
+					if (subtitleEl) {
+						subtitleEl.textContent = isMulti
+							? `Total general consolidado de las ${sucursalInfo.count} sucursales filtradas (07:00 a 20:00 hrs)`
+							: 'Distribución horaria detallada (07:00 a 20:00 hrs)';
+					}
 				} else if (currentPeriodo === 'semana') {
 					if (currentView === 'horas') {
 						labels = data.por_hora.labels;
-						datasetValues = currentMetric === 'counts' ? data.por_hora.counts : data.por_hora.montos;
-						if (titleEl) titleEl.textContent = `Movimientos por Hora en la Semana (${data.periodoLabel})`;
-						if (subtitleEl) subtitleEl.textContent = 'Distribución horaria acumulada de Lunes a Domingo (07:00 a 20:00 hrs)';
+						datasetValues = isMontos ? data.por_hora.montos : data.por_hora.counts;
+						if (titleEl) titleEl.textContent = isMulti ? `Movimientos Generales Consolidados por Hora${sucursalNames} (${data.periodoLabel})` : `Movimientos por Hora en la Semana (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = isMulti ? `Total general consolidado de las ${sucursalInfo.count} sucursales filtradas (07:00 a 20:00 hrs)` : 'Distribución horaria acumulada de Lunes a Domingo (07:00 a 20:00 hrs)';
 					} else {
 						labels = data.por_periodo.labels;
-						datasetValues = currentMetric === 'counts' ? data.por_periodo.counts : data.por_periodo.montos;
-						if (titleEl) titleEl.textContent = `Movimientos por Día de la Semana (${data.periodoLabel})`;
-						if (subtitleEl) subtitleEl.textContent = 'Evolución de operaciones de Lunes a Domingo';
+						datasetValues = isMontos ? data.por_periodo.montos : data.por_periodo.counts;
+						if (titleEl) titleEl.textContent = isMulti ? `Movimientos Generales Consolidados por Día${sucursalNames} (${data.periodoLabel})` : `Movimientos por Día de la Semana (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = isMulti ? `Evolución diaria consolidada de las ${sucursalInfo.count} sucursales filtradas` : 'Evolución de operaciones de Lunes a Domingo';
 					}
 				} else if (currentPeriodo === 'mes') {
 					if (currentView === 'horas') {
 						labels = data.por_hora.labels;
-						datasetValues = currentMetric === 'counts' ? data.por_hora.counts : data.por_hora.montos;
-						if (titleEl) titleEl.textContent = `Afluencia de Movimientos por Hora en el Mes (${data.periodoLabel})`;
-						if (subtitleEl) subtitleEl.textContent = 'Distribución horaria acumulada de las operaciones del mes (07:00 a 20:00 hrs)';
+						datasetValues = isMontos ? data.por_hora.montos : data.por_hora.counts;
+						if (titleEl) titleEl.textContent = isMulti ? `Afluencia General Consolidada por Hora${sucursalNames} (${data.periodoLabel})` : `Afluencia de Movimientos por Hora en el Mes (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = isMulti ? `Total general consolidado de las ${sucursalInfo.count} sucursales filtradas (07:00 a 20:00 hrs)` : 'Distribución horaria acumulada de las operaciones del mes (07:00 a 20:00 hrs)';
 					} else {
 						labels = data.por_periodo.labels;
-						datasetValues = currentMetric === 'counts' ? data.por_periodo.counts : data.por_periodo.montos;
-						if (titleEl) titleEl.textContent = `Evolución Diaria del Mes (${data.periodoLabel})`;
-						if (subtitleEl) subtitleEl.textContent = 'Distribución día a día a lo largo del mes (haz clic en un día para ver sus horas)';
+						datasetValues = isMontos ? data.por_periodo.montos : data.por_periodo.counts;
+						if (titleEl) titleEl.textContent = isMulti ? `Evolución Diaria General Consolidada${sucursalNames} (${data.periodoLabel})` : `Evolución Diaria del Mes (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = isMulti ? `Evolución diaria consolidada de las ${sucursalInfo.count} sucursales filtradas` : 'Distribución día a día a lo largo del mes (haz clic en un día para ver sus horas)';
 					}
 				} else if (currentPeriodo === 'rango') {
 					if (currentView === 'horas') {
 						labels = data.por_hora.labels;
-						datasetValues = currentMetric === 'counts' ? data.por_hora.counts : data.por_hora.montos;
-						if (titleEl) titleEl.textContent = `Afluencia de Movimientos por Hora en el Rango (${data.periodoLabel})`;
-						if (subtitleEl) subtitleEl.textContent = 'Distribución horaria acumulada en el rango seleccionado (07:00 a 20:00 hrs)';
+						datasetValues = isMontos ? data.por_hora.montos : data.por_hora.counts;
+						if (titleEl) titleEl.textContent = isMulti ? `Afluencia General Consolidada por Hora${sucursalNames} (${data.periodoLabel})` : `Afluencia de Movimientos por Hora en el Rango (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = isMulti ? `Total general consolidado de las ${sucursalInfo.count} sucursales filtradas (07:00 a 20:00 hrs)` : 'Distribución horaria acumulada en el rango seleccionado (07:00 a 20:00 hrs)';
 					} else {
 						labels = data.por_periodo.labels;
-						datasetValues = currentMetric === 'counts' ? data.por_periodo.counts : data.por_periodo.montos;
-						if (titleEl) titleEl.textContent = `Evolución Diaria en el Rango (${data.periodoLabel})`;
-						if (subtitleEl) subtitleEl.textContent = 'Distribución día a día del rango seleccionado (haz clic en un día para ver sus horas)';
+						datasetValues = isMontos ? data.por_periodo.montos : data.por_periodo.counts;
+						if (titleEl) titleEl.textContent = isMulti ? `Evolución Diaria General Consolidada${sucursalNames} (${data.periodoLabel})` : `Evolución Diaria en el Rango (${data.periodoLabel})`;
+						if (subtitleEl) subtitleEl.textContent = isMulti ? `Evolución diaria consolidada de las ${sucursalInfo.count} sucursales filtradas` : 'Distribución día a día del rango seleccionado (haz clic en un día para ver sus horas)';
 					}
 				}
 
@@ -946,15 +1256,90 @@
 					chartMovimientosInstance.destroy();
 				}
 
-				// Crear gradiente de color para las barras
-				const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-				if (currentMetric === 'counts') {
-					gradient.addColorStop(0, 'rgba(79, 70, 229, 0.85)');
-					gradient.addColorStop(1, 'rgba(59, 130, 246, 0.45)');
-				} else {
-					gradient.addColorStop(0, 'rgba(16, 185, 129, 0.85)');
-					gradient.addColorStop(1, 'rgba(5, 150, 105, 0.45)');
-				}
+				// Crear gradiente de color más claro y luminoso para las barras
+				const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+				gradient.addColorStop(0, '#6366f1'); // Índigo medio luminoso
+				gradient.addColorStop(1, '#a5b4fc'); // Azul/índigo pastel claro
+
+				// Plugin personalizado para dibujar el porcentaje ARRIBA (más fuerte) y los movimientos DENTRO
+				// Formula: (movimientos por hora / total de movimientos) * 100
+				const barLabelsPlugin = {
+					id: 'barLabelsPlugin',
+					afterDatasetsDraw(chart) {
+						const { ctx, data } = chart;
+						const dataset = data.datasets[0];
+						if (!dataset || !dataset.data) return;
+
+						const total = (cachedData && cachedData.total_movimientos > 0) 
+							? cachedData.total_movimientos 
+							: dataset.data.reduce((acc, val) => acc + (Number(val) || 0), 0);
+						if (total <= 0) return;
+
+						const meta = chart.getDatasetMeta(0);
+						if (!meta || !meta.data) return;
+
+						const isDense = meta.data.length > 20;
+
+						meta.data.forEach((bar, index) => {
+							const val = Number(dataset.data[index]) || 0;
+							if (val > 0) {
+								const pct = ((val / total) * 100).toFixed(1) + '%';
+								const countStr = isMontos ? currencyFormatter.format(val) : numberFormatter.format(val);
+								const barHeight = Math.abs(bar.base - bar.y);
+
+								ctx.save();
+								ctx.textAlign = 'center';
+								ctx.textBaseline = 'middle';
+
+								if (isDense) {
+									// 1. ARRIBA DE LA BARRA: Porcentaje en tono fuerte y oscuro
+									ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+									ctx.fillStyle = '#1e1b4b'; // Índigo 950 muy fuerte
+									ctx.fillText(pct, bar.x, bar.y - 4);
+
+									// 2. DENTRO DE LA BARRA: Movimientos
+									if (barHeight >= 14) {
+										ctx.shadowColor = 'rgba(15, 23, 42, 0.65)';
+										ctx.shadowBlur = 2;
+										ctx.shadowOffsetY = 1;
+										ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+										ctx.fillStyle = '#ffffff';
+										ctx.fillText(countStr, bar.x, bar.y + Math.min(10, barHeight / 2));
+									}
+								} else {
+									// 1. ARRIBA DE LA BARRA: Porcentaje en tono fuerte y oscuro
+									ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+									ctx.fillStyle = '#1e1b4b'; // Índigo 950 muy fuerte y nítido
+									ctx.fillText(pct, bar.x, bar.y - 5);
+
+									// 2. DENTRO DE LA BARRA: Movimientos
+									if (barHeight >= 20) {
+										ctx.shadowColor = 'rgba(15, 23, 42, 0.65)';
+										ctx.shadowBlur = 3;
+										ctx.shadowOffsetY = 1;
+										ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+										ctx.fillStyle = '#ffffff';
+										ctx.fillText(countStr, bar.x, bar.y + 13);
+									} else if (barHeight >= 12) {
+										ctx.shadowColor = 'rgba(15, 23, 42, 0.65)';
+										ctx.shadowBlur = 2;
+										ctx.shadowOffsetY = 1;
+										ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+										ctx.fillStyle = '#ffffff';
+										ctx.fillText(countStr, bar.x, bar.y + (barHeight / 2));
+									} else {
+										// Barra extremadamente pequeña: número arriba del porcentaje
+										ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+										ctx.fillStyle = '#0f172a';
+										ctx.fillText(countStr, bar.x, bar.y - 17);
+									}
+								}
+
+								ctx.restore();
+							}
+						});
+					}
+				};
 
 				chartMovimientosInstance = new Chart(ctx, {
 					type: 'bar',
@@ -964,12 +1349,13 @@
 							label: labelMetric,
 							data: datasetValues,
 							backgroundColor: gradient,
-							borderColor: currentMetric === 'counts' ? '#4f46e5' : '#059669',
-							borderWidth: 1.5,
+							borderColor: '#6366f1',
+							borderWidth: 1.2,
 							borderRadius: 6,
-							hoverBackgroundColor: currentMetric === 'counts' ? '#4338ca' : '#047857'
+							hoverBackgroundColor: '#4f46e5'
 						}]
 					},
+					plugins: [barLabelsPlugin],
 					options: {
 						responsive: true,
 						maintainAspectRatio: false,
@@ -1019,30 +1405,41 @@
 							},
 							tooltip: {
 								backgroundColor: 'rgba(17, 24, 39, 0.95)',
-								titleFont: { size: 13, weight: 'bold' },
-								bodyFont: { size: 12 },
-								padding: 10,
+								titleFont: { size: 12, weight: 'bold' },
+								titleColor: '#ffffff',
+								padding: { top: 6, bottom: 6, left: 10, right: 10 },
+								displayColors: false,
 								callbacks: {
 									title: function (items) {
+										if (!items || items.length === 0) return '';
 										const item = items[0];
 										const lbl = item.label || '';
 										const isHourly = (currentView === 'horas' || currentPeriodo === 'dia' || currentPeriodo === 'hoy' || currentPeriodo === 'ayer');
-										if (isHourly) {
-											return `${lbl} hrs (${data.periodoLabel || data.fecha})`;
-										}
-										return `${lbl} (${data.periodoLabel || data.fecha})`;
-									},
-									label: function (context) {
-										const idx = context.dataIndex;
-										const isHourly = (currentView === 'horas' || currentPeriodo === 'dia' || currentPeriodo === 'hoy' || currentPeriodo === 'ayer');
-										const c = isHourly ? (data.por_hora.counts[idx] || 0) : (data.por_periodo.counts[idx] || 0);
-										const m = isHourly ? (data.por_hora.montos[idx] || 0) : (data.por_periodo.montos[idx] || 0);
+										const dateRange = getTooltipDateRange(data);
+										const dateSuffix = dateRange ? ` (${dateRange})` : '';
 
-										if (currentMetric === 'counts') {
-											return ` Movimientos: ${numberFormatter.format(c)} (${currencyFormatter.format(m)})`;
-										} else {
-											return ` Monto: ${currencyFormatter.format(m)} (${numberFormatter.format(c)} movs)`;
+										if (isHourly) {
+											const parts = lbl.split(':');
+											const h = parseInt(parts[0], 10);
+											const nextH = h + 1;
+											return `${String(h).padStart(2, '0')}:00 a ${String(nextH).padStart(2, '0')}:00 hrs${dateSuffix}`;
 										}
+
+										if (currentPeriodo === 'mes') {
+											const dayMatch = lbl.match(/\d+/);
+											if (dayMatch) {
+												const dayNum = parseInt(dayMatch[0], 10);
+												const curDate = new Date((fechaInput && fechaInput.value ? fechaInput.value : data.fecha) + 'T00:00:00');
+												const mm = String(curDate.getMonth() + 1).padStart(2, '0');
+												const yyyy = curDate.getFullYear();
+												return `Día ${dayNum} (${String(dayNum).padStart(2, '0')}/${mm}/${yyyy})`;
+											}
+										}
+										return `${lbl}${dateSuffix}`;
+									},
+									label: function () {
+										// Al acercar el cursor: solo el rango
+										return null;
 									}
 								}
 							}
@@ -1050,16 +1447,13 @@
 						scales: {
 							y: {
 								beginAtZero: true,
+								grace: '10%',
 								grid: {
 									color: 'rgba(0, 0, 0, 0.05)'
 								},
 								ticks: {
 									callback: function (value) {
-										if (currentMetric === 'counts') {
-											return numberFormatter.format(value);
-										} else {
-											return '$' + numberFormatter.format(value);
-										}
+										return numberFormatter.format(value);
 									}
 								}
 							},
@@ -1079,7 +1473,7 @@
 				const tipos = data.por_tipo || [];
 
 				const labels = tipos.map(t => t.nombre);
-				const counts = tipos.map(t => currentMetric === 'counts' ? t.conteo : t.monto);
+				const counts = tipos.map(t => t.conteo);
 				const colors = tipos.map(t => t.color || '#6c757d');
 
 				if (chartTiposInstance) {
@@ -1108,14 +1502,10 @@
 							tooltip: {
 								callbacks: {
 									label: function (context) {
-										const idx = context.dataIndex;
-										const t = tipos[idx];
-										if (!t) return '';
-										if (currentMetric === 'counts') {
-											return ` ${t.nombre}: ${numberFormatter.format(t.conteo)} movs (${currencyFormatter.format(t.monto)})`;
-										} else {
-											return ` ${t.nombre}: ${currencyFormatter.format(t.monto)} (${numberFormatter.format(t.conteo)} movs)`;
-										}
+										const val = context.raw || 0;
+										const total = context.dataset.data.reduce((a, b) => a + b, 0);
+										const pct = total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
+										return ` ${context.label}: ${numberFormatter.format(val)} movs (${pct})`;
 									}
 								}
 							}
@@ -1148,6 +1538,287 @@
 				});
 				listHtml += '</div>';
 				listContainer.innerHTML = listHtml;
+			}
+
+			// Renderizar Gráficas Divididas por Sucursal (cuando se filtran 2 o más sucursales específicas)
+			function renderSucursalesCharts(data) {
+				const container = document.getElementById('container-graficas-sucursales');
+				const grid = document.getElementById('grid-graficas-sucursales');
+				const badgeCount = document.getElementById('badge-count-sucursales-graficas');
+
+				// Destruir instancias previas de gráficas de sucursales
+				chartSucursalesInstances.forEach(inst => {
+					if (inst && typeof inst.destroy === 'function') {
+						inst.destroy();
+					}
+				});
+				chartSucursalesInstances = [];
+
+				const sucursales = data.por_sucursal || [];
+				if (!container || !grid) return;
+
+				const sucursalInfo = getSelectedSucursalesInfo();
+
+				// REGLA SOLICITADA POR EL USUARIO:
+				// 1. Si es "Todas las sucursales" (isAll), solo se muestra la gráfica general consolidada arriba (las divididas se ocultan).
+				// 2. Si solo se seleccionó 1 sucursal, solo se muestra la gráfica de esa sucursal arriba.
+				// 3. SOLO si se filtran 2 o más sucursales específicas (ej. Lerma y Toluca), aparecen esas divididas abajo y una general de ambas arriba.
+				if (sucursalInfo.isAll || sucursales.length <= 1) {
+					container.style.display = 'none';
+					grid.innerHTML = '';
+					return;
+				}
+
+				// Mostrar contenedor de gráficas divididas por sucursal
+				container.style.display = 'block';
+				if (badgeCount) {
+					badgeCount.textContent = `${sucursales.length} sucursales divididas`;
+				}
+				const subEl = document.getElementById('container-graficas-sucursales-sub');
+				if (subEl) {
+					const namesList = sucursales.map(s => s.nombre).join(' y ');
+					subEl.textContent = `Gráficas individuales separadas de: ${namesList}`;
+				}
+
+				// Paleta de degradados claros para las barras y colores oscuros fuertes para los porcentajes
+				const branchThemes = [
+					{ start: '#6366f1', end: '#a5b4fc', border: '#6366f1', hover: '#4f46e5', pctColor: '#1e1b4b', iconColor: 'text-primary' }, // Índigo
+					{ start: '#10b981', end: '#a7f3d0', border: '#10b981', hover: '#059669', pctColor: '#064e3b', iconColor: 'text-success' }, // Esmeralda
+					{ start: '#8b5cf6', end: '#ddd6fe', border: '#8b5cf6', hover: '#7c3aed', pctColor: '#3b0764', iconColor: 'text-purple' },  // Violeta
+					{ start: '#0ea5e9', end: '#bae6fd', border: '#0ea5e9', hover: '#0284c7', pctColor: '#0c4a6e', iconColor: 'text-info' },    // Sky
+					{ start: '#f59e0b', end: '#fde68a', border: '#f59e0b', hover: '#d97706', pctColor: '#78350f', iconColor: 'text-warning' }, // Ámbar
+					{ start: '#f43f5e', end: '#fecdd3', border: '#f43f5e', hover: '#e11d48', pctColor: '#881337', iconColor: 'text-danger' },  // Rose
+					{ start: '#14b8a6', end: '#99f6e4', border: '#14b8a6', hover: '#0d9488', pctColor: '#134e4a', iconColor: 'text-teal' },    // Teal
+					{ start: '#64748b', end: '#cbd5e1', border: '#64748b', hover: '#475569', pctColor: '#0f172a', iconColor: 'text-secondary' }, // Slate
+					{ start: '#d946ef', end: '#f5d0fe', border: '#d946ef', hover: '#c026d3', pctColor: '#701a75', iconColor: 'text-pink' },    // Fucsia
+					{ start: '#84cc16', end: '#d9f99d', border: '#84cc16', hover: '#65a30d', pctColor: '#365314', iconColor: 'text-lime' }     // Lima
+				];
+
+				const isMontos = currentMetric === 'montos';
+				const isHourly = (currentView === 'horas' || currentPeriodo === 'dia' || currentPeriodo === 'hoy' || currentPeriodo === 'ayer');
+
+				// Generar tarjetas en el grid
+				let html = '';
+				sucursales.forEach((suc, idx) => {
+					const theme = branchThemes[idx % branchThemes.length];
+					html += `
+						<div class="col-12 col-lg-6">
+							<div class="card border border-light-subtle shadow-sm rounded-3 p-3 h-100 bg-white d-flex flex-column">
+								<div class="d-flex flex-wrap justify-content-between align-items-center mb-2 pb-2 border-bottom gap-2">
+									<div>
+										<h6 class="fw-bold mb-0 text-dark">
+											<i class="bi bi-shop ${theme.iconColor} me-2"></i>${suc.nombre}
+										</h6>
+										<small class="text-muted" style="font-size: 0.72rem;">
+											<i class="bi bi-lightning-charge-fill text-warning me-1"></i>Pico: <strong>${suc.hora_pico || 'Sin actividad'}</strong>
+										</small>
+									</div>
+									<div class="d-flex align-items-center gap-1 flex-wrap">
+										<span class="badge bg-indigo-subtle text-indigo border border-indigo-subtle py-1 px-2 fw-semibold" title="Total de movimientos">
+											<i class="bi bi-arrow-repeat me-1"></i>${numberFormatter.format(suc.total_movimientos || 0)} movs
+										</span>
+										<span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2 fw-semibold" title="Monto operado">
+											<i class="bi bi-cash me-1"></i>${currencyFormatter.format(suc.total_monto || 0)}
+										</span>
+										<span class="badge bg-light text-secondary border py-1 px-2" title="Promedio por hora">
+											<i class="bi bi-speedometer2 me-1"></i>${suc.promedio_por_hora || 0} /hr
+										</span>
+									</div>
+								</div>
+								<div style="position: relative; height: 195px;" class="flex-grow-1">
+									<canvas id="chartSucursal_${idx}"></canvas>
+								</div>
+							</div>
+						</div>
+					`;
+				});
+
+				grid.innerHTML = html;
+
+				// Inicializar cada gráfica por sucursal
+				sucursales.forEach((suc, idx) => {
+					const canvas = document.getElementById(`chartSucursal_${idx}`);
+					if (!canvas) return;
+					const ctx = canvas.getContext('2d');
+
+					const theme = branchThemes[idx % branchThemes.length];
+					const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+					gradient.addColorStop(0, theme.start);
+					gradient.addColorStop(1, theme.end);
+
+					let labels = [];
+					let datasetValues = [];
+
+					if (isHourly) {
+						labels = suc.por_hora.labels;
+						datasetValues = isMontos ? suc.por_hora.montos : suc.por_hora.counts;
+					} else {
+						labels = suc.por_periodo.labels;
+						datasetValues = isMontos ? suc.por_periodo.montos : suc.por_periodo.counts;
+					}
+
+					const sucTotal = suc.total_movimientos || 0;
+
+					// Plugin para dibujar dentro de la barra de esta sucursal
+					const branchBarLabelsPlugin = {
+						id: `branchBarLabelsPlugin_${idx}`,
+						afterDatasetsDraw(chart) {
+							const { ctx, data } = chart;
+							const dataset = data.datasets[0];
+							if (!dataset || !dataset.data) return;
+
+							const total = (sucTotal > 0) 
+								? sucTotal 
+								: dataset.data.reduce((acc, val) => acc + (Number(val) || 0), 0);
+							if (total <= 0) return;
+
+							const meta = chart.getDatasetMeta(0);
+							if (!meta || !meta.data) return;
+
+							const isDense = meta.data.length > 20;
+
+							meta.data.forEach((bar, index) => {
+								const val = Number(dataset.data[index]) || 0;
+								if (val > 0) {
+									const pct = ((val / total) * 100).toFixed(1) + '%';
+									const countStr = isMontos ? currencyFormatter.format(val) : numberFormatter.format(val);
+									const barHeight = Math.abs(bar.base - bar.y);
+
+									ctx.save();
+									ctx.textAlign = 'center';
+									ctx.textBaseline = 'middle';
+
+									if (isDense) {
+										// 1. ARRIBA DE LA BARRA: Porcentaje más fuerte
+										ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+										ctx.fillStyle = theme.pctColor || '#0f172a';
+										ctx.fillText(pct, bar.x, bar.y - 4);
+
+										// 2. DENTRO DE LA BARRA: Movimientos
+										if (barHeight >= 14) {
+											ctx.shadowColor = 'rgba(15, 23, 42, 0.65)';
+											ctx.shadowBlur = 2;
+											ctx.shadowOffsetY = 1;
+											ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+											ctx.fillStyle = '#ffffff';
+											ctx.fillText(countStr, bar.x, bar.y + Math.min(10, barHeight / 2));
+										}
+									} else {
+										// 1. ARRIBA DE LA BARRA: Porcentaje más fuerte
+										ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+										ctx.fillStyle = theme.pctColor || '#0f172a';
+										ctx.fillText(pct, bar.x, bar.y - 5);
+
+										// 2. DENTRO DE LA BARRA: Movimientos
+										if (barHeight >= 20) {
+											ctx.shadowColor = 'rgba(15, 23, 42, 0.65)';
+											ctx.shadowBlur = 3;
+											ctx.shadowOffsetY = 1;
+											ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+											ctx.fillStyle = '#ffffff';
+											ctx.fillText(countStr, bar.x, bar.y + 12);
+										} else if (barHeight >= 12) {
+											ctx.shadowColor = 'rgba(15, 23, 42, 0.65)';
+											ctx.shadowBlur = 2;
+											ctx.shadowOffsetY = 1;
+											ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+											ctx.fillStyle = '#ffffff';
+											ctx.fillText(countStr, bar.x, bar.y + (barHeight / 2));
+										} else {
+											// Barra extremadamente pequeña
+											ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+											ctx.fillStyle = '#0f172a';
+											ctx.fillText(countStr, bar.x, bar.y - 17);
+										}
+									}
+
+									ctx.restore();
+								}
+							});
+						}
+					};
+
+					const branchChart = new Chart(ctx, {
+						type: 'bar',
+						data: {
+							labels: labels,
+							datasets: [{
+								label: isMontos ? 'Monto' : 'Movimientos',
+								data: datasetValues,
+								backgroundColor: gradient,
+								borderColor: theme.border,
+								borderWidth: 1.2,
+								borderRadius: 5,
+								hoverBackgroundColor: theme.hover
+							}]
+						},
+						plugins: [branchBarLabelsPlugin],
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								legend: { display: false },
+								tooltip: {
+									backgroundColor: 'rgba(17, 24, 39, 0.95)',
+									titleFont: { size: 12, weight: 'bold' },
+									titleColor: '#ffffff',
+									padding: { top: 6, bottom: 6, left: 10, right: 10 },
+									displayColors: false,
+									callbacks: {
+										title: function (items) {
+											if (!items || items.length === 0) return '';
+											const item = items[0];
+											const lbl = item.label || '';
+											const dateRange = getTooltipDateRange(data);
+											const dateSuffix = dateRange ? ` (${dateRange})` : '';
+
+											if (isHourly) {
+												const parts = lbl.split(':');
+												const h = parseInt(parts[0], 10);
+												const nextH = h + 1;
+												return `${String(h).padStart(2, '0')}:00 a ${String(nextH).padStart(2, '0')}:00 hrs${dateSuffix}`;
+											}
+
+											if (currentPeriodo === 'mes') {
+												const dayMatch = lbl.match(/\d+/);
+												if (dayMatch) {
+													const dayNum = parseInt(dayMatch[0], 10);
+													const curDate = new Date((fechaInput && fechaInput.value ? fechaInput.value : data.fecha) + 'T00:00:00');
+													const mm = String(curDate.getMonth() + 1).padStart(2, '0');
+													const yyyy = curDate.getFullYear();
+													return `Día ${dayNum} (${String(dayNum).padStart(2, '0')}/${mm}/${yyyy})`;
+												}
+											}
+											return `${lbl}${dateSuffix}`;
+										},
+										label: function () {
+											return null; // Solo mostrar el rango al pasar el cursor
+										}
+									}
+								}
+							},
+							scales: {
+								y: {
+									beginAtZero: true,
+									grace: '10%',
+									grid: { color: 'rgba(0, 0, 0, 0.05)' },
+									ticks: {
+										font: { size: 10 },
+										callback: function (val) {
+											return numberFormatter.format(val);
+										}
+									}
+								},
+								x: {
+									grid: { display: false },
+									ticks: { font: { size: 10 } }
+								}
+							}
+						}
+					});
+
+					chartSucursalesInstances.push(branchChart);
+				});
 			}
 
 			// Renderizar Tabla Detallada con Paginación
@@ -1199,8 +1870,16 @@
 							</td>
 							<td class="text-center font-monospace">${item.cod_contrato ? ('#' + item.cod_contrato) : '<span class="text-muted">-</span>'}</td>
 							<td class="text-center"><span class="badge bg-light text-secondary border">Caja ${item.cod_caja ?? '-'}</span></td>
-							<td class="text-center"><small class="text-muted">U:${item.cod_usuario ?? '-'}</small></td>
-							<td class="text-end fw-bold text-dark font-monospace">${currencyFormatter.format(item.monto || 0)}</td>
+							<td>
+								<span class="fw-semibold text-dark d-block text-truncate" style="max-width: 190px;" title="${item.usuario_nombre || ''}">
+									${item.usuario_nombre || ('Usuario ' + (item.cod_usuario ?? '-'))}
+								</span>
+								<small class="text-muted" style="font-size: 0.72rem;">ID: ${item.cod_usuario ?? '-'}</small>
+							</td>
+							<td class="text-end font-monospace">
+								<span class="fw-bold text-dark">${currencyFormatter.format(item.monto || 0)}</span>
+								${item.monto_transaccion && Math.abs((item.monto || 0) - (item.monto_transaccion || 0)) > 0.01 ? `<br><small class="text-muted" style="font-size: 0.72rem;">Caja: ${currencyFormatter.format(item.monto_transaccion)}</small>` : ''}
+							</td>
 							<td><small class="text-muted text-truncate d-inline-block" style="max-width: 160px;" title="${item.referencia || ''}">${item.referencia || '-'}</small></td>
 						</tr>
 					`;
@@ -1229,7 +1908,7 @@
 					`"${(m.tipo_nombre || '').replace(/"/g, '""')}"`,
 					m.cod_contrato || '',
 					m.cod_caja || '',
-					m.cod_usuario || '',
+					`"${(m.usuario_nombre || ('Usuario ' + (m.cod_usuario || ''))).replace(/"/g, '""')}"`,
 					m.monto || 0,
 					m.monto_efectivo || 0,
 					m.monto_tarjeta || 0,
@@ -1239,8 +1918,10 @@
 				let csvContent = '\uFEFF' + headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
 				const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
 				const url = URL.createObjectURL(blob);
-				const a = document.createElement('a');
-				const sucursalNombre = sucursalSelect.options[sucursalSelect.selectedIndex].text.replace(/\s+/g, '_');
+				const sucursalInfo = getSelectedSucursalesInfo();
+				const sucursalNombre = sucursalInfo.isAll
+					? 'Todas_las_sucursales'
+					: (sucursalInfo.count === 1 ? sucursalInfo.names[0].replace(/\s+/g, '_') : `${sucursalInfo.count}_sucursales`);
 				a.href = url;
 				a.download = `movimientos_${sucursalNombre}_${currentPeriodo}_${fechaInput.value}.csv`;
 				document.body.appendChild(a);
