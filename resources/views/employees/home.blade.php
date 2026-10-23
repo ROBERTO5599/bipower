@@ -254,17 +254,21 @@
 											-- Todas las Sucursales --
 										</label>
 									</div>
-									<hr class="my-1 text-muted opacity-25">
-									@if(isset($sucursalesList))
-										@foreach($sucursalesList as $s)
-											<div class="form-check py-1 px-3 rounded hover-bg sucursal-check-item" data-nombre="{{ strtolower($s->nombre) }}">
-												<input class="form-check-input check-sucursal cursor-pointer" type="checkbox" value="{{ $s->id_valora_mas }}" id="check-suc-{{ $s->id_valora_mas }}" data-nombre="{{ $s->nombre }}">
-												<label class="form-check-label cursor-pointer text-dark w-100" for="check-suc-{{ $s->id_valora_mas }}">
-													{{ $s->nombre }}
-												</label>
-											</div>
-										@endforeach
-									@endif
+									@php
+										$branchesToRender = (!empty($sucursalesList) && count($sucursalesList) > 0)
+											? $sucursalesList
+											: ((!empty($sucursales) && count($sucursales) > 0)
+												? $sucursales
+												: \App\Models\Sucursal::whereNotNull('id_valora_mas')->orderBy('nombre')->get());
+									@endphp
+									@foreach($branchesToRender as $s)
+										<div class="form-check py-1 px-3 rounded hover-bg sucursal-check-item" data-nombre="{{ strtolower($s->nombre) }}">
+											<input class="form-check-input check-sucursal cursor-pointer" type="checkbox" value="{{ $s->id_valora_mas }}" id="check-suc-{{ $s->id_valora_mas }}" data-nombre="{{ $s->nombre }}">
+											<label class="form-check-label cursor-pointer text-dark w-100" for="check-suc-{{ $s->id_valora_mas }}">
+												{{ $s->nombre }}
+											</label>
+										</div>
+									@endforeach
 								</div>
 							</div>
 						</div>
@@ -695,11 +699,17 @@
 
 	<script type="text/javascript">
 		document.addEventListener('DOMContentLoaded', function () {
-			// Tooltips de bootstrap
-			var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-			tooltipTriggerList.map(function (tooltipTriggerEl) {
-				return new bootstrap.Tooltip(tooltipTriggerEl);
-			});
+			// Tooltips de bootstrap de forma segura
+			if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+				try {
+					var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+					tooltipTriggerList.map(function (tooltipTriggerEl) {
+						return new bootstrap.Tooltip(tooltipTriggerEl);
+					});
+				} catch (e) {
+					console.warn('Error inicializando tooltips:', e);
+				}
+			}
 
 			// ==========================================
 			// LÓGICA DE MOVIMIENTOS POR HORA Y PERIODO
@@ -755,6 +765,14 @@
 			const searchSucursalesInput = document.getElementById('search-sucursales-input');
 			const btnSelectAllSucursales = document.getElementById('btn-select-all-sucursales');
 			const btnClearSucursales = document.getElementById('btn-clear-sucursales');
+
+			if (dropdownSucursalesBtn && typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
+				try {
+					bootstrap.Dropdown.getOrCreateInstance(dropdownSucursalesBtn);
+				} catch (e) {
+					console.warn('Dropdown init:', e);
+				}
+			}
 
 			function getSelectedSucursalesInfo() {
 				const checked = Array.from(branchCheckboxes).filter(cb => cb.checked);

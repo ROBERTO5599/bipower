@@ -247,14 +247,15 @@ class HomeController extends Controller
 
         // Available branches with actual active databases
         $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
-        $sucursalesList = $sucursales->filter(function($s) use ($availableDbs) {
+        $filtered = $sucursales->filter(function($s) use ($availableDbs) {
             return in_array((int)$s->id_valora_mas, $availableDbs);
-        })->sortBy('nombre')->values();
+        });
+        $sucursalesList = ($filtered->isNotEmpty() ? $filtered : $sucursales)->sortBy('nombre')->values();
 
         return view('employees.home', compact(
             'totalEmpeno', 'totalRefrendo', 'totalDesempeno',
             'sucursalesDetalleEmpeno', 'sucursalesDetalleRefrendo', 'sucursalesDetalleDesempeno',
-            'fechaDel', 'fechaAl', 'regionales', 'regionalUserId', 'sucursalesList'
+            'fechaDel', 'fechaAl', 'regionales', 'regionalUserId', 'sucursalesList', 'sucursales'
         ));
     }
 
@@ -357,6 +358,9 @@ class HomeController extends Controller
                     ->whereIn('id_valora_mas', $availableDbs)
                     ->whereIn('id_valora_mas', $permittedIds)
                     ->get();
+                if ($sucursales->isEmpty()) {
+                    $sucursales = Sucursal::whereNotNull('id_valora_mas')->get();
+                }
                 $sucursalesToQuery = $sucursales->all();
             } else {
                 $sucursales = Sucursal::whereNotNull('id_valora_mas')
@@ -364,6 +368,11 @@ class HomeController extends Controller
                     ->whereIn('id_valora_mas', $permittedIds)
                     ->whereIn('id_valora_mas', $selectedIds)
                     ->get();
+                if ($sucursales->isEmpty()) {
+                    $sucursales = Sucursal::whereNotNull('id_valora_mas')
+                        ->whereIn('id_valora_mas', $selectedIds)
+                        ->get();
+                }
                 $sucursalesToQuery = $sucursales->all();
             }
 
