@@ -8,6 +8,7 @@ use App\Http\Controllers\OperacionesCarteraController;
 use App\Http\Controllers\VentasController;
 use App\Http\Controllers\InventarioPisoController;
 use App\Http\Controllers\InventarioApartadosController;
+use App\Http\Controllers\InventarioRematadoController;
 use App\Http\Controllers\InventarioCreditoController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\CreditosController;
@@ -54,6 +55,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/inventario-apartados', [InventarioApartadosController::class, 'index'])->name('inventario-apartados.index');
     Route::get('/inventario-apartados/data', [InventarioApartadosController::class, 'data'])->name('inventario-apartados.data');
     Route::get('/inventario-apartados/top-marcas', [InventarioApartadosController::class, 'topMarcas'])->name('inventario-apartados.top-marcas');
+
+    Route::get('/inventario-rematado', [InventarioRematadoController::class, 'index'])->name('inventario-rematado.index');
+    Route::get('/inventario-rematado/data', [InventarioRematadoController::class, 'data'])->name('inventario-rematado.data');
 
     Route::get('/inventario-credito', function () {
         return redirect()->route('creditos.index', ['tab' => 'inventario']);

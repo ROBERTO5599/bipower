@@ -191,8 +191,11 @@
                 <a href="{{ route('inventario-piso.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-box-seam me-2"></i>Inventario en Piso
                 </a>
-                <a href="{{ route('inventario-apartados.index') }}" class="list-group-item list-group-item-action">
+                <a href="{{ route('inventario-apartados.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventario-apartados.*') ? 'active' : '' }}">
                     <i class="bi bi-bookmark-heart-fill me-2"></i>Inventario en Apartados
+                </a>
+                <a href="{{ route('inventario-rematado.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventario-rematado.*') ? 'active' : '' }}">
+                    <i class="bi bi-hammer me-2"></i>Inventario Rematado
                 </a>
                 <a href="{{ route('clientes.index') }}" class="list-group-item list-group-item-action">
                     <i class="bi bi-people-fill me-2"></i>Clientes

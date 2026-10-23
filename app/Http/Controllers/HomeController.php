@@ -18,7 +18,14 @@ class HomeController extends Controller
     {
         $regionales = PowerBIPermissionService::getRegionales();
         $regionalUserId = $request ? $request->input('regional_user_id') : null;
+        $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
         $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
+        if ($sucursales->isEmpty()) {
+            $sucursales = Sucursal::whereNotNull('id_valora_mas')
+                ->whereIn('id_valora_mas', $availableDbs)
+                ->orderBy('nombre')
+                ->get();
+        }
 
         $totalEmpeno = 0;
         $totalRefrendo = 0;
@@ -329,6 +336,9 @@ class HomeController extends Controller
 
             $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
             $permittedIds = PowerBIPermissionService::getPermittedSucursalIds();
+            if (empty($permittedIds)) {
+                $permittedIds = $availableDbs;
+            }
 
             // Procesar si se filtran una, múltiples o todas las sucursales
             $selectedIds = [];

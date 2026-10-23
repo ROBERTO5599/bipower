@@ -1922,6 +1922,7 @@
 				const sucursalNombre = sucursalInfo.isAll
 					? 'Todas_las_sucursales'
 					: (sucursalInfo.count === 1 ? sucursalInfo.names[0].replace(/\s+/g, '_') : `${sucursalInfo.count}_sucursales`);
+				const a = document.createElement('a');
 				a.href = url;
 				a.download = `movimientos_${sucursalNombre}_${currentPeriodo}_${fechaInput.value}.csv`;
 				document.body.appendChild(a);
