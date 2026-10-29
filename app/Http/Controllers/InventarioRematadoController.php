@@ -24,7 +24,7 @@ class InventarioRematadoController extends Controller
         $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
 
         $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
-        if ($sucursales->isEmpty()) {
+        if ($sucursales->isEmpty() && auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin') {
             $sucursales = Sucursal::whereNotNull('id_valora_mas')
                 ->whereIn('id_valora_mas', $availableDbs)
                 ->orderBy('nombre')

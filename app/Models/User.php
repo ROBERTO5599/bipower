@@ -24,7 +24,7 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    // 👇 Esto le dice a Laravel que el "username" es nick_name
+    // Esto le dice a Laravel que el "username" es nick_name
     public function getAuthIdentifierName()
     {
         return 'nick_name';
@@ -35,6 +35,7 @@ class User extends Authenticatable
     {
         return "{$this->nombre} {$this->primer_apellido} {$this->segundo_apellido}";
     }
+
     public function username()
     {
         return 'nick_name';
@@ -47,11 +48,93 @@ class User extends Authenticatable
     }
 
     /**
-     * Roles asignados al usuario.
+     * Roles asignados al usuario en la intranet (tabla user_role).
      */
     public function roles()
     {
         return $this->belongsToMany(Role::class, 'user_role', 'user_id', 'role_id');
+    }
+
+    /**
+     * Roles de módulos de Power BI asignados al usuario (tabla roles_user_powerbi).
+     */
+    public function rolesPowerBi()
+    {
+        return $this->belongsToMany(RolePowerBi::class, 'roles_user_powerbi', 'user_id', 'role_powerbi_id')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Verifica si el usuario tiene permiso para un módulo de Power BI específico.
+     * Los Super Administradores (rol 77 o PBI Super Administrador) tienen acceso total.
+     */
+    public function hasPowerBiRole($roleId)
+    {
+        $userRoles = $this->relationLoaded('roles') ? $this->roles : $this->roles()->get();
+        $roleNames = $userRoles->pluck('nombre')->toArray();
+
+        // 1. Super Administrador (77 o is_admin): Acceso total
+        if (
+            $this->is_admin ||
+            in_array('PBI Super Administrador', $roleNames) || 
+            in_array('Super Administrador', $roleNames) || 
+            $userRoles->contains('id', 77)
+        ) {
+            return true;
+        }
+
+        // 2. Inicio (Rol 1): Acceso automático para roles normales (Gerente 79, Regional 78, etc.) o con módulos
+        if ((int)$roleId === 1 && !is_null($this->getPbiRoleType())) {
+            return true;
+        }
+
+        // 3. Módulos adicionales (2 al 19): Se consultan desde los nuevos roles Power BI (roles_user_powerbi)
+        if ($this->relationLoaded('rolesPowerBi')) {
+            return $this->rolesPowerBi->contains('id', $roleId);
+        }
+
+        return $this->rolesPowerBi()->where('roles_powerbi.id', $roleId)->exists();
+    }
+
+    /**
+     * Retorna la URL de la primera pantalla autorizada para el usuario.
+     */
+    public function getFirstAuthorizedPowerBiRoute(): string
+    {
+        if ($this->hasPowerBiRole(1)) {
+            return route('home');
+        }
+
+        $map = [
+            1 => 'home',
+            2 => 'resumen-ejecutivo.index',
+            3 => 'operaciones-cartera.index',
+            4 => 'ventas.index',
+            5 => 'inventario-piso.index',
+            6 => 'inventario-apartados.index',
+            7 => 'inventario-rematado.index',
+            8 => 'clientes.index',
+            9 => 'creditos.index',
+            10 => 'certificados.index',
+            11 => 'gastos-finanzas.index',
+            12 => 'bancos.index',
+            13 => 'reporte-pagos-tarjeta.index',
+            14 => 'control-caja-arqueos.index',
+            15 => 'colaboradores.index',
+            16 => 'bonos-comisiones.index',
+            17 => 'metas-forecast.index',
+            18 => 'tablero-control.index',
+            19 => 'graficas.index',
+        ];
+
+        $userRoleIds = $this->rolesPowerBi()->pluck('roles_powerbi.id')->toArray();
+        foreach ($map as $roleId => $routeName) {
+            if (in_array($roleId, $userRoleIds)) {
+                return route($routeName);
+            }
+        }
+
+        return route('home');
     }
 
     /**
@@ -71,24 +154,46 @@ class User extends Authenticatable
     }
 
     /**
-     * Determinar el tipo de rol de Power BI para el usuario basándose EXCLUSIVAMENTE en la tabla de roles.
-     * @return string|null 'super_admin' | 'regional' | 'gerente' | null
+     * Determinar el tipo de rol de Power BI para el usuario.
+     * @return string|null 'super_admin' | 'regional' | 'gerente' | 'modulo_user' | null
      */
     public function getPbiRoleType()
     {
-        $userRoles = $this->roles()->get();
+        $userRoles = $this->relationLoaded('roles') ? $this->roles : $this->roles()->get();
         $roleNames = $userRoles->pluck('nombre')->toArray();
 
-        if (in_array('PBI Super Administrador', $roleNames) || $userRoles->contains('id', 77)) {
+        if (
+            $this->is_admin ||
+            in_array('PBI Super Administrador', $roleNames) || 
+            in_array('Super Administrador', $roleNames) || 
+            $userRoles->contains('id', 77)
+        ) {
             return 'super_admin';
         }
 
-        if (in_array('PBI Regional', $roleNames) || $userRoles->contains('id', 78)) {
+        if (
+            in_array('PBI Regional', $roleNames) || 
+            in_array('Regional', $roleNames) || 
+            $userRoles->contains('id', 78)
+        ) {
             return 'regional';
         }
 
-        if (in_array('PBI Gerente', $roleNames) || $userRoles->contains('id', 79)) {
+        if (
+            in_array('PBI Gerente', $roleNames) || 
+            in_array('Gerente', $roleNames) || 
+            $userRoles->contains('id', 79)
+        ) {
             return 'gerente';
+        }
+
+        // Si tiene asignado algún rol en la tabla roles_user_powerbi
+        $hasPbiRoles = $this->relationLoaded('rolesPowerBi') 
+            ? $this->rolesPowerBi->isNotEmpty() 
+            : $this->rolesPowerBi()->exists();
+
+        if ($hasPbiRoles) {
+            return 'modulo_user';
         }
 
         // Si no se le ha asignado ningún rol de Power BI, retorna null (sin acceso)
@@ -123,6 +228,17 @@ class User extends Authenticatable
             if ($this->sucursal && !is_null($this->sucursal->id_valora_mas)) {
                 return [$this->sucursal->id_valora_mas];
             }
+        }
+
+        if ($roleType === 'modulo_user') {
+            if ($this->sucursal && !is_null($this->sucursal->id_valora_mas)) {
+                return [$this->sucursal->id_valora_mas];
+            }
+            $query = Sucursal::whereNotNull('id_valora_mas');
+            if (!empty($regionalUserIdFilter)) {
+                $query->where('regional_user_id', $regionalUserIdFilter);
+            }
+            return $query->pluck('id_valora_mas')->toArray();
         }
 
         // Sin rol asignado: Arreglo vacío (acceso denegado / 0 sucursales)

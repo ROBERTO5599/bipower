@@ -176,63 +176,106 @@
             <img src="{{ asset('valoramas.png') }}" alt="Logo Valora Más" style="width: 60%; margin-left: 20%;">
             <div class="sidebar-heading">Valora mas</div>
             <div class="list-group list-group-flush">
-                <a href="{{ url('/home') }}" class="list-group-item list-group-item-action">
+                @if(Auth::user()->hasPowerBiRole(1))
+                <a href="{{ url('/home') }}" class="list-group-item list-group-item-action {{ request()->is('home*') ? 'active' : '' }}">
                     <i class="bi bi-house-fill me-2"></i>Inicio
                 </a>
-                <a href="{{ route('resumen-ejecutivo.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(2))
+                <a href="{{ route('resumen-ejecutivo.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('resumen-ejecutivo.*') ? 'active' : '' }}">
                     <i class="bi bi-bar-chart-line me-2"></i>Flujo de Opertivo
                 </a>
-                <a href="{{ route('operaciones-cartera.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(3))
+                <a href="{{ route('operaciones-cartera.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('operaciones-cartera.*') ? 'active' : '' }}">
                     <i class="bi bi-briefcase-fill me-2"></i>Movimiento de Inventario de Depositaria
                 </a>
-                <a href="{{ route('ventas.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(4))
+                <a href="{{ route('ventas.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('ventas.*') ? 'active' : '' }}">
                     <i class="bi bi-cart-check-fill me-2"></i>Ventas y Pagos
                 </a>
-                <a href="{{ route('inventario-piso.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(5))
+                <a href="{{ route('inventario-piso.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventario-piso.*') ? 'active' : '' }}">
                     <i class="bi bi-box-seam me-2"></i>Inventario en Piso
                 </a>
+                @endif
+                @if(Auth::user()->hasPowerBiRole(6))
                 <a href="{{ route('inventario-apartados.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventario-apartados.*') ? 'active' : '' }}">
                     <i class="bi bi-bookmark-heart-fill me-2"></i>Inventario en Apartados
                 </a>
+                @endif
+                @if(Auth::user()->hasPowerBiRole(7))
                 <a href="{{ route('inventario-rematado.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventario-rematado.*') ? 'active' : '' }}">
                     <i class="bi bi-hammer me-2"></i>Inventario Rematado
                 </a>
-                <a href="{{ route('clientes.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(20) || Auth::user()->is_admin || (method_exists(Auth::user(), 'hasPermission') && Auth::user()->hasPermission(89)))
+                <a href="{{ route('caminado.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('caminado.*') ? 'active' : '' }}">
+                    <i class="bi bi-hand-index-fill me-2"></i>Caminado
+                </a>
+                @endif
+                @if(Auth::user()->hasPowerBiRole(8))
+                <a href="{{ route('clientes.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('clientes.*') ? 'active' : '' }}">
                     <i class="bi bi-people-fill me-2"></i>Clientes
                 </a>
+                @endif
+                @if(Auth::user()->hasPowerBiRole(9))
                 <a href="{{ route('creditos.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('creditos.*') || request()->routeIs('inventario-credito.*') ? 'active' : '' }}">
                     <i class="bi bi-credit-card-2-front-fill me-2"></i>Créditos y Cartera
                 </a>
-                <a href="{{ route('certificados.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(10))
+                <a href="{{ route('certificados.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('certificados.*') ? 'active' : '' }}">
                     <i class="bi bi-shield-check me-2"></i>Certificados de Confianza
                 </a>
-                <a href="{{ route('gastos-finanzas.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(11))
+                <a href="{{ route('gastos-finanzas.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('gastos-finanzas.*') ? 'active' : '' }}">
                     <i class="bi bi-cash-stack me-2"></i>Gastos y Finanzas
                 </a>
-                <a href="{{ route('bancos.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(12))
+                <a href="{{ route('bancos.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('bancos.*') ? 'active' : '' }}">
                     <i class="bi bi-bank2 me-2"></i>Bancos y Flujos
                 </a>
-                <a href="{{ route('reporte-pagos-tarjeta.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(13))
+                <a href="{{ route('reporte-pagos-tarjeta.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('reporte-pagos-tarjeta.*') ? 'active' : '' }}">
                     <i class="bi bi-credit-card me-2"></i>Reporte Pagos con Tarjeta
                 </a>
-                <a href="{{ route('control-caja-arqueos.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(14))
+                <a href="{{ route('control-caja-arqueos.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('control-caja-arqueos.*') ? 'active' : '' }}">
                     <i class="bi bi-cash-coin me-2"></i>Control de Caja y Arqueos
                 </a>
-                <a href="{{ route('colaboradores.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(15))
+                <a href="{{ route('colaboradores.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('colaboradores.*') ? 'active' : '' }}">
                     <i class="bi bi-people-fill me-2"></i>Productividad Personal
                 </a>
-                <a href="{{ route('bonos-comisiones.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(16))
+                <a href="{{ route('bonos-comisiones.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('bonos-comisiones.*') ? 'active' : '' }}">
                     <i class="bi bi-award-fill me-2"></i>Bonos y Comisiones
                 </a>
-                <a href="{{ route('metas-forecast.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(17))
+                <a href="{{ route('metas-forecast.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('metas-forecast.*') ? 'active' : '' }}">
                     <i class="bi bi-bullseye me-2"></i>Metas y Forecast
                 </a>
-                <a href="{{ route('tablero-control.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(18))
+                <a href="{{ route('tablero-control.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('tablero-control.*') ? 'active' : '' }}">
                     <i class="bi bi-speedometer2 me-2"></i>Tablero de Control
                 </a>
-                <a href="{{ route('graficas.index') }}" class="list-group-item list-group-item-action">
+                @endif
+                @if(Auth::user()->hasPowerBiRole(19))
+                <a href="{{ route('graficas.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('graficas.*') ? 'active' : '' }}">
                     <i class="bi bi-pie-chart-fill me-2"></i>Dashboard de Gráficas
                 </a>
+                @endif
                 <a class="list-group-item list-group-item-action" href="{{ route('logout') }}" onclick="event.preventDefault();
                                  document.getElementById('logout-form').submit();">
                     <i class="bi bi-door-open-fill me-2" aria-hidden="true"></i>Salir

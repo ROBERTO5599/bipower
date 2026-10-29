@@ -148,7 +148,7 @@
 						</div>
 					</div>
 					<p class="mt-3 mb-0 text-muted text-sm">
-						<span class="text-nowrap">Acumulado de todas las sucursales</span>
+						<span class="text-nowrap">{{ (isset($sucursales) && $sucursales->count() === 1) ? $sucursales->first()->nombre : "Acumulado de todas las sucursales" }}</span>
 					</p>
 				</div>
 			</div>
@@ -168,7 +168,7 @@
 						</div>
 					</div>
 					<p class="mt-3 mb-0 text-muted text-sm">
-						<span class="text-nowrap">Acumulado de todas las sucursales</span>
+						<span class="text-nowrap">{{ (isset($sucursales) && $sucursales->count() === 1) ? $sucursales->first()->nombre : "Acumulado de todas las sucursales" }}</span>
 					</p>
 				</div>
 			</div>
@@ -188,7 +188,7 @@
 						</div>
 					</div>
 					<p class="mt-3 mb-0 text-muted text-sm">
-						<span class="text-nowrap">Acumulado de todas las sucursales</span>
+						<span class="text-nowrap">{{ (isset($sucursales) && $sucursales->count() === 1) ? $sucursales->first()->nombre : "Acumulado de todas las sucursales" }}</span>
 					</p>
 				</div>
 			</div>
@@ -248,19 +248,23 @@
 								</div>
 								<!-- Lista de sucursales con checkboxes -->
 								<div class="overflow-auto" id="sucursales-checkboxes-list" style="max-height: 240px;">
+									@php
+										$branchesToRender = (!empty($sucursalesList) && count($sucursalesList) > 0)
+											? $sucursalesList
+											: ((!empty($sucursales) && count($sucursales) > 0)
+												? $sucursales
+												: (auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin'
+													? \App\Models\Sucursal::whereNotNull('id_valora_mas')->orderBy('nombre')->get()
+													: collect()));
+									@endphp
+									@if(count($branchesToRender) > 1)
 									<div class="form-check py-1 px-3 rounded hover-bg sucursal-check-item">
 										<input class="form-check-input cursor-pointer" type="checkbox" value="all" id="check-suc-all" checked>
 										<label class="form-check-label fw-bold cursor-pointer text-primary w-100" for="check-suc-all">
 											-- Todas las Sucursales --
 										</label>
 									</div>
-									@php
-										$branchesToRender = (!empty($sucursalesList) && count($sucursalesList) > 0)
-											? $sucursalesList
-											: ((!empty($sucursales) && count($sucursales) > 0)
-												? $sucursales
-												: \App\Models\Sucursal::whereNotNull('id_valora_mas')->orderBy('nombre')->get());
-									@endphp
+									@endif
 									@foreach($branchesToRender as $s)
 										<div class="form-check py-1 px-3 rounded hover-bg sucursal-check-item" data-nombre="{{ strtolower($s->nombre) }}">
 											<input class="form-check-input check-sucursal cursor-pointer" type="checkbox" value="{{ $s->id_valora_mas }}" id="check-suc-{{ $s->id_valora_mas }}" data-nombre="{{ $s->nombre }}">

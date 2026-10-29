@@ -20,6 +20,12 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
         $request->session()->regenerate();
+
+        $user = Auth::user();
+        if ($user && !$user->hasPowerBiRole(1)) {
+            return redirect($user->getFirstAuthorizedPowerBiRoute());
+        }
+
         return redirect()->intended(route('home'));
     }
 

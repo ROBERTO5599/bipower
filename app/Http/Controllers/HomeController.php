@@ -16,11 +16,15 @@ class HomeController extends Controller
 {
     public function index(Request $request = null)
     {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        if ($user && !$user->hasPowerBiRole(1)) {
+            return redirect($user->getFirstAuthorizedPowerBiRoute());
+        }
         $regionales = PowerBIPermissionService::getRegionales();
         $regionalUserId = $request ? $request->input('regional_user_id') : null;
         $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
         $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
-        if ($sucursales->isEmpty()) {
+        if ($sucursales->isEmpty() && $user && $user->getPbiRoleType() === 'super_admin') {
             $sucursales = Sucursal::whereNotNull('id_valora_mas')
                 ->whereIn('id_valora_mas', $availableDbs)
                 ->orderBy('nombre')

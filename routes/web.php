@@ -9,6 +9,7 @@ use App\Http\Controllers\VentasController;
 use App\Http\Controllers\InventarioPisoController;
 use App\Http\Controllers\InventarioApartadosController;
 use App\Http\Controllers\InventarioRematadoController;
+use App\Http\Controllers\CaminadoController;
 use App\Http\Controllers\InventarioCreditoController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\CreditosController;
@@ -58,6 +59,20 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/inventario-rematado', [InventarioRematadoController::class, 'index'])->name('inventario-rematado.index');
     Route::get('/inventario-rematado/data', [InventarioRematadoController::class, 'data'])->name('inventario-rematado.data');
+
+    // Módulo de Caminado (Auditoría, Revisión y Monitoreo)
+    Route::get('/caminado', [CaminadoController::class, 'index'])->name('caminado.index');
+    Route::get('/caminado/data', [CaminadoController::class, 'data'])->name('caminado.data');
+    Route::get('/caminado/articulos', [CaminadoController::class, 'getArticulos'])->name('caminado.articulos');
+    Route::post('/caminado/guardar', [CaminadoController::class, 'store'])->name('caminado.store');
+    Route::get('/caminado/historial', [CaminadoController::class, 'historial'])->name('caminado.historial');
+    Route::get('/caminado/historial/{id}', [CaminadoController::class, 'show'])->name('caminado.historial.show');
+    Route::delete('/caminado/historial/{id}', [CaminadoController::class, 'destroy'])->name('caminado.historial.destroy');
+    Route::get('/caminado/cargar/{id}', [CaminadoController::class, 'cargar'])->name('caminado.cargar');
+    Route::get('/caminado/show/{id}', [CaminadoController::class, 'show'])->name('caminado.show');
+    Route::delete('/caminado/{id}', [CaminadoController::class, 'destroy'])->name('caminado.destroy');
+    Route::get('/caminado/csv/{id}', [CaminadoController::class, 'exportarCsv'])->name('caminado.csv');
+    Route::get('/caminado/exportar/{id}', [CaminadoController::class, 'exportarCsv'])->name('caminado.exportar');
 
     Route::get('/inventario-credito', function () {
         return redirect()->route('creditos.index', ['tab' => 'inventario']);
