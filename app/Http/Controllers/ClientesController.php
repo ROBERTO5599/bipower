@@ -18,25 +18,51 @@ class ClientesController extends Controller
         $fechaFin = now()->toDateString();
         $regionales = PowerBIPermissionService::getRegionales();
         $regionalUserId = $request->input('regional_user_id');
+
+        $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
         $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
+        if ($sucursales->isEmpty()) {
+            $sucursales = Sucursal::whereNotNull('id_valora_mas')
+                ->whereIn('id_valora_mas', $availableDbs)
+                ->where('nombre', 'not like', '%OFICINA%')
+                ->orderBy('nombre')
+                ->get();
+        } else {
+            $sucursales = $sucursales->filter(fn($s) => in_array((int)$s->id_valora_mas, $availableDbs) && !str_contains(strtoupper($s->nombre), 'OFICINA'))->sortBy('nombre')->values();
+        }
 
         return view('clientes.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
 
     public function data(Request $request)
     {
-        $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
-        $fechaFin = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
+        ini_set('max_execution_time', 180);
+        set_time_limit(180);
+
+        $rawInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString());
+        $fechaInicio = (strlen($rawInicio) <= 10 ? $rawInicio . ' 00:00:00' : $rawInicio);
+
+        $rawFin = $request->input('fecha_fin', now()->toDateString());
+        $fechaFin = (strlen($rawFin) <= 10 ? $rawFin . ' 23:59:59' : $rawFin);
         
         $regionalUserId = $request->input('regional_user_id');
-        $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
+        $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
+
+        $sucursalesPermitidas = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
+        if ($sucursalesPermitidas->isEmpty()) {
+            $sucursalesPermitidas = Sucursal::whereNotNull('id_valora_mas')
+                ->whereIn('id_valora_mas', $availableDbs)
+                ->where('nombre', 'not like', '%OFICINA%')
+                ->orderBy('nombre')
+                ->get();
+        } else {
+            $sucursalesPermitidas = $sucursalesPermitidas->filter(fn($s) => in_array((int)$s->id_valora_mas, $availableDbs) && !str_contains(strtoupper($s->nombre), 'OFICINA'))->sortBy('nombre')->values();
+        }
+
         $sucursalId = $request->input('sucursal_id');
-
         $sucursalesSeleccionadas = $sucursalId
-            ? $sucursales->where('id_valora_mas', $sucursalId)
-            : $sucursales;
-
-        $baseConfig = Config::get('database.connections.mysql');
+            ? $sucursalesPermitidas->where('id_valora_mas', $sucursalId)
+            : $sucursalesPermitidas;
 
         $clientesUnicos = []; // Key: nombre_completo
         $clientesRFM = [];
@@ -44,15 +70,10 @@ class ClientesController extends Controller
         foreach ($sucursalesSeleccionadas as $sucursal) {
             try {
                 $dbName = 'sistema_prendario_' . $sucursal->id_valora_mas;
-                $connectionName = 'clientes_dynamic';
-
-                $config = $baseConfig;
-                $config['database'] = $dbName;
-                Config::set("database.connections.$connectionName", $config);
-                DB::purge($connectionName);
+                DB::statement("USE `$dbName`");
 
                 // 1. Obtener empeños y prendas en el periodo
-                $empenos = DB::connection($connectionName)->select("
+                $empenos = DB::select("
                     SELECT 
                         UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
                         MIN(c.f_alta) as f_alta,
@@ -67,7 +88,7 @@ class ClientesController extends Controller
                 ", [$fechaInicio, $fechaFin]);
 
                 // 2. Obtener intereses pagados en el periodo
-                $intereses = DB::connection($connectionName)->select("
+                $intereses = DB::select("
                     SELECT 
                         UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
                         SUM(CASE 
@@ -89,12 +110,11 @@ class ClientesController extends Controller
                 }
 
                 // 3. Obtener ventas (compras en piso) en el periodo
-                $ventas = DB::connection($connectionName)->select("
+                $ventas = DB::select("
                     SELECT 
                         UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
-                        SUM(dv.venta10) as total_ventas
+                        SUM(ve.venta10) as total_ventas
                     FROM ventas ve
-                    INNER JOIN detalle_venta dv ON dv.cod_venta = ve.cod_venta
                     INNER JOIN clientes c ON c.cod_cliente = ve.cod_cliente
                     WHERE ve.f_cancela IS NULL
                       AND ve.f_venta BETWEEN ? AND ?
@@ -107,7 +127,7 @@ class ClientesController extends Controller
                 }
 
                 // 4. Obtener certificados de confianza en el periodo
-                $certificados = DB::connection($connectionName)->select("
+                $certificados = DB::select("
                     SELECT 
                         UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
                         SUM(ga.monto_garantia) as total_certificados
@@ -125,7 +145,7 @@ class ClientesController extends Controller
                 }
 
                 // 5. Obtener liquidaciones de crédito en el periodo
-                $liquidaciones = DB::connection($connectionName)->select("
+                $liquidaciones = DB::select("
                     SELECT 
                         UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
                         SUM(mo.monto10) as total_liquidacion
@@ -145,7 +165,7 @@ class ClientesController extends Controller
                 }
 
                 // 6. Obtener datos RFM históricos
-                $rfmRaw = DB::connection($connectionName)->select("
+                $rfmRaw = DB::select("
                     SELECT 
                         UPPER(TRIM(CONCAT(c.nombre, ' ', c.a_paterno, ' ', c.a_materno))) as nombre_completo,
                         MIN(c.f_alta) as f_alta,
@@ -160,9 +180,8 @@ class ClientesController extends Controller
                         WHERE f_contrato <= ?
                         GROUP BY cod_cliente
                         UNION ALL
-                        SELECT ve.cod_cliente, MIN(ve.f_venta) as first_date, MAX(ve.f_venta) as last_date, COUNT(*) as num_trans, SUM(dv.venta10) as monto 
+                        SELECT ve.cod_cliente, MIN(ve.f_venta) as first_date, MAX(ve.f_venta) as last_date, COUNT(*) as num_trans, SUM(ve.venta10) as monto 
                         FROM ventas ve 
-                        INNER JOIN detalle_venta dv ON dv.cod_venta = ve.cod_venta 
                         WHERE ve.f_cancela IS NULL AND ve.f_venta <= ?
                         GROUP BY ve.cod_cliente
                         UNION ALL
@@ -208,13 +227,20 @@ class ClientesController extends Controller
                     }
                 }
 
-                // Consolidar
-                foreach ($empenos as $emp) {
-                    $nombre = $emp->nombre_completo;
-                    if (!isset($clientesUnicos[$nombre])) {
-                        $clientesUnicos[$nombre] = [
-                            'nombre' => $nombre,
-                            'f_alta' => $emp->f_alta,
+                // Consolidar todos los clientes con actividad en el periodo
+                $todosLosNombres = array_unique(array_merge(
+                    array_column($empenos, 'nombre_completo'),
+                    array_keys($interesesMap),
+                    array_keys($ventasMap),
+                    array_keys($certificadosMap),
+                    array_keys($liquidacionesMap)
+                ));
+
+                foreach ($todosLosNombres as $nom) {
+                    if (!isset($clientesUnicos[$nom])) {
+                        $clientesUnicos[$nom] = [
+                            'nombre' => $nom,
+                            'f_alta' => null,
                             'num_empenos' => 0,
                             'prestamo' => 0,
                             'desempenadas' => 0,
@@ -226,37 +252,46 @@ class ClientesController extends Controller
                             'sucursales' => []
                         ];
                     }
-
-                    $clientesUnicos[$nombre]['num_empenos'] += $emp->num_empenos;
-                    $clientesUnicos[$nombre]['prestamo'] += $emp->prestamo;
-                    $clientesUnicos[$nombre]['desempenadas'] += $emp->desempenadas;
-                    $clientesUnicos[$nombre]['perdidas'] += $emp->perdidas;
-                    
-                    if (isset($interesesMap[$nombre])) {
-                        $clientesUnicos[$nombre]['interes_pagado'] += $interesesMap[$nombre];
+                    if (!in_array($sucursal->nombre, $clientesUnicos[$nom]['sucursales'])) {
+                        $clientesUnicos[$nom]['sucursales'][] = $sucursal->nombre;
                     }
+                }
 
-                    if (isset($ventasMap[$nombre])) {
-                        $clientesUnicos[$nombre]['compras_piso'] += $ventasMap[$nombre];
+                foreach ($empenos as $emp) {
+                    $nombre = $emp->nombre_completo;
+                    $clientesUnicos[$nombre]['num_empenos'] += (int) $emp->num_empenos;
+                    $clientesUnicos[$nombre]['prestamo'] += (float) $emp->prestamo;
+                    $clientesUnicos[$nombre]['desempenadas'] += (int) $emp->desempenadas;
+                    $clientesUnicos[$nombre]['perdidas'] += (int) $emp->perdidas;
+                    if ($emp->f_alta && (!$clientesUnicos[$nombre]['f_alta'] || $emp->f_alta < $clientesUnicos[$nombre]['f_alta'])) {
+                        $clientesUnicos[$nombre]['f_alta'] = $emp->f_alta;
                     }
+                }
 
-                    if (isset($certificadosMap[$nombre])) {
-                        $clientesUnicos[$nombre]['certificados'] += $certificadosMap[$nombre];
-                    }
+                foreach ($interesesMap as $nombre => $monto) {
+                    $clientesUnicos[$nombre]['interes_pagado'] += $monto;
+                }
 
-                    if (isset($liquidacionesMap[$nombre])) {
-                        $clientesUnicos[$nombre]['liquidaciones'] += $liquidacionesMap[$nombre];
-                    }
+                foreach ($ventasMap as $nombre => $monto) {
+                    $clientesUnicos[$nombre]['compras_piso'] += $monto;
+                }
 
-                    if (!in_array($sucursal->nombre, $clientesUnicos[$nombre]['sucursales'])) {
-                        $clientesUnicos[$nombre]['sucursales'][] = $sucursal->nombre;
-                    }
+                foreach ($certificadosMap as $nombre => $monto) {
+                    $clientesUnicos[$nombre]['certificados'] += $monto;
+                }
+
+                foreach ($liquidacionesMap as $nombre => $monto) {
+                    $clientesUnicos[$nombre]['liquidaciones'] += $monto;
                 }
 
             } catch (\Exception $e) {
                 Log::error("Error clientes {$sucursal->nombre}: " . $e->getMessage());
             }
         }
+
+        try {
+            DB::statement("USE " . Config::get('database.connections.mysql.database', 'sistema_prendario_2'));
+        } catch (\Throwable $e) {}
 
         // ========================= KPIs =========================
         $totalClientes = count($clientesUnicos);
@@ -348,8 +383,29 @@ class ClientesController extends Controller
             'data' => [$montoTotalPrestado, $interesesTotalesPagados] 
         ];
 
-        usort($topClientes, fn($a, $b) => $b['ltv'] <=> $a['ltv']);
-        $topClientes = array_slice($topClientes, 0, 15);
+        $criterioTop = $request->input('criterio_top', 'ltv');
+
+        switch ($criterioTop) {
+            case 'ventas':
+                usort($topClientes, fn($a, $b) => ($b['compras_piso'] <=> $a['compras_piso']) ?: ($b['ltv'] <=> $a['ltv']));
+                break;
+            case 'intereses':
+                usort($topClientes, fn($a, $b) => ($b['intereses'] <=> $a['intereses']) ?: ($b['ltv'] <=> $a['ltv']));
+                break;
+            case 'empenos':
+                usort($topClientes, fn($a, $b) => ($b['saldo'] <=> $a['saldo']) ?: ($b['ltv'] <=> $a['ltv']));
+                break;
+            case 'creditos':
+                usort($topClientes, fn($a, $b) => ($b['liquidaciones'] <=> $a['liquidaciones']) ?: ($b['ltv'] <=> $a['ltv']));
+                break;
+            case 'certificados':
+                usort($topClientes, fn($a, $b) => ($b['certificados'] <=> $a['certificados']) ?: ($b['ltv'] <=> $a['ltv']));
+                break;
+            default: // 'ltv'
+                usort($topClientes, fn($a, $b) => $b['ltv'] <=> $a['ltv']);
+                break;
+        }
+        $topClientes = array_slice($topClientes, 0, 50);
 
         // ========================= PERFILES DE CLIENTE (RFM) Y DESERCIÓN =========================
         $segmentosRFM = [
@@ -475,6 +531,7 @@ class ClientesController extends Controller
         $churnRate = $totalClientesHistoricos > 0 ? ($clientesDesertores / $totalClientesHistoricos) * 100 : 0;
 
         return response()->json([
+            'criterioTop' => $criterioTop,
             'totalClientes' => $totalClientes,
             'nuevosCount' => $nuevos,
             'recurrentesCount' => $recurrentes,

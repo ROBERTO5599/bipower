@@ -145,7 +145,7 @@
                     </select>
                 </div>
                 @endif
-                <div class="{{ (auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin') ? 'col-md-3' : 'col-md-4' }}">
+                <div class="{{ (auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin') ? 'col-md-2' : 'col-md-3' }}">
                     <label class="form-label fw-semibold">Sucursal (Registro o Principal)</label>
                     <select name="sucursal_id" id="sucursal_id" class="form-select">
                         <option value="">-- Todas las Sucursales --</option>
@@ -156,13 +156,24 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-semibold">Fecha Desde</label>
                     <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ $fechaInicio }}" class="form-control">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-semibold">Fecha Hasta</label>
                     <input type="date" name="fecha_fin" id="fecha_fin" value="{{ substr($fechaFin, 0, 10) }}" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Mejor Cliente por</label>
+                    <select name="criterio_top" id="criterio_top" class="form-select">
+                        <option value="ltv">Mayor LTV Estimado (Global)</option>
+                        <option value="ventas">Ventas (Compras en Piso)</option>
+                        <option value="intereses">Intereses Pagados (Refrendos/Desempeños)</option>
+                        <option value="empenos">Empeños (Monto Prestado)</option>
+                        <option value="creditos">Créditos (Liquidaciones)</option>
+                        <option value="certificados">Certificados de Garantía</option>
+                    </select>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100 fw-bold">
@@ -397,22 +408,39 @@
                     <div class="tab-content" id="clientTabsContent">
                         <!-- Tab 1: Top Clientes -->
                         <div class="tab-pane fade show active" id="top-clientes-pane" role="tabpanel" aria-labelledby="top-clientes-tab" tabindex="0">
+                            <!-- Quick Filter Subheader -->
+                            <div class="p-3 bg-light border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <div class="d-flex flex-wrap gap-1 align-items-center">
+                                    <span class="text-muted small fw-bold me-2">Ver Mejor Cliente por:</span>
+                                    <button type="button" class="btn btn-sm btn-primary btn-filter-top active" data-crit="ltv">LTV Global</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-filter-top" data-crit="ventas">Ventas</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-filter-top" data-crit="intereses">Intereses</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-filter-top" data-crit="empenos">Empeños</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-filter-top" data-crit="creditos">Créditos</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-filter-top" data-crit="certificados">Certificados</button>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-white text-dark border small fw-semibold px-2 py-1" id="criterio-indicator">Ordenado por: Mayor LTV</span>
+                                    <input type="text" id="top-clientes-search" class="form-control form-control-sm" placeholder="Buscar cliente..." style="width: 190px;">
+                                </div>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="bg-light">
                                         <tr>
-                                            <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Cliente</th>
+                                            <th class="ps-3 py-3 text-uppercase text-muted small fw-bold text-center" style="width: 55px;">#</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold">Cliente</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold text-center">Sucursales</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Saldo Actual</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Intereses Históricos</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Ventas</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Certificados</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Liquidaciones</th>
-                                            <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end">LTV Estimado</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end col-metric col-metric-empenos">Saldo (Empeños)</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end col-metric col-metric-intereses">Intereses Históricos</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end col-metric col-metric-ventas">Ventas (Bazar)</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end col-metric col-metric-certificados">Certificados</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end col-metric col-metric-creditos">Liquidaciones (Crédito)</th>
+                                            <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-end col-metric col-metric-ltv">LTV Estimado</th>
                                         </tr>
                                     </thead>
                                     <tbody id="top-clientes-body">
-                                        <tr><td colspan="8" class="text-center text-muted py-3">Cargando datos...</td></tr>
+                                        <tr><td colspan="9" class="text-center text-muted py-3">Cargando datos...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -476,6 +504,8 @@
         let frecuenciaChart = null;
         let ltvChartInst = null;
         let rfmChartInst = null;
+        let currentTopClientes = [];
+        let currentCriterio = 'ltv';
 
         const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
         const numberFormatter = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -639,28 +669,12 @@
                 </div>
             `);
 
-            // Tablas Top Clientes
-            const tbody = document.getElementById('top-clientes-body');
-            if (data.topClientes && data.topClientes.length > 0) {
-                let tableHtml = '';
-                data.topClientes.forEach(item => {
-                    tableHtml += `
-                        <tr>
-                            <td class="ps-4 py-3 fw-bold text-dark">${item.nombre}</td>
-                            <td class="py-3 text-center"><span class="badge bg-secondary rounded-pill px-3 py-2">${item.sucursales}</span></td>
-                            <td class="py-3 text-end">${formatter.format(item.saldo)}</td>
-                            <td class="py-3 text-end text-success fw-bold">${formatter.format(item.intereses)}</td>
-                            <td class="py-3 text-end">${formatter.format(item.compras_piso || 0)}</td>
-                            <td class="py-3 text-end">${formatter.format(item.certificados || 0)}</td>
-                            <td class="py-3 text-end">${formatter.format(item.liquidaciones || 0)}</td>
-                            <td class="pe-4 py-3 text-end fw-bold text-primary">${formatter.format(item.ltv)}</td>
-                        </tr>
-                    `;
-                });
-                tbody.innerHTML = tableHtml;
-            } else {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aún no hay datos para mostrar</td></tr>';
-            }
+            // Top Clientes dinámico y multicriterio
+            currentTopClientes = data.topClientes || [];
+            currentCriterio = data.criterioTop || document.getElementById('criterio_top')?.value || 'ltv';
+            const selectCrit = document.getElementById('criterio_top');
+            if (selectCrit) selectCrit.value = currentCriterio;
+            renderTopTable();
 
             // Tablas RFM
             const rfmTbody = document.getElementById('rfm-clientes-body');
@@ -822,6 +836,121 @@
                         }
                     }
                 }
+            });
+        }
+
+        function renderTopTable() {
+            const tbody = document.getElementById('top-clientes-body');
+            if (!tbody) return;
+
+            const searchVal = (document.getElementById('top-clientes-search')?.value || '').trim().toUpperCase();
+
+            // Clona y reordena según currentCriterio
+            let list = [...currentTopClientes];
+            switch (currentCriterio) {
+                case 'ventas':
+                    list.sort((a, b) => ((b.compras_piso || 0) - (a.compras_piso || 0)) || ((b.ltv || 0) - (a.ltv || 0)));
+                    break;
+                case 'intereses':
+                    list.sort((a, b) => ((b.intereses || 0) - (a.intereses || 0)) || ((b.ltv || 0) - (a.ltv || 0)));
+                    break;
+                case 'empenos':
+                    list.sort((a, b) => ((b.saldo || 0) - (a.saldo || 0)) || ((b.ltv || 0) - (a.ltv || 0)));
+                    break;
+                case 'creditos':
+                    list.sort((a, b) => ((b.liquidaciones || 0) - (a.liquidaciones || 0)) || ((b.ltv || 0) - (a.ltv || 0)));
+                    break;
+                case 'certificados':
+                    list.sort((a, b) => ((b.certificados || 0) - (a.certificados || 0)) || ((b.ltv || 0) - (a.ltv || 0)));
+                    break;
+                default:
+                    list.sort((a, b) => (b.ltv || 0) - (a.ltv || 0));
+                    break;
+            }
+
+            if (searchVal) {
+                list = list.filter(item => (item.nombre || '').toUpperCase().includes(searchVal));
+            }
+
+            // Actualizar botones de filtro
+            document.querySelectorAll('.btn-filter-top').forEach(btn => {
+                const crit = btn.getAttribute('data-crit');
+                if (crit === currentCriterio) {
+                    btn.classList.add('btn-primary', 'active');
+                    btn.classList.remove('btn-outline-secondary');
+                } else {
+                    btn.classList.remove('btn-primary', 'active');
+                    btn.classList.add('btn-outline-secondary');
+                }
+            });
+
+            // Actualizar indicador
+            const criterioLabels = {
+                'ltv': 'Mayor LTV Estimado (Global)',
+                'ventas': 'Mayores Ventas (Compras Bazar)',
+                'intereses': 'Mayores Intereses Pagados',
+                'empenos': 'Mayor Saldo en Empeños',
+                'creditos': 'Mayores Liquidaciones de Crédito',
+                'certificados': 'Mayores Certificados de Garantía'
+            };
+            const indEl = document.getElementById('criterio-indicator');
+            if (indEl) indEl.innerHTML = `Ordenado por: <strong>${criterioLabels[currentCriterio] || 'Mayor LTV'}</strong>`;
+
+            // Resaltar columna activa
+            document.querySelectorAll('.col-metric').forEach(el => el.classList.remove('bg-light-primary', 'text-primary', 'fw-bold'));
+            const activeColClass = `col-metric-${currentCriterio}`;
+            document.querySelectorAll(`.${activeColClass}`).forEach(el => el.classList.add('bg-light-primary', 'text-primary', 'fw-bold'));
+
+            if (list.length > 0) {
+                let tableHtml = '';
+                list.forEach((item, idx) => {
+                    let rankBadge = '';
+                    if (idx === 0) {
+                        rankBadge = `<span class="badge rounded-pill bg-warning text-dark fw-bold px-2 py-1 shadow-sm">1</span>`;
+                    } else if (idx === 1) {
+                        rankBadge = `<span class="badge rounded-pill bg-secondary text-white fw-bold px-2 py-1 shadow-sm">2</span>`;
+                    } else if (idx === 2) {
+                        rankBadge = `<span class="badge rounded-pill bg-light text-dark border fw-bold px-2 py-1 shadow-sm">3</span>`;
+                    } else {
+                        rankBadge = `<span class="text-muted small fw-bold">${idx + 1}</span>`;
+                    }
+
+                    tableHtml += `
+                        <tr>
+                            <td class="ps-3 py-3 text-center">${rankBadge}</td>
+                            <td class="py-3 fw-bold text-dark">${item.nombre}</td>
+                            <td class="py-3 text-center"><span class="badge bg-secondary rounded-pill px-3 py-2">${item.sucursales}</span></td>
+                            <td class="py-3 text-end ${currentCriterio === 'empenos' ? 'bg-light-primary fw-bold text-primary' : ''}">${formatter.format(item.saldo || 0)}</td>
+                            <td class="py-3 text-end ${currentCriterio === 'intereses' ? 'bg-light-primary fw-bold text-primary' : 'text-success fw-bold'}">${formatter.format(item.intereses || 0)}</td>
+                            <td class="py-3 text-end ${currentCriterio === 'ventas' ? 'bg-light-primary fw-bold text-primary' : ''}">${formatter.format(item.compras_piso || 0)}</td>
+                            <td class="py-3 text-end ${currentCriterio === 'certificados' ? 'bg-light-primary fw-bold text-primary' : ''}">${formatter.format(item.certificados || 0)}</td>
+                            <td class="py-3 text-end ${currentCriterio === 'creditos' ? 'bg-light-primary fw-bold text-primary' : ''}">${formatter.format(item.liquidaciones || 0)}</td>
+                            <td class="pe-4 py-3 text-end ${currentCriterio === 'ltv' ? 'bg-light-primary fw-bold text-primary' : 'fw-bold text-primary'}">${formatter.format(item.ltv || 0)}</td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = tableHtml;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Aún no hay datos para mostrar</td></tr>';
+            }
+        }
+
+        // Event listeners para botones de filtro rápido
+        document.querySelectorAll('.btn-filter-top').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const crit = this.getAttribute('data-crit');
+                currentCriterio = crit;
+                const selectCrit = document.getElementById('criterio_top');
+                if (selectCrit) selectCrit.value = crit;
+                renderTopTable();
+            });
+        });
+
+        // Event listener para búsqueda de cliente en el top
+        const searchInput = document.getElementById('top-clientes-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                renderTopTable();
             });
         }
     });
