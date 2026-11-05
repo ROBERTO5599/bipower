@@ -363,7 +363,7 @@
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                     <div>
                         <h5 class="fw-bold mb-0">
-                            <i class="bi bi-pie-chart-fill text-info me-2"></i>Distribución de Avalúos por Ramos (Oro, Plata, Varios, Autos)
+                            <i class="bi bi-pie-chart-fill text-info me-2"></i>Distribución de Empeños por Ramos (Oro, Plata, Varios, Autos)
                         </h5>
                         <small class="text-muted">Desglose integral de avalúos y montos prestados clasificados en los 4 ramos oficiales</small>
                     </div>
@@ -388,12 +388,12 @@
             <ul class="nav nav-pills mb-3" id="colaboradoresTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="tab-calidad-btn" data-bs-toggle="pill" data-bs-target="#tab-calidad-pane" type="button" role="tab" aria-selected="true">
-                        <i class="bi bi-award-fill me-1 text-warning"></i> 92. Calidad del Valuador (Remate / Préstamo)
+                        <i class="bi bi-award-fill me-1 text-warning"></i> Calidad del Valuador (Remate / Préstamo)
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="tab-alertas-btn" data-bs-toggle="pill" data-bs-target="#tab-alertas-pane" type="button" role="tab" aria-selected="false">
-                        <i class="bi bi-shield-exclamation me-1 text-danger"></i> 93. Alertas de Avalúos Fuera de Rango
+                        <i class="bi bi-shield-exclamation me-1 text-danger"></i> Valuadores con Préstamo Fuera del Rango
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -443,34 +443,35 @@
                     </div>
                 </div>
 
-                <!-- PESTAÑA 2: 93. TABLA ALERTAS DE AVALÚOS FUERA DE RANGO -->
+                <!-- PESTAÑA 2: 93. TABLA ALERTAS DE AVALÚOS FUERA DE RANGO (CAMINADO) -->
                 <div class="tab-pane fade" id="tab-alertas-pane" role="tabpanel" aria-labelledby="tab-alertas-btn">
                     <div class="card shadow-sm border-0 rounded-3 border-start border-danger border-4">
                         <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                             <div>
                                 <h5 class="fw-bold mb-0 text-danger">
-                                    <i class="bi bi-exclamation-octagon-fill me-2"></i>Valuadores con Avalúos Fuera del Rango de Sucursal
+                                    <i class="bi bi-exclamation-octagon-fill me-2"></i>Valuadores con Préstamo Fuera del Rango
                                 </h5>
-                                <small class="text-muted">Desviación sistemática de valuadores frente al promedio de su punto de venta</small>
+                                <small class="text-muted">Evaluación basada en las auditorías registradas en El Caminado (Préstamo Otorgado vs Préstamo Real)</small>
                             </div>
                             <span class="badge bg-danger rounded-pill px-3 py-2" id="badge-total-alertas">0 Alertas detectadas</span>
                         </div>
                         <div class="card-body p-0">
-                            <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                            <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="bg-light sticky-top">
                                         <tr>
                                             <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Valuador</th>
                                             <th class="py-3 text-uppercase text-muted small fw-bold">Sucursal</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-center">Contratos Evaluados</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Avalúo Promedio</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-center">Ratio Préstamo/Avalúo</th>
-                                            <th class="py-3 text-uppercase text-muted small fw-bold text-center">Desviación vs Sucursal</th>
-                                            <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-center">Nivel de Alerta</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-center">Prendas Auditadas (Caminado)</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-end">Préstamo Otorgado vs Real</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-center">Ratio Préstamo/Real</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-center">Desviación Caminado</th>
+                                            <th class="py-3 text-uppercase text-muted small fw-bold text-center">Nivel de Alerta</th>
+                                            <th class="pe-4 py-3 text-uppercase text-muted small fw-bold text-center">Detalle Caminado</th>
                                         </tr>
                                     </thead>
                                     <tbody id="tabla-alertas-body">
-                                        <tr><td colspan="7" class="text-center text-muted py-4">Analizando desviaciones de avalúos...</td></tr>
+                                        <tr><td colspan="8" class="text-center text-muted py-4">Analizando evaluaciones de caminado...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -660,6 +661,81 @@
     </div>
 </div>
 
+<!-- Modal de Detalle de Prendas Auditadas en Caminado por Valuador -->
+<div class="modal fade" id="modalCaminadoValuador" tabindex="-1" aria-labelledby="modalCaminadoValuadorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-danger text-white border-0 py-3">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0" id="modalCaminadoValuadorLabel">
+                        <i class="bi bi-clipboard2-check me-2"></i>Detalle de Auditoría de Caminado
+                    </h5>
+                    <small class="text-white-50" id="modal-caminado-subtitulo">Valuador — Sucursal</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Resumen Superior -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded-3 bg-light border text-center">
+                            <span class="text-muted small d-block text-uppercase fw-bold">Prendas Auditadas</span>
+                            <h5 class="fw-extrabold text-dark mb-0 mt-1" id="modal-cam-total-prendas">0</h5>
+                            <small class="text-danger fw-semibold" id="modal-cam-fuera-rango">0 fuera de rango</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded-3 bg-light border text-center">
+                            <span class="text-muted small d-block text-uppercase fw-bold">Préstamo Otorgado</span>
+                            <h5 class="fw-extrabold text-primary mb-0 mt-1" id="modal-cam-prestado">$0.00</h5>
+                            <small class="text-muted" id="modal-cam-prom-otorgado">Prom: $0.00</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded-3 bg-light border text-center">
+                            <span class="text-muted small d-block text-uppercase fw-bold">Préstamo Real (Caminado)</span>
+                            <h5 class="fw-extrabold text-success mb-0 mt-1" id="modal-cam-real">$0.00</h5>
+                            <small class="text-muted" id="modal-cam-prom-real">Prom: $0.00</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded-3 bg-light border text-center">
+                            <span class="text-muted small d-block text-uppercase fw-bold">Diferencia / Efectividad</span>
+                            <h5 class="fw-extrabold mb-0 mt-1" id="modal-cam-diferencia">$0.00</h5>
+                            <small class="fw-semibold" id="modal-cam-efectividad">Efectividad: 0%</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Prendas Auditadas en Caminado -->
+                <div class="table-responsive rounded-3 border">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-3 py-2 text-uppercase text-muted small fw-bold">Fecha Rev.</th>
+                                <th class="py-2 text-uppercase text-muted small fw-bold">Contrato / Folio</th>
+                                <th class="py-2 text-uppercase text-muted small fw-bold">Categoría / Artículo</th>
+                                <th class="py-2 text-uppercase text-muted small fw-bold">Descripción</th>
+                                <th class="py-2 text-uppercase text-muted small fw-bold text-end">Préstamo Otorgado</th>
+                                <th class="py-2 text-uppercase text-muted small fw-bold text-end">Préstamo Real</th>
+                                <th class="py-2 text-uppercase text-muted small fw-bold text-end">Diferencia</th>
+                                <th class="py-2 text-uppercase text-muted small fw-bold text-center">Desc. Correcta</th>
+                                <th class="pe-3 py-2 text-uppercase text-muted small fw-bold text-center">Evaluación</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-caminado-tbody">
+                            <tr><td colspan="9" class="text-center text-muted py-3">Sin registros</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0 py-2">
+                <button type="button" class="btn btn-secondary btn-sm px-4 rounded-pill" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -768,32 +844,46 @@
         loadDashboardData();
 
         function loadDashboardData() {
-            overlay.style.display = 'flex';
-            loadingText.innerText = 'Calculando productividad del personal y valuadores...';
-            dashboard.style.opacity = '0.3';
+            try {
+                overlay.style.display = 'flex';
+                loadingText.innerText = 'Calculando productividad del personal y valuadores...';
+                dashboard.style.opacity = '0.3';
 
-            const sucursalText = sucursalSelect.options[sucursalSelect.selectedIndex].text;
-            activeRangeBadge.innerHTML = `<i class="bi bi-calendar3 me-1"></i> Rango: ${inputInicio.value} al ${inputFin.value} | ${sucursalText}`;
+                if (sucursalSelect && sucursalSelect.selectedIndex < 0 && sucursalSelect.options.length > 0) {
+                    sucursalSelect.selectedIndex = 0;
+                }
+                const sucursalText = (sucursalSelect && sucursalSelect.options[sucursalSelect.selectedIndex])
+                    ? sucursalSelect.options[sucursalSelect.selectedIndex].text
+                    : 'Todas las Sucursales';
+                if (activeRangeBadge) {
+                    activeRangeBadge.innerHTML = `<i class="bi bi-calendar3 me-1"></i> Rango: ${inputInicio.value} al ${inputFin.value} | ${sucursalText}`;
+                }
 
-            const formData = new FormData(form);
-            const params = new URLSearchParams(formData).toString();
+                const formData = new FormData(form);
+                const params = new URLSearchParams(formData).toString();
 
-            fetch(`{{ route('colaboradores.data') }}?${params}`)
-                .then(res => {
-                    if (!res.ok) throw new Error('Error al cargar datos de colaboradores');
-                    return res.json();
-                })
-                .then(data => {
-                    updateDashboardUI(data);
-                })
-                .catch(err => {
-                    console.error("Error Colaboradores:", err);
-                })
-                .finally(() => {
-                    overlay.style.display = 'none';
-                    dashboard.style.display = 'block';
-                    dashboard.style.opacity = '1';
-                });
+                fetch(`{{ route('colaboradores.data') }}?${params}`)
+                    .then(res => {
+                        if (!res.ok) throw new Error('Error al cargar datos de colaboradores');
+                        return res.json();
+                    })
+                    .then(data => {
+                        updateDashboardUI(data);
+                    })
+                    .catch(err => {
+                        console.error("Error Colaboradores:", err);
+                    })
+                    .finally(() => {
+                        overlay.style.display = 'none';
+                        dashboard.style.display = 'block';
+                        dashboard.style.opacity = '1';
+                    });
+            } catch (e) {
+                console.error("Error inesperado al iniciar carga:", e);
+                overlay.style.display = 'none';
+                dashboard.style.display = 'block';
+                dashboard.style.opacity = '1';
+            }
         }
 
         function updateElementText(id, text) {
@@ -1040,6 +1130,67 @@
             if (barraTripleChart) barraTripleChart.destroy();
             if (!chartData || !chartData.labels || chartData.labels.length === 0) return;
 
+            // Plugin para dibujar las cantidades dentro de las barras de Ventas Realizadas
+            const ventasLabelsPlugin = {
+                id: 'ventasInsideLabels',
+                afterDatasetsDraw(chart) {
+                    const { ctx } = chart;
+                    const meta = chart.getDatasetMeta(0); // Dataset 0: Ventas Realizadas ($)
+                    if (!meta || meta.hidden) return;
+
+                    meta.data.forEach((bar, index) => {
+                        const val = chart.data.datasets[0].data[index];
+                        if (val === null || val === undefined || val <= 0) return;
+
+                        const text = compactFormatter.format(val);
+                        ctx.save();
+                        ctx.font = 'bold 11px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+                        const textMetrics = ctx.measureText(text);
+                        const textWidth = textMetrics.width;
+                        const barHeight = Math.abs(bar.base - bar.y);
+                        const barWidth = bar.width;
+                        const barTop = Math.min(bar.base, bar.y);
+                        const barBottom = Math.max(bar.base, bar.y);
+                        const centerY = (barTop + barBottom) / 2;
+
+                        const fitsHorizontally = barWidth >= textWidth + 4;
+                        const fitsVertically = barHeight >= textWidth + 8;
+
+                        if (fitsHorizontally && barHeight >= 18) {
+                            // Cabe horizontalmente dentro de la barra
+                            ctx.fillStyle = '#ffffff';
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+                            ctx.shadowBlur = 3;
+                            ctx.shadowOffsetY = 1;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(text, bar.x, centerY);
+                        } else if (fitsVertically) {
+                            // Cabe verticalmente dentro de la barra (girado a 90 grados)
+                            ctx.fillStyle = '#ffffff';
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+                            ctx.shadowBlur = 3;
+                            ctx.shadowOffsetY = 1;
+                            ctx.translate(bar.x, centerY);
+                            ctx.rotate(-Math.PI / 2);
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(text, 0, 0);
+                        } else {
+                            // Si la barra es muy pequeña para el texto interno, se coloca justo encima
+                            ctx.fillStyle = '#0d6efd';
+                            ctx.shadowColor = 'transparent';
+                            ctx.shadowBlur = 0;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(text, bar.x, barTop - 2);
+                        }
+                        ctx.restore();
+                    });
+                }
+            };
+
             barraTripleChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -1068,6 +1219,11 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 20
+                        }
+                    },
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: { position: 'top' },
@@ -1083,7 +1239,8 @@
                             title: { display: true, text: 'Importe en Pesos ($)' }
                         }
                     }
-                }
+                },
+                plugins: [ventasLabelsPlugin]
             });
         }
 
@@ -1192,22 +1349,23 @@
             });
         }
 
-        // 93. Render Tabla Alertas Valuadores Fuera de Rango
+        // 93. Render Tabla Alertas Valuadores Fuera de Rango (Basado en El Caminado)
         function renderValuadoresAlertaTable(items) {
             const tbody = document.getElementById('tabla-alertas-body');
             const badgeAlertas = document.getElementById('badge-total-alertas');
             if (!tbody) return;
 
             if (badgeAlertas) {
-                badgeAlertas.innerText = `${items.length} ${items.length === 1 ? 'caso' : 'casos'}`;
+                const conAlerta = items.filter(i => i.alerta).length;
+                badgeAlertas.innerText = `${items.length} valuador(es) (${conAlerta} fuera de rango)`;
             }
 
             if (items.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" class="text-center py-4 text-success">
-                            <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
-                            <strong>¡Excelente! Todos los valuadores se encuentran dentro de los rangos normales de operación.</strong>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="bi bi-clipboard2-x fs-3 d-block mb-2 text-secondary"></i>
+                            <strong>No se encontraron registros guardados de El Caminado para la sucursal o filtros seleccionados.</strong>
                         </td>
                     </tr>
                 `;
@@ -1215,29 +1373,159 @@
             }
 
             let html = '';
-            items.forEach(v => {
-                let badgeClass = 'bg-danger';
-                if (v.nivel_alerta === 'moderada') badgeClass = 'bg-warning text-dark';
+            items.forEach((v, idx) => {
+                let badgeClass = 'bg-success';
+                let iconClass = 'bi-check-circle text-success';
+                if (v.nivel_alerta === 'alta') {
+                    badgeClass = 'bg-danger';
+                    iconClass = 'bi-exclamation-triangle-fill text-danger';
+                } else if (v.nivel_alerta === 'moderada') {
+                    badgeClass = 'bg-warning text-dark';
+                    iconClass = 'bi-exclamation-circle-fill text-warning';
+                }
+
+                const difNeta = parseFloat(v.diferencia_neta || 0);
+                const desvPct = parseFloat(v.desviacion_sucursal || 0);
+                const difColor = difNeta > 0 ? 'text-danger' : (difNeta < 0 ? 'text-warning' : 'text-success');
+                const difSign = difNeta > 0 ? '+' : '';
+                const desvSign = desvPct > 0 ? '+' : '';
+
+                let badgesPrendas = `<span class="badge bg-dark rounded-pill px-2 py-1">${numberFormatter.format(v.total_avaluos || 0)} auditadas</span>`;
+                if (v.prendas_sobrevaluadas > 0) {
+                    badgesPrendas += ` <span class="badge bg-danger bg-opacity-10 text-danger border border-danger rounded-pill px-2 py-1" title="Prendas con préstamo mayor al real">${v.prendas_sobrevaluadas} sobreval.</span>`;
+                }
+                if (v.prendas_subvaluadas > 0) {
+                    badgesPrendas += ` <span class="badge bg-warning bg-opacity-10 text-dark border border-warning rounded-pill px-2 py-1" title="Prendas con préstamo menor al real">${v.prendas_subvaluadas} subval.</span>`;
+                }
 
                 html += `
                     <tr>
-                        <td class="ps-4 py-3 fw-bold text-dark">
-                            <i class="bi bi-person-exclamation text-danger me-2"></i>${escapeHtml(v.valuador)}
+                        <td class="ps-4 py-3">
+                            <div class="fw-bold text-dark">
+                                <i class="bi ${iconClass} me-2"></i>${escapeHtml(v.valuador)}
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-calendar-check me-1"></i>Últ. rev: ${escapeHtml(v.ultima_revision || 'S/F')} |Auditor: ${escapeHtml(v.auditor || 'N/A')}
+                            </small>
                         </td>
-                        <td class="py-3 text-muted">${escapeHtml(v.sucursal)}</td>
+                        <td class="py-3 fw-semibold text-secondary">${escapeHtml(v.sucursal)}</td>
                         <td class="py-3 text-center">
-                            <span class="badge ${badgeClass} rounded-pill px-3 py-2 fw-bold text-uppercase">
+                            <div class="d-flex flex-wrap justify-content-center gap-1">
+                                ${badgesPrendas}
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Desc. correcta: <strong>${v.desc_correctas || 0}/${v.total_avaluos || 0}</strong> (${v.efectividad_desc || 0}%)
+                            </small>
+                        </td>
+                        <td class="py-3 text-end">
+                            <div class="fw-bold text-primary" title="Préstamo otorgado en sucursal">Otorgado: ${formatter.format(v.total_prestado || 0)}</div>
+                            <div class="small fw-semibold text-success" title="Préstamo real determinado en El Caminado">Real Caminado: ${formatter.format(v.total_prestamo_real || 0)}</div>
+                        </td>
+                        <td class="py-3 text-end">
+                            <span class="fw-bold ${Math.abs((v.ratio_prestamo_avaluo || 100) - 100) > 15 ? 'text-danger' : 'text-dark'}">${(v.ratio_prestamo_avaluo || 0).toFixed(1)}%</span>
+                            <small class="text-muted d-block">Efectividad: <strong>${(v.efectividad_general || 0).toFixed(1)}%</strong></small>
+                        </td>
+                        <td class="py-3 text-end">
+                            <div class="fw-bold ${difColor}">${difSign}${formatter.format(difNeta)}</div>
+                            <small class="${difColor} fw-semibold">(${desvSign}${desvPct.toFixed(1)}%)</small>
+                        </td>
+                        <td class="py-3 text-center" style="max-width: 240px;">
+                            <span class="badge ${badgeClass} rounded-pill px-3 py-1 fw-bold text-uppercase d-inline-block mb-1">
                                 ${escapeHtml(v.motivo)}
                             </span>
+                            <small class="text-muted d-block" style="font-size: 0.75rem; line-height: 1.2;">
+                                ${escapeHtml(v.recomendacion || '')}
+                            </small>
                         </td>
-                        <td class="py-3 text-end fw-bold text-danger">${v.ratio_calidad ? v.ratio_calidad.toFixed(2) + 'x' : 'N/A'}</td>
-                        <td class="py-3 text-center fw-semibold">${numberFormatter.format(v.total_avaluos || 0)}</td>
-                        <td class="py-3 text-end text-dark">${formatter.format(v.total_prestado || 0)}</td>
-                        <td class="pe-4 py-3 text-muted small">${escapeHtml(v.recomendacion || 'Revisar operación')}</td>
+                        <td class="pe-4 py-3 text-center">
+                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 btn-ver-caminado-val" data-index="${idx}">
+                                <i class="bi bi-eye me-1"></i>Ver Prendas (${(v.detalles_caminado || []).length})
+                            </button>
+                        </td>
                     </tr>
                 `;
             });
             tbody.innerHTML = html;
+
+            document.querySelectorAll('.btn-ver-caminado-val').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = parseInt(this.dataset.index);
+                    const val = rawValuadoresAlerta[idx];
+                    if (val) abrirModalCaminado(val);
+                });
+            });
+        }
+
+        function abrirModalCaminado(val) {
+            updateElementText('modal-caminado-subtitulo', `${val.valuador} — Sucursal: ${val.sucursal} | Últ. Revisión: ${val.ultima_revision || 'S/F'}`);
+            updateElementText('modal-cam-total-prendas', `${numberFormatter.format(val.total_avaluos || 0)} prendas`);
+            updateElementText('modal-cam-fuera-rango', `${val.prendas_fuera_rango || 0} fuera de rango (${val.prendas_sobrevaluadas || 0} sobre / ${val.prendas_subvaluadas || 0} sub)`);
+            updateElementText('modal-cam-prestado', formatter.format(val.total_prestado || 0));
+            updateElementText('modal-cam-prom-otorgado', `Prom: ${formatter.format(val.prom_avaluo || 0)}`);
+            updateElementText('modal-cam-real', formatter.format(val.total_prestamo_real || 0));
+            updateElementText('modal-cam-prom-real', `Prom: ${formatter.format(val.prom_prestamo_real || 0)}`);
+
+            const difNeta = parseFloat(val.diferencia_neta || 0);
+            const difEl = document.getElementById('modal-cam-diferencia');
+            if (difEl) {
+                difEl.innerText = `${difNeta > 0 ? '+' : ''}${formatter.format(difNeta)} (${val.desviacion_sucursal > 0 ? '+' : ''}${val.desviacion_sucursal}%)`;
+                difEl.className = `fw-extrabold mb-0 mt-1 ${difNeta > 0 ? 'text-danger' : (difNeta < 0 ? 'text-warning' : 'text-success')}`;
+            }
+            updateElementText('modal-cam-efectividad', `Efectividad General: ${(val.efectividad_general || 0).toFixed(1)}%`);
+
+            const tbody = document.getElementById('modal-caminado-tbody');
+            const detalles = val.detalles_caminado || [];
+            if (detalles.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Sin prendas registradas</td></tr>';
+            } else {
+                let rowsHtml = '';
+                detalles.forEach(d => {
+                    const diff = parseFloat(d.diferencia || 0);
+                    let evalBadge = '<span class="badge bg-success rounded-pill">En Rango</span>';
+                    let diffClass = 'text-success';
+                    if (d.es_sobrevaluo) {
+                        evalBadge = `<span class="badge bg-danger rounded-pill">Sobrevaluado (+${formatter.format(d.monto_sobrevaluo || diff)})</span>`;
+                        diffClass = 'text-danger fw-bold';
+                    } else if (d.es_subvaluo) {
+                        evalBadge = `<span class="badge bg-warning text-dark rounded-pill">Subvaluado (-${formatter.format(d.monto_subvaluo || Math.abs(diff))})</span>`;
+                        diffClass = 'text-warning fw-bold';
+                    }
+
+                    const descBadge = d.descripcion_correcta
+                        ? '<span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill">Sí</span>'
+                        : '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger rounded-pill">No</span>';
+
+                    rowsHtml += `
+                        <tr>
+                            <td class="ps-3 py-2 text-muted small">${escapeHtml(d.fecha_revision || '-')}</td>
+                            <td class="py-2 fw-bold text-dark">
+                                #${escapeHtml(d.contrato || d.folio || '-')}
+                                ${d.folio && d.contrato && d.folio !== d.contrato ? `<small class="text-muted d-block">Folio: ${escapeHtml(d.folio)}</small>` : ''}
+                            </td>
+                            <td class="py-2">
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill mb-1">${escapeHtml(d.categoria || 'General')}</span>
+                                <div class="fw-semibold text-dark">${escapeHtml(d.articulo || '-')}</div>
+                            </td>
+                            <td class="py-2 text-muted small" style="max-width: 260px;">
+                                ${escapeHtml(d.descripcion || '-')}
+                                ${d.observacion ? `<div class="text-danger fst-italic mt-1"><i class="bi bi-chat-left-text me-1"></i>${escapeHtml(d.observacion)}</div>` : ''}
+                            </td>
+                            <td class="py-2 text-end fw-semibold text-primary">${formatter.format(d.monto_otorgado || 0)}</td>
+                            <td class="py-2 text-end fw-semibold text-success">${formatter.format(d.prestamo_real || 0)}</td>
+                            <td class="py-2 text-end ${diffClass}">${diff > 0 ? '+' : ''}${formatter.format(diff)}</td>
+                            <td class="py-2 text-center">${descBadge}</td>
+                            <td class="pe-3 py-2 text-center">${evalBadge}</td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = rowsHtml;
+            }
+
+            const modalEl = document.getElementById('modalCaminadoValuador');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            }
         }
 
         // 94. Render Tabla ROI Colaborador

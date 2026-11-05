@@ -198,9 +198,9 @@
 	<!-- ===================================================================== -->
 	<!-- NUEVA SECCIÓN: CONSULTA DE MOVIMIENTOS POR HORA Y PERIODO EN TIEMPO REAL -->
 	<!-- ===================================================================== -->
-	<div class="card shadow-sm border-0 mb-4 rounded-3 overflow-hidden">
+	<div class="card shadow-sm border-0 mb-4 rounded-3">
 		<!-- Barra Superior de Filtros y Control -->
-		<div class="card-body p-4 bg-white border-bottom">
+		<div class="card-body p-4 bg-white border-bottom rounded-top-3">
 			<div class="row align-items-center g-3">
 				<div class="col-xl-4 col-12">
 					<h5 class="fw-bold mb-1 text-dark d-flex align-items-center">
@@ -216,7 +216,7 @@
 				<div class="col-xl-8 col-12">
 					<div class="d-flex flex-wrap gap-2 justify-content-xl-end align-items-center">
 						<!-- Selector de Sucursales (Múltiple con Checkboxes y Búsqueda) -->
-						<div class="dropdown" style="min-width: 220px;" id="dropdown-sucursal-container">
+						<div class="dropdown position-relative" style="min-width: 220px;" id="dropdown-sucursal-container">
 							<div class="d-flex justify-content-between align-items-center mb-1">
 								<label class="form-label small fw-bold text-muted mb-0"><i class="bi bi-shop me-1 text-primary"></i>Sucursales</label>
 								<span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0 px-2 fw-semibold" id="badge-sucursales-count" style="font-size: 0.72rem;">Todas</span>
@@ -224,13 +224,11 @@
 							<button class="btn btn-outline-secondary form-select form-select-sm fw-semibold text-start d-flex justify-content-between align-items-center bg-white shadow-none" 
 									type="button" 
 									id="dropdownSucursalesBtn" 
-									data-bs-toggle="dropdown" 
-									data-bs-auto-close="outside" 
 									aria-expanded="false"
 									style="border-color: #dee2e6; color: #212529;">
 								<span class="text-truncate me-2" id="dropdownSucursalesLabel">-- Todas las Sucursales --</span>
 							</button>
-							<div class="dropdown-menu shadow-lg p-2 rounded-3 border" aria-labelledby="dropdownSucursalesBtn" style="min-width: 280px; max-width: 330px; z-index: 1050;">
+							<div class="dropdown-menu shadow-lg p-2 rounded-3 border" id="dropdownSucursalesMenu" aria-labelledby="dropdownSucursalesBtn" style="min-width: 280px; max-width: 330px; z-index: 1080; top: 100%; left: 0;">
 								<!-- Búsqueda y acciones rápidas -->
 								<div class="px-1 pb-2 border-bottom mb-2">
 									<div class="input-group input-group-sm">
@@ -249,13 +247,12 @@
 								<!-- Lista de sucursales con checkboxes -->
 								<div class="overflow-auto" id="sucursales-checkboxes-list" style="max-height: 240px;">
 									@php
+										$availableIdsView = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
 										$branchesToRender = (!empty($sucursalesList) && count($sucursalesList) > 0)
 											? $sucursalesList
 											: ((!empty($sucursales) && count($sucursales) > 0)
 												? $sucursales
-												: (auth()->check() && auth()->user()->getPbiRoleType() === 'super_admin'
-													? \App\Models\Sucursal::whereNotNull('id_valora_mas')->orderBy('nombre')->get()
-													: collect()));
+												: \App\Models\Sucursal::whereNotNull('id_valora_mas')->whereIn('id_valora_mas', $availableIdsView)->orderBy('nombre')->get());
 									@endphp
 									@if(count($branchesToRender) > 1)
 									<div class="form-check py-1 px-3 rounded hover-bg sucursal-check-item">
@@ -763,19 +760,42 @@
 			// Elementos del Selector Múltiple de Sucursales
 			const checkSucAll = document.getElementById('check-suc-all');
 			const branchCheckboxes = document.querySelectorAll('.check-sucursal');
+			const dropdownSucursalContainer = document.getElementById('dropdown-sucursal-container');
 			const dropdownSucursalesBtn = document.getElementById('dropdownSucursalesBtn');
+			const dropdownSucursalesMenu = document.getElementById('dropdownSucursalesMenu');
 			const dropdownSucursalesLabel = document.getElementById('dropdownSucursalesLabel');
 			const badgeSucursalesCount = document.getElementById('badge-sucursales-count');
 			const searchSucursalesInput = document.getElementById('search-sucursales-input');
 			const btnSelectAllSucursales = document.getElementById('btn-select-all-sucursales');
 			const btnClearSucursales = document.getElementById('btn-clear-sucursales');
 
-			if (dropdownSucursalesBtn && typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-				try {
-					bootstrap.Dropdown.getOrCreateInstance(dropdownSucursalesBtn);
-				} catch (e) {
-					console.warn('Dropdown init:', e);
-				}
+			if (dropdownSucursalesBtn && dropdownSucursalesMenu) {
+				dropdownSucursalesBtn.addEventListener('click', function (e) {
+					e.preventDefault();
+					e.stopPropagation();
+					const isOpen = dropdownSucursalesMenu.classList.contains('show');
+					if (isOpen) {
+						dropdownSucursalesMenu.classList.remove('show');
+						dropdownSucursalesBtn.setAttribute('aria-expanded', 'false');
+					} else {
+						dropdownSucursalesMenu.classList.add('show');
+						dropdownSucursalesBtn.setAttribute('aria-expanded', 'true');
+						if (searchSucursalesInput) {
+							setTimeout(() => searchSucursalesInput.focus(), 50);
+						}
+					}
+				});
+
+				dropdownSucursalesMenu.addEventListener('click', function (e) {
+					e.stopPropagation();
+				});
+
+				document.addEventListener('click', function (e) {
+					if (dropdownSucursalContainer && !dropdownSucursalContainer.contains(e.target)) {
+						dropdownSucursalesMenu.classList.remove('show');
+						dropdownSucursalesBtn.setAttribute('aria-expanded', 'false');
+					}
+				});
 			}
 
 			function getSelectedSucursalesInfo() {

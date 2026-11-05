@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Sucursal;
 use App\Models\User;
+use App\Models\Caminado;
+use App\Models\CaminadoDetalle;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +21,18 @@ class ColaboradoresController extends Controller
         $fechaFin = now()->toDateString();
         $regionales = PowerBIPermissionService::getRegionales();
         $regionalUserId = $request->input('regional_user_id');
+
+        $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
         $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
+        if ($sucursales->isEmpty()) {
+            $sucursales = Sucursal::whereNotNull('id_valora_mas')
+                ->whereIn('id_valora_mas', $availableDbs)
+                ->where('nombre', 'not like', '%OFICINA%')
+                ->orderBy('nombre')
+                ->get();
+        } else {
+            $sucursales = $sucursales->filter(fn($s) => in_array((int)$s->id_valora_mas, $availableDbs) && !str_contains(strtoupper($s->nombre), 'OFICINA'))->sortBy('nombre')->values();
+        }
 
         return view('colaboradores.index', compact('fechaInicio', 'fechaFin', 'sucursales', 'regionales', 'regionalUserId'));
     }
@@ -35,12 +48,32 @@ class ColaboradoresController extends Controller
 
     public function data(Request $request)
     {
-        $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString()) . ' 00:00:00';
-        $fechaFin = $request->input('fecha_fin', now()->toDateString()) . ' 23:59:59';
+        ini_set('max_execution_time', 180);
+        set_time_limit(180);
+
+        $rawInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString());
+        $fechaInicio = (strlen($rawInicio) <= 10 ? $rawInicio . ' 00:00:00' : $rawInicio);
+
+        $rawFin = $request->input('fecha_fin', now()->toDateString());
+        $fechaFin = (strlen($rawFin) <= 10 ? $rawFin . ' 23:59:59' : $rawFin);
         
         $regionalUserId = $request->input('regional_user_id');
+        $availableDbs = [2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 18, 19, 22, 24];
         $sucursales = PowerBIPermissionService::getPermittedSucursales(null, $regionalUserId);
+        if ($sucursales->isEmpty()) {
+            $sucursales = Sucursal::whereNotNull('id_valora_mas')
+                ->whereIn('id_valora_mas', $availableDbs)
+                ->where('nombre', 'not like', '%OFICINA%')
+                ->orderBy('nombre')
+                ->get();
+        } else {
+            $sucursales = $sucursales->filter(fn($s) => in_array((int)$s->id_valora_mas, $availableDbs) && !str_contains(strtoupper($s->nombre), 'OFICINA'))->sortBy('nombre')->values();
+        }
+
         $sucursalId = $request->input('sucursal_id');
+        if ($sucursalId === 'todas' || $sucursalId === '') {
+            $sucursalId = null;
+        }
         $sucursalesSeleccionadas = $sucursalId
             ? $sucursales->where('id_valora_mas', $sucursalId)
             : $sucursales;
@@ -89,6 +122,7 @@ class ColaboradoresController extends Controller
         $activeUsers = User::where('status', 0)->get();
         
         $nominaTotal = 0;
+        $nominaSucursal = 0;
         $numEmpleados = 0;
         $ventaTotalMonto = 0;
         $ventaTotalCosto = 0;
@@ -109,65 +143,158 @@ class ColaboradoresController extends Controller
             'AUTOS' => ['categoria' => 'AUTOS', 'cantidad' => 0, 'monto_avaluo' => 0, 'monto_prestamo' => 0],
         ];
 
+        $movsByBranch = [];
+        $vtasByBranch = [];
+        $catMovByBranch = [];
+        $valByBranch = [];
+
+        if ($sucursalesSeleccionadas->isNotEmpty()) {
+            $unionsMovs = [];
+            $bindsMovs = [];
+            $unionsVtas = [];
+            $bindsVtas = [];
+            $unionsCatMov = [];
+            $bindsCatMov = [];
+            $unionsVal = [];
+            $bindsVal = [];
+
+            foreach ($sucursalesSeleccionadas as $suc) {
+                $sId = (int) $suc->id_valora_mas;
+                $db = 'sistema_prendario_' . $sId;
+
+                $unionsMovs[] = "SELECT {$sId} as suc_id, mo.cod_usuario, u.nombre as empleado, mo.cod_tipo_movimiento, COUNT(mo.cod_movimiento) as tickets, SUM(mo.monto10) as monto
+                                 FROM `{$db}`.movimientos mo
+                                 INNER JOIN `{$db}`.usuarios u ON mo.cod_usuario = u.cod_usuario
+                                 WHERE mo.f_cancela IS NULL AND mo.f_alta BETWEEN ? AND ?
+                                 GROUP BY mo.cod_usuario, u.nombre, mo.cod_tipo_movimiento";
+                $bindsMovs[] = $fechaInicio;
+                $bindsMovs[] = $fechaFin;
+
+                $unionsVtas[] = "SELECT {$sId} as suc_id, u.nombre as empleado, COUNT(v.cod_venta) as tickets, SUM(dv.venta10) as monto,
+                                        SUM(COALESCE((CASE WHEN v.cod_tipo_prenda = 1 THEN a.prestamo WHEN v.cod_tipo_prenda = 2 THEN au.prestamo WHEN v.cod_tipo_prenda = 3 THEN va.prestamo ELSE 0 END), 0)) as costo
+                                 FROM `{$db}`.ventas v
+                                 INNER JOIN `{$db}`.detalle_venta dv ON dv.cod_venta = v.cod_venta
+                                 LEFT JOIN `{$db}`.alhajas a ON v.cod_tipo_prenda = 1 AND dv.cod_prenda = a.cod_alhaja
+                                 LEFT JOIN `{$db}`.autos au ON v.cod_tipo_prenda = 2 AND dv.cod_prenda = au.cod_auto
+                                 LEFT JOIN `{$db}`.varios va ON v.cod_tipo_prenda = 3 AND dv.cod_prenda = va.cod_varios
+                                 INNER JOIN `{$db}`.usuarios u ON v.cod_usuario = u.cod_usuario
+                                 WHERE v.f_venta BETWEEN ? AND ? AND v.f_cancela IS NULL
+                                 GROUP BY u.nombre";
+                $bindsVtas[] = $fechaInicio;
+                $bindsVtas[] = $fechaFin;
+
+                $unionsCatMov[] = "SELECT {$sId} as suc_id, c.cod_usuario, COALESCE(tm.tipo_movimiento, 'EMPEÑO') as tipo_movimiento,
+                                          CASE 
+                                              WHEN c.cod_tipo_prenda = 2 THEN 'AUTOS'
+                                              WHEN c.cod_tipo_prenda = 3 THEN 'VARIOS'
+                                              WHEN c.cod_tipo_prenda = 1 AND (cat.categoria = 'PLATA' OR a.kilataje IN (925, 720, 800, 900, 500)) THEN 'PLATA'
+                                              WHEN c.cod_tipo_prenda = 1 AND (cat.categoria = 'ORO' OR a.kilataje IN (8, 10, 12, 14, 18, 21, 22, 24)) THEN 'ORO'
+                                              WHEN c.cod_tipo_prenda = 1 AND cat.categoria = 'ACERO' THEN 'VARIOS'
+                                              WHEN c.cod_tipo_prenda = 1 THEN 'ORO'
+                                              ELSE 'VARIOS'
+                                          END as categoria_nombre,
+                                          COUNT(c.cod_contrato) as cantidad_avaluos,
+                                          SUM(c.avaluo) as monto_avaluo,
+                                          SUM(c.prestamo) as monto_prestamo
+                                   FROM `{$db}`.contratos c
+                                   LEFT JOIN `{$db}`.movimientos m ON c.cod_movimiento = m.cod_movimiento
+                                   LEFT JOIN `{$db}`.tipo_movimiento tm ON m.cod_tipo_movimiento = tm.cod_tipo_movimiento
+                                   LEFT JOIN `{$db}`.alhajas a ON c.cod_tipo_prenda = 1 AND c.cod_contrato = a.cod_contrato
+                                   LEFT JOIN `{$db}`.prendas p ON a.cod_prenda = p.cod_prenda
+                                   LEFT JOIN `{$db}`.categorias cat ON p.cod_categoria = cat.cod_categoria
+                                   WHERE c.f_contrato BETWEEN ? AND ? AND c.f_cancelacion IS NULL AND c.activo = 1
+                                   GROUP BY c.cod_usuario, tm.tipo_movimiento, categoria_nombre";
+                $bindsCatMov[] = $fechaInicio;
+                $bindsCatMov[] = $fechaFin;
+
+                $unionsVal[] = "SELECT {$sId} as suc_id, c.cod_usuario, u.nombre as valuador,
+                                       COUNT(c.cod_contrato) as total_avaluos,
+                                       SUM(c.prestamo) as total_prestado,
+                                       SUM(c.avaluo) as total_avaluo_monto,
+                                       AVG(c.avaluo) as prom_avaluo,
+                                       AVG(c.prestamo) as prom_prestamo,
+                                       AVG(c.prestamo / NULLIF(c.avaluo, 0)) as ratio_prestamo_avaluo,
+                                       SUM(CASE WHEN c.venta > 0 THEN c.venta ELSE 0 END) as venta_remate_total,
+                                       SUM(CASE WHEN c.venta > 0 THEN c.prestamo ELSE 0 END) as prestamo_remate_total,
+                                       AVG(CASE WHEN c.venta > 0 THEN c.venta / NULLIF(c.prestamo, 0) ELSE NULL END) as ratio_calidad
+                                FROM `{$db}`.contratos c
+                                INNER JOIN `{$db}`.usuarios u ON c.cod_usuario = u.cod_usuario
+                                WHERE c.f_contrato BETWEEN ? AND ? AND c.f_cancelacion IS NULL AND c.activo = 1
+                                GROUP BY c.cod_usuario, u.nombre
+                                HAVING total_avaluos >= 3";
+                $bindsVal[] = $fechaInicio;
+                $bindsVal[] = $fechaFin;
+            }
+
+            try {
+                foreach (DB::select(implode(" UNION ALL ", $unionsMovs), $bindsMovs) as $r) {
+                    $movsByBranch[(int)$r->suc_id][] = $r;
+                }
+            } catch (\Exception $e) {
+                Log::info("Colaboradores UNION movs: " . $e->getMessage());
+            }
+
+            try {
+                foreach (DB::select(implode(" UNION ALL ", $unionsVtas), $bindsVtas) as $r) {
+                    $vtasByBranch[(int)$r->suc_id][] = $r;
+                }
+            } catch (\Exception $e) {
+                Log::info("Colaboradores UNION vtas: " . $e->getMessage());
+            }
+
+            try {
+                foreach (DB::select(implode(" UNION ALL ", $unionsCatMov), $bindsCatMov) as $r) {
+                    $catMovByBranch[(int)$r->suc_id][] = $r;
+                }
+            } catch (\Exception $e) {
+                Log::info("Colaboradores UNION catMov: " . $e->getMessage());
+            }
+
+            try {
+                foreach (DB::select(implode(" UNION ALL ", $unionsVal), $bindsVal) as $r) {
+                    $valByBranch[(int)$r->suc_id][] = $r;
+                }
+            } catch (\Exception $e) {
+                Log::info("Colaboradores UNION val: " . $e->getMessage());
+            }
+        }
+
         foreach ($sucursalesSeleccionadas as $sucursal) {
             try {
-                $dbName = 'sistema_prendario_' . $sucursal->id_valora_mas;
-                $conn = 'colab_dyn_' . $sucursal->id_valora_mas;
-
-                $config = $baseConfig;
-                $config['database'] = $dbName;
-                Config::set("database.connections.$conn", $config);
-                DB::purge($conn);
+                $sId = (int) $sucursal->id_valora_mas;
 
                 // 1. Nómina de la sucursal (Req 85) desde el campo 'sueldo' de colaboradores activos (status = 0)
                 $nominaSucursal = (float) $activeUsers->where('sucursal_id', $sucursal->id)->sum('sueldo');
                 $nominaTotal += $nominaSucursal;
 
-                // Empleados operativos de la sucursal (mínimo 5 movimientos en sistema en el periodo para no duplicar líderes)
-                $operativosQ = DB::connection($conn)->select("
-                    SELECT mo.cod_usuario, COUNT(mo.cod_movimiento) as total_movs
-                    FROM movimientos mo
-                    WHERE mo.f_cancela IS NULL AND mo.f_alta BETWEEN ? AND ?
-                    GROUP BY mo.cod_usuario
-                    HAVING total_movs >= 5
-                ", [$fechaInicio, $fechaFin]);
-                $empleadosSucursal = count($operativosQ);
+                // 2. Movimientos - Todos los tipos y Empleados Operativos (≥ 5 movs)
+                $sucursalMovs = [];
+                $movCountByUser = [];
+                $movsQuery = $movsByBranch[$sId] ?? [];
 
+                foreach ($movsQuery as $row) {
+                    $emp = $row->empleado;
+                    $code = (int)$row->cod_tipo_movimiento;
+                    $uid = $row->cod_usuario;
+                    $movCountByUser[$uid] = ($movCountByUser[$uid] ?? 0) + (int)$row->tickets;
+
+                    if (!isset($sucursalMovs[$emp])) {
+                        $sucursalMovs[$emp] = [];
+                    }
+                    if (!isset($sucursalMovs[$emp][$code])) {
+                        $sucursalMovs[$emp][$code] = ['tickets' => 0, 'monto' => 0];
+                    }
+                    $sucursalMovs[$emp][$code]['tickets'] += (int)$row->tickets;
+                    $sucursalMovs[$emp][$code]['monto'] += (float)$row->monto;
+                }
+
+                $empleadosSucursal = count(array_filter($movCountByUser, fn($c) => $c >= 5));
                 if ($empleadosSucursal === 0) {
-                    // Fallback a colaboradores activos de la intranet asignados a esta sucursal (status 0 = activo)
-                    $empleadosSucursal = User::where('sucursal_id', $sucursal->id)
-                        ->where('status', 0)
-                        ->count();
+                    $empleadosSucursal = $activeUsers->where('sucursal_id', $sucursal->id)->count();
                 }
 
                 if ($sucursalId) {
                     $numEmpleados = $empleadosSucursal;
-                }
-
-                // 2. Movimientos - Todos los tipos
-                $sucursalMovs = [];
-                $movsQuery = DB::connection($conn)->select("
-                     SELECT 
-                        u.nombre as empleado,
-                        mo.cod_tipo_movimiento,
-                        COUNT(mo.cod_movimiento) as tickets,
-                        SUM(mo.monto10) as monto
-                     FROM movimientos mo
-                     INNER JOIN usuarios u ON mo.cod_usuario = u.cod_usuario
-                     WHERE mo.f_cancela IS NULL AND mo.f_alta BETWEEN ? AND ?
-                     GROUP BY u.nombre, mo.cod_tipo_movimiento
-                ", [$fechaInicio, $fechaFin]);
-
-                foreach($movsQuery as $row) {
-                    $emp = $row->empleado;
-                    $code = (int)$row->cod_tipo_movimiento;
-                    if (!isset($sucursalMovs[$emp])) {
-                        $sucursalMovs[$emp] = [];
-                    }
-                    $sucursalMovs[$emp][$code] = [
-                        'tickets' => (int)$row->tickets,
-                        'monto' => (float)$row->monto
-                    ];
                 }
 
                 // 3. Ventas y Utilidad Bruta (Req 86, 87)
@@ -176,42 +303,15 @@ class ColaboradoresController extends Controller
                 $costoSucursalTotal = 0;
                 $ticketsSucursalTotal = 0;
 
-                try {
-                    $vtasQuery = DB::connection($conn)->select("
-                         SELECT 
-                            u.nombre as empleado,
-                            COUNT(v.cod_venta) as tickets,
-                            SUM(dv.venta10) as monto,
-                            SUM(COALESCE((
-                                CASE 
-                                    WHEN v.cod_tipo_prenda = 1 THEN a.prestamo
-                                    WHEN v.cod_tipo_prenda = 2 THEN au.prestamo
-                                    WHEN v.cod_tipo_prenda = 3 THEN va.prestamo
-                                    ELSE 0
-                                END
-                            ), 0)) as costo
-                         FROM ventas v
-                         INNER JOIN detalle_venta dv ON dv.cod_venta = v.cod_venta
-                         LEFT JOIN alhajas a ON v.cod_tipo_prenda = 1 AND dv.cod_prenda = a.cod_alhaja
-                         LEFT JOIN autos au ON v.cod_tipo_prenda = 2 AND dv.cod_prenda = au.cod_auto
-                         LEFT JOIN varios va ON v.cod_tipo_prenda = 3 AND dv.cod_prenda = va.cod_varios
-                         INNER JOIN usuarios u ON v.cod_usuario = u.cod_usuario
-                         WHERE v.f_venta BETWEEN ? AND ? AND v.f_cancela IS NULL
-                         GROUP BY u.nombre
-                    ", [$fechaInicio, $fechaFin]);
+                foreach (($vtasByBranch[$sId] ?? []) as $v) {
+                    $ventasArray[$v->empleado] = $v;
+                    $ventaTotalMonto += (float) $v->monto;
+                    $ventaTotalCosto += (float) $v->costo;
+                    $ventaTotalTickets += (int) $v->tickets;
 
-                    foreach($vtasQuery as $v) {
-                        $ventasArray[$v->empleado] = $v;
-                        $ventaTotalMonto += (float) $v->monto;
-                        $ventaTotalCosto += (float) $v->costo;
-                        $ventaTotalTickets += (int) $v->tickets;
-
-                        $ventaSucursalTotal += (float) $v->monto;
-                        $costoSucursalTotal += (float) $v->costo;
-                        $ticketsSucursalTotal += (int) $v->tickets;
-                    }
-                } catch (\Exception $e) {
-                    Log::info("Ventas en {$sucursal->nombre}: " . $e->getMessage());
+                    $ventaSucursalTotal += (float) $v->monto;
+                    $costoSucursalTotal += (float) $v->costo;
+                    $ticketsSucursalTotal += (int) $v->tickets;
                 }
 
                 // 4. Ratios de Nómina vs Utilidad por Sucursal (Req 91)
@@ -279,32 +379,8 @@ class ColaboradoresController extends Controller
                     }
                 }
 
-                // 6. Categorías y Tipos de Movimiento de Avalúos por Valuador (Oro, Plata, Varios, Autos y Empeño, Refrendo, etc.)
-                $catMovQuery = DB::connection($conn)->select("
-                    SELECT 
-                        c.cod_usuario,
-                        COALESCE(tm.tipo_movimiento, 'EMPEÑO') as tipo_movimiento,
-                        CASE 
-                            WHEN c.cod_tipo_prenda = 2 THEN 'AUTOS'
-                            WHEN c.cod_tipo_prenda = 3 THEN 'VARIOS'
-                            WHEN c.cod_tipo_prenda = 1 AND (cat.categoria = 'PLATA' OR a.kilataje IN (925, 720, 800, 900, 500)) THEN 'PLATA'
-                            WHEN c.cod_tipo_prenda = 1 AND (cat.categoria = 'ORO' OR a.kilataje IN (8, 10, 12, 14, 18, 21, 22, 24)) THEN 'ORO'
-                            WHEN c.cod_tipo_prenda = 1 AND cat.categoria = 'ACERO' THEN 'VARIOS'
-                            WHEN c.cod_tipo_prenda = 1 THEN 'ORO'
-                            ELSE 'VARIOS'
-                        END as categoria_nombre,
-                        COUNT(c.cod_contrato) as cantidad_avaluos,
-                        SUM(c.avaluo) as monto_avaluo,
-                        SUM(c.prestamo) as monto_prestamo
-                    FROM contratos c
-                    LEFT JOIN movimientos m ON c.cod_movimiento = m.cod_movimiento
-                    LEFT JOIN tipo_movimiento tm ON m.cod_tipo_movimiento = tm.cod_tipo_movimiento
-                    LEFT JOIN alhajas a ON c.cod_tipo_prenda = 1 AND c.cod_contrato = a.cod_contrato
-                    LEFT JOIN prendas p ON a.cod_prenda = p.cod_prenda
-                    LEFT JOIN categorias cat ON p.cod_categoria = cat.cod_categoria
-                    WHERE c.f_contrato BETWEEN ? AND ? AND c.f_cancelacion IS NULL AND c.activo = 1
-                    GROUP BY c.cod_usuario, tm.tipo_movimiento, categoria_nombre
-                ", [$fechaInicio, $fechaFin]);
+                // 6. Categorías y Tipos de Movimiento de Avalúos por Valuador
+                $catMovQuery = $catMovByBranch[$sId] ?? [];
 
                 $branchValuadoresCats = [];
                 $branchValuadoresMovs = [];
@@ -315,7 +391,6 @@ class ColaboradoresController extends Controller
                     $normCat = $this->normalizarCategoria($cRow->categoria_nombre);
                     $movName = strtoupper(trim($cRow->tipo_movimiento));
 
-                    // Desglose por Categoría
                     if (!isset($branchValuadoresCats[$uid][$normCat])) {
                         $branchValuadoresCats[$uid][$normCat] = [
                             'categoria' => $normCat,
@@ -328,7 +403,6 @@ class ColaboradoresController extends Controller
                     $branchValuadoresCats[$uid][$normCat]['monto_avaluo'] += (float)$cRow->monto_avaluo;
                     $branchValuadoresCats[$uid][$normCat]['monto_prestamo'] += (float)$cRow->monto_prestamo;
 
-                    // Desglose por Tipo de Movimiento
                     if (!isset($branchValuadoresMovs[$uid][$movName])) {
                         $branchValuadoresMovs[$uid][$movName] = [
                             'tipo_movimiento' => $movName,
@@ -341,7 +415,6 @@ class ColaboradoresController extends Controller
                     $branchValuadoresMovs[$uid][$movName]['monto_avaluo'] += (float)$cRow->monto_avaluo;
                     $branchValuadoresMovs[$uid][$movName]['monto_prestamo'] += (float)$cRow->monto_prestamo;
 
-                    // Desglose Cruzado (Categoría + Movimiento)
                     $branchValuadoresCruzado[$uid][] = [
                         'categoria' => $normCat,
                         'tipo_movimiento' => $movName,
@@ -350,7 +423,6 @@ class ColaboradoresController extends Controller
                         'monto_prestamo' => (float)$cRow->monto_prestamo,
                     ];
 
-                    // Resumen Global de Categorías
                     if (!isset($globalCategoriasResumen[$normCat])) {
                         $globalCategoriasResumen[$normCat] = [
                             'categoria' => $normCat,
@@ -364,35 +436,17 @@ class ColaboradoresController extends Controller
                     $globalCategoriasResumen[$normCat]['monto_prestamo'] += (float)$cRow->monto_prestamo;
                 }
 
-                // 7. Métricas de Valuadores y Avalúos (Req 92 y 93)
-                $sucursalAvg = DB::connection($conn)->selectOne("
-                    SELECT 
-                        AVG(prestamo / NULLIF(avaluo, 0)) as avg_ratio_prestamo_avaluo,
-                        AVG(avaluo) as avg_avaluo
-                    FROM contratos
-                    WHERE f_contrato BETWEEN ? AND ? AND f_cancelacion IS NULL AND activo = 1
-                ", [$fechaInicio, $fechaFin]);
-                $avgRatioSucursal = (float)($sucursalAvg->avg_ratio_prestamo_avaluo ?? 0.70);
-
-                $valQ = DB::connection($conn)->select("
-                    SELECT 
-                        c.cod_usuario,
-                        u.nombre as valuador,
-                        COUNT(c.cod_contrato) as total_avaluos,
-                        SUM(c.prestamo) as total_prestado,
-                        SUM(c.avaluo) as total_avaluo_monto,
-                        AVG(c.avaluo) as prom_avaluo,
-                        AVG(c.prestamo) as prom_prestamo,
-                        AVG(c.prestamo / NULLIF(c.avaluo, 0)) as ratio_prestamo_avaluo,
-                        SUM(CASE WHEN c.venta > 0 THEN c.venta ELSE 0 END) as venta_remate_total,
-                        SUM(CASE WHEN c.venta > 0 THEN c.prestamo ELSE 0 END) as prestamo_remate_total,
-                        AVG(CASE WHEN c.venta > 0 THEN c.venta / NULLIF(c.prestamo, 0) ELSE NULL END) as ratio_calidad
-                    FROM contratos c
-                    INNER JOIN usuarios u ON c.cod_usuario = u.cod_usuario
-                    WHERE c.f_contrato BETWEEN ? AND ? AND c.f_cancelacion IS NULL AND c.activo = 1
-                    GROUP BY c.cod_usuario, u.nombre
-                    HAVING total_avaluos >= 3
-                ", [$fechaInicio, $fechaFin]);
+                // 7. Métricas de Valuadores y Avalúos (Req 92)
+                $valQ = $valByBranch[$sId] ?? [];
+                $sumRatiosSuc = 0;
+                $cntRatiosSuc = 0;
+                foreach ($valQ as $vTmp) {
+                    if ($vTmp->ratio_prestamo_avaluo > 0) {
+                        $sumRatiosSuc += ((float)$vTmp->ratio_prestamo_avaluo * (int)$vTmp->total_avaluos);
+                        $cntRatiosSuc += (int)$vTmp->total_avaluos;
+                    }
+                }
+                $avgRatioSucursal = $cntRatiosSuc > 0 ? ($sumRatiosSuc / $cntRatiosSuc) : 0.70;
 
                 foreach ($valQ as $v) {
                     $ratioValuador = (float)($v->ratio_prestamo_avaluo ?? 0);
@@ -602,13 +656,222 @@ class ColaboradoresController extends Controller
             return $b['total_avaluos'] <=> $a['total_avaluos'];
         });
 
-        // 93. Valuadores con Alerta / Fuera de Rango
-        $valuadoresAlerta = array_values(array_filter($valuadoresList, function($v) {
-            return $v['alerta'] !== 'Normal';
-        }));
-        usort($valuadoresAlerta, function($a, $b) {
-            return abs($b['desviacion_sucursal']) <=> abs($a['desviacion_sucursal']);
-        });
+        // 93. Valuadores con Avalúos Fuera del Rango de Sucursal (Tomando en cuenta El Caminado)
+        $valuadoresAlerta = [];
+        try {
+            $caminadoQuery = Caminado::with(['sucursal', 'usuario', 'detalles']);
+            if (!empty($sucursalId)) {
+                $sucIds = $sucursalesSeleccionadas->pluck('id')->toArray();
+                if (!empty($sucIds)) {
+                    $caminadoQuery->whereIn('sucursal_id', $sucIds);
+                } else {
+                    $caminadoQuery->whereHas('sucursal', function ($q) use ($sucursalId) {
+                        $q->where('id_valora_mas', $sucursalId)->orWhere('id', $sucursalId);
+                    });
+                }
+            } elseif ($sucursalesSeleccionadas->isNotEmpty()) {
+                $caminadoQuery->whereIn('sucursal_id', $sucursalesSeleccionadas->pluck('id')->toArray());
+            }
+
+            $caminadosEnPeriodo = (clone $caminadoQuery)
+                ->where(function ($q) use ($fechaInicio, $fechaFin) {
+                    $q->whereBetween('fecha_revision', [$fechaInicio, $fechaFin])
+                      ->orWhereBetween('fecha_recepcion', [$fechaInicio, $fechaFin])
+                      ->orWhereBetween('created_at', [$fechaInicio, $fechaFin]);
+                })
+                ->orderBy('fecha_revision', 'desc')
+                ->orderBy('id', 'desc')
+                ->get();
+
+            // Si no hay caminados en ese rango exacto de fechas, tomar los caminados guardados de la(s) sucursal(es)
+            if ($caminadosEnPeriodo->isEmpty()) {
+                $caminadosEnPeriodo = $caminadoQuery
+                    ->orderBy('fecha_revision', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->get();
+            }
+
+            $caminadoPorValuador = [];
+            foreach ($caminadosEnPeriodo as $cam) {
+                $sucNombre = $cam->sucursal->nombre ?? 'N/A';
+                $auditorNombre = $cam->usuario ? ($cam->usuario->nombre_completo ?? $cam->usuario->nick_name) : 'N/A';
+                $fechaRev = $cam->fecha_revision ? $cam->fecha_revision->format('Y-m-d') : '-';
+
+                foreach ($cam->detalles as $det) {
+                    $valNombre = trim($det->usuario ?: 'SIN ASIGNAR');
+                    $key = mb_strtoupper($valNombre) . '|' . mb_strtoupper($sucNombre);
+
+                    if (!isset($caminadoPorValuador[$key])) {
+                        $caminadoPorValuador[$key] = [
+                            'valuador' => $valNombre,
+                            'sucursal' => $sucNombre,
+                            'ultima_revision' => $fechaRev,
+                            'auditor' => $auditorNombre,
+                            'caminados_ids' => [],
+                            'total_avaluos' => 0,
+                            'total_prestado' => 0.0,
+                            'total_prestamo_real' => 0.0,
+                            'prendas_sobrevaluadas' => 0,
+                            'monto_sobrevaluo' => 0.0,
+                            'prendas_subvaluadas' => 0,
+                            'monto_subvaluo' => 0.0,
+                            'prendas_fuera_rango' => 0,
+                            'desc_correctas' => 0,
+                            'desc_incorrectas' => 0,
+                            'detalles_caminado' => [],
+                        ];
+                    }
+
+                    if (!in_array($cam->id, $caminadoPorValuador[$key]['caminados_ids'])) {
+                        $caminadoPorValuador[$key]['caminados_ids'][] = $cam->id;
+                    }
+
+                    $monto = (float) $det->monto;
+                    $real = (float) $det->prestamo_real > 0 ? (float) $det->prestamo_real : $monto;
+
+                    $esSobre = ($det->sobrevaluo == 1 || (float) $det->monto_sobrevaluo > 0 || ($real > 0 && $monto > $real));
+                    $montoSobre = (float) $det->monto_sobrevaluo > 0
+                        ? (float) $det->monto_sobrevaluo
+                        : (($real > 0 && $monto > $real) ? ($monto - $real) : 0.0);
+
+                    $esSub = (!$esSobre && $real > 0 && $monto < $real);
+                    $montoSub = $esSub ? ($real - $monto) : 0.0;
+
+                    $descOk = ($det->descripcion_correcta === 1 || $det->descripcion_correcta === true);
+                    $descMal = ($det->descripcion_correcta === 0 || $det->descripcion_correcta === false);
+
+                    $caminadoPorValuador[$key]['total_avaluos']++;
+                    $caminadoPorValuador[$key]['total_prestado'] += $monto;
+                    $caminadoPorValuador[$key]['total_prestamo_real'] += $real;
+
+                    if ($esSobre) {
+                        $caminadoPorValuador[$key]['prendas_sobrevaluadas']++;
+                        $caminadoPorValuador[$key]['monto_sobrevaluo'] += $montoSobre;
+                    }
+                    if ($esSub) {
+                        $caminadoPorValuador[$key]['prendas_subvaluadas']++;
+                        $caminadoPorValuador[$key]['monto_subvaluo'] += $montoSub;
+                    }
+                    if ($esSobre || $esSub) {
+                        $caminadoPorValuador[$key]['prendas_fuera_rango']++;
+                    }
+                    if ($descOk) {
+                        $caminadoPorValuador[$key]['desc_correctas']++;
+                    } elseif ($descMal) {
+                        $caminadoPorValuador[$key]['desc_incorrectas']++;
+                    }
+
+                    $difPrenda = round($monto - $real, 2);
+                    $pctDifPrenda = $real > 0 ? round((($monto - $real) / $real) * 100, 1) : 0.0;
+
+                    $caminadoPorValuador[$key]['detalles_caminado'][] = [
+                        'caminado_id' => $cam->id,
+                        'fecha_revision' => $fechaRev,
+                        'folio' => $det->folio ?: '-',
+                        'contrato' => $det->contrato ?: '-',
+                        'categoria' => $det->categoria ?: 'VARIOS',
+                        'articulo' => $det->articulo ?: '-',
+                        'descripcion' => $det->descripcion ?: '-',
+                        'monto' => $monto,
+                        'prestamo_real' => $real,
+                        'diferencia' => $difPrenda,
+                        'pct_diferencia' => $pctDifPrenda,
+                        'sobrevaluo' => $esSobre ? 1 : 0,
+                        'subvaluo' => $esSub ? 1 : 0,
+                        'monto_sobrevaluo' => round($montoSobre, 2),
+                        'monto_subvaluo' => round($montoSub, 2),
+                        'estado_articulo' => $det->estado_articulo ?: '-',
+                        'descripcion_correcta' => $det->descripcion_correcta,
+                        'observaciones' => $det->observaciones ?: '',
+                    ];
+                }
+            }
+
+            foreach ($caminadoPorValuador as $cv) {
+                $totalOps = $cv['total_avaluos'];
+                $totPrestado = round($cv['total_prestado'], 2);
+                $totReal = round($cv['total_prestamo_real'], 2);
+                $promAvaluo = $totalOps > 0 ? round($totPrestado / $totalOps, 2) : 0.0;
+                $promReal = $totalOps > 0 ? round($totReal / $totalOps, 2) : 0.0;
+
+                $ratioPrestamoReal = $totReal > 0 ? round(($totPrestado / $totReal) * 100, 1) : 100.0;
+                $desviacionCaminado = $totReal > 0 ? round((($totPrestado - $totReal) / $totReal) * 100, 1) : 0.0;
+                $difNeta = round($totPrestado - $totReal, 2);
+
+                $efecDesc = $totalOps > 0 ? round(($cv['desc_correctas'] / $totalOps) * 100, 1) : 100.0;
+                $efecVal = $totalOps > 0 ? round((($totalOps - $cv['prendas_sobrevaluadas']) / $totalOps) * 100, 1) : 100.0;
+                $efecGen = round(($efecDesc * 0.4) + ($efecVal * 0.6), 1);
+
+                $sobreCount = $cv['prendas_sobrevaluadas'];
+                $subCount = $cv['prendas_subvaluadas'];
+                $descMalCount = $cv['desc_incorrectas'];
+
+                if ($sobreCount > 0) {
+                    $alerta = "Sobrevalúo en Caminado ({$sobreCount} de {$totalOps})";
+                    $motivo = $alerta;
+                    $nivelAlerta = 'alta';
+                    $recomendacion = 'Sobrevalúo por $' . number_format($cv['monto_sobrevaluo'], 2) . ' detectado en caminado (' . $cv['ultima_revision'] . ')';
+                } elseif ($subCount > 0) {
+                    $alerta = "Subvalúo vs Caminado ({$subCount} de {$totalOps})";
+                    $motivo = $alerta;
+                    $nivelAlerta = abs($desviacionCaminado) >= 20 ? 'alta' : 'moderada';
+                    $recomendacion = 'Diferencia de -$' . number_format($cv['monto_subvaluo'], 2) . ' frente a valor real de caminado (' . $cv['ultima_revision'] . ')';
+                } elseif ($descMalCount > 0) {
+                    $alerta = "Descripción Incorrecta ({$descMalCount} de {$totalOps})";
+                    $motivo = $alerta;
+                    $nivelAlerta = 'moderada';
+                    $recomendacion = 'Incidencia en descripción detectada en caminado (' . $cv['ultima_revision'] . ')';
+                } else {
+                    $alerta = "En Rango de Caminado ({$totalOps} auditadas)";
+                    $motivo = $alerta;
+                    $nivelAlerta = 'normal';
+                    $recomendacion = '100% apegado a parámetros de caminado (' . $cv['ultima_revision'] . ')';
+                }
+
+                $valuadoresAlerta[] = [
+                    'valuador' => $cv['valuador'],
+                    'sucursal' => $cv['sucursal'],
+                    'ultima_revision' => $cv['ultima_revision'],
+                    'auditor' => $cv['auditor'],
+                    'caminados_count' => count($cv['caminados_ids']),
+                    'total_avaluos' => $totalOps,
+                    'total_prestado' => $totPrestado,
+                    'total_prestamo_real' => $totReal,
+                    'prom_avaluo' => $promAvaluo,
+                    'prom_prestamo_real' => $promReal,
+                    'prendas_sobrevaluadas' => $sobreCount,
+                    'monto_sobrevaluo' => round($cv['monto_sobrevaluo'], 2),
+                    'prendas_subvaluadas' => $subCount,
+                    'monto_subvaluo' => round($cv['monto_subvaluo'], 2),
+                    'prendas_fuera_rango' => $cv['prendas_fuera_rango'],
+                    'desc_correctas' => $cv['desc_correctas'],
+                    'desc_incorrectas' => $descMalCount,
+                    'efectividad_desc' => $efecDesc,
+                    'efectividad_valuando' => $efecVal,
+                    'efectividad_general' => $efecGen,
+                    'ratio_prestamo_avaluo' => $ratioPrestamoReal,
+                    'diferencia_neta' => $difNeta,
+                    'desviacion_sucursal' => $desviacionCaminado,
+                    'alerta' => $alerta,
+                    'motivo' => $motivo,
+                    'nivel_alerta' => $nivelAlerta,
+                    'recomendacion' => $recomendacion,
+                    'detalles_caminado' => $cv['detalles_caminado'],
+                ];
+            }
+
+            usort($valuadoresAlerta, function ($a, $b) {
+                if ($b['prendas_sobrevaluadas'] !== $a['prendas_sobrevaluadas']) {
+                    return $b['prendas_sobrevaluadas'] <=> $a['prendas_sobrevaluadas'];
+                }
+                if ($b['prendas_fuera_rango'] !== $a['prendas_fuera_rango']) {
+                    return $b['prendas_fuera_rango'] <=> $a['prendas_fuera_rango'];
+                }
+                return abs($b['desviacion_sucursal']) <=> abs($a['desviacion_sucursal']);
+            });
+        } catch (\Throwable $e) {
+            Log::error("Error procesando caminado en ColaboradoresController: " . $e->getMessage());
+        }
 
         $chartComposicionOperaciones = [
             'labels' => ['Ventas Realizadas', 'Contratos Nuevos (Empeños)', 'Refrendos', 'Desempeños', 'Otros'],

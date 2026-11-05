@@ -328,7 +328,16 @@
             if (sucursalSelect) {
                 const sessionSucursalId = @json(session('sucursal_id', ''));
                 if (sessionSucursalId !== null && sessionSucursalId !== '') {
-                    sucursalSelect.value = sessionSucursalId;
+                    const hasOption = Array.from(sucursalSelect.options).some(opt => opt.value == sessionSucursalId);
+                    if (hasOption) {
+                        sucursalSelect.value = sessionSucursalId;
+                    } else if (sessionSucursalId === 'todas') {
+                        const emptyOpt = Array.from(sucursalSelect.options).find(opt => opt.value === '');
+                        if (emptyOpt) sucursalSelect.value = '';
+                    }
+                }
+                if (sucursalSelect.selectedIndex < 0 && sucursalSelect.options.length > 0) {
+                    sucursalSelect.selectedIndex = 0;
                 }
             }
         });
