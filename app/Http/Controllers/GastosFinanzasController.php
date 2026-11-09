@@ -210,27 +210,32 @@ class GastosFinanzasController extends Controller
                 DB::purge($connName);
 
                 try {
-                    // 1. INTERESES PRENDARIOS DEVENGADOS
+                    // 1. INTERESES PRENDARIOS DEVENGADOS (Detalle de Operaciones: campo interes / 1.16)
                     $qRef = DB::connection($connName)->selectOne("
-                        SELECT COALESCE(SUM(monto10), 0) as s 
+                        SELECT COALESCE(SUM(CASE WHEN monto10 < 20 THEN 20 ELSE monto10 END), 0) as s 
                         FROM movimientos 
                         WHERE f_cancela IS NULL AND cod_tipo_movimiento = 2 AND f_alta BETWEEN ? AND ?
                     ", [$fechaInicio, $fechaFin]);
-                    $intRefrendos = (float)($qRef->s ?? 0);
+                    $rawInteresRefrendos = (float)($qRef->s ?? 0);
+                    $intRefrendos = round($rawInteresRefrendos / 1.16, 2);
+                    $ivaRefrendos = round($rawInteresRefrendos - $intRefrendos, 2);
 
                     $qDes = DB::connection($connName)->selectOne("
-                        SELECT COALESCE(SUM(mo.monto10 - COALESCE(c.prestamo, 0)), 0) as s,
+                        SELECT COALESCE(SUM(GREATEST(0, mo.monto10 - COALESCE(c.prestamo, 0))), 0) as s,
                                COALESCE(SUM(COALESCE(c.prestamo, 0)), 0) as cap
                         FROM movimientos mo 
                         LEFT JOIN contratos c ON c.cod_contrato = mo.cod_contrato 
                         WHERE mo.f_cancela IS NULL AND mo.cod_tipo_movimiento = 4 AND mo.f_alta BETWEEN ? AND ?
                     ", [$fechaInicio, $fechaFin]);
-                    $intDesempenos = (float)($qDes->s ?? 0);
+                    $rawInteresDesempenos = (float)($qDes->s ?? 0);
                     $capDesempenos = (float)($qDes->cap ?? 0);
+                    $intDesempenos = round($rawInteresDesempenos / 1.16, 2);
+                    $ivaDesempenos = round($rawInteresDesempenos - $intDesempenos, 2);
 
+                    $totalIvaPeriodo = $ivaRefrendos + $ivaDesempenos;
                     $intMoratorios = 0;
-                    $ivaIntereses = round(($intRefrendos + $intDesempenos + $intMoratorios) * (0.16 / 1.16), 2);
-                    $ingNetosIntereses = ($intRefrendos + $intDesempenos + $intMoratorios) - $ivaIntereses;
+                    $ivaIntereses = 0;
+                    $ingNetosIntereses = $intRefrendos + $intDesempenos + $intMoratorios;
 
                     // 2. VENTA DE BAZAR (PRENDAS NO RECUPERADAS)
                     $qVentas = DB::connection($connName)->selectOne("
@@ -427,7 +432,7 @@ class GastosFinanzasController extends Controller
                     if ($apartadosVigentes == 0) {
                         $apartadosVigentes = round($precioVentaBazar * 0.12, 2);
                     }
-                    $ivaTrasladadoPagar = round($ivaIntereses * 0.95, 2);
+                    $ivaTrasladadoPagar = round($totalIvaPeriodo * 0.95, 2);
                     $retencionesImpuestos = round($gNomina * 0.05, 2);
                     $totalPasivoCp = $apartadosVigentes + $ivaTrasladadoPagar + $retencionesImpuestos;
                     $totalPasivoLp = 0;
@@ -499,8 +504,8 @@ class GastosFinanzasController extends Controller
                     ", [$fechaInicio, $fechaFin]);
                     $nuevosEmpenos = (float)($qEmp->s ?? 0);
 
-                    $refrendosCap = round($intRefrendos * 5.4, 2);
-                    $flujoOperacion = ($refrendosCap + $intRefrendos + $capDesempenos + $intDesempenos + $precioVentaBazar + $otrosIngresos) - ($nuevosEmpenos + $totalGastosOperacion + $gastosAdmin);
+                    $refrendosCap = round($rawInteresRefrendos * 5.4, 2);
+                    $flujoOperacion = ($refrendosCap + $rawInteresRefrendos + $capDesempenos + $rawInteresDesempenos + $precioVentaBazar + $otrosIngresos) - ($nuevosEmpenos + $totalGastosOperacion + $gastosAdmin);
                     $flujoInversion = 0;
                     $flujoFinanciamiento = 0;
                     $incrementoNeto = $flujoOperacion + $flujoInversion + $flujoFinanciamiento;
@@ -510,9 +515,9 @@ class GastosFinanzasController extends Controller
                     $flujoPorSucursal[$idValora] = [
                         'efectivo_inicial' => $efectivoInicial,
                         'refrendos_capital' => $refrendosCap,
-                        'refrendos_intereses' => $intRefrendos,
+                        'refrendos_intereses' => $rawInteresRefrendos,
                         'desempenos_capital' => $capDesempenos,
-                        'desempenos_intereses' => $intDesempenos,
+                        'desempenos_intereses' => $rawInteresDesempenos,
                         'cobros_bazar' => $precioVentaBazar,
                         'otros_ingresos_cobrados' => $otrosIngresos,
                         'nuevos_empenos_otorgados' => $nuevosEmpenos,
