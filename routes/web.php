@@ -1,4 +1,3 @@
-
 <?php
 
 use App\Http\Controllers\ProfileController;
@@ -23,6 +22,8 @@ use App\Http\Controllers\GraficasController;
 use App\Http\Controllers\ReportePagosTarjetaController;
 use App\Http\Controllers\ControlCajaArqueosController;
 use App\Http\Controllers\BonosComisionesController;
+use App\Http\Controllers\CreditoExternoController;
+use App\Http\Controllers\TarjetasLealtadController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
 
@@ -114,6 +115,16 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/bonos-comisiones', [BonosComisionesController::class, 'index'])->name('bonos-comisiones.index');
     Route::get('/bonos-comisiones/data', [BonosComisionesController::class, 'data'])->name('bonos-comisiones.data');
+
+    // Módulo Crédito Externo (Atrato)
+    Route::get('/credito-externo', [CreditoExternoController::class, 'index'])->name('credito-externo.index');
+    Route::get('/credito-externo/data', [CreditoExternoController::class, 'data'])->name('credito-externo.data');
+    Route::get('/credito-externo/evidencia/{id}', [CreditoExternoController::class, 'evidencia'])->name('credito-externo.evidencia');
+
+    // Módulo Tarjetas de Lealtad
+    Route::get('/tarjetas-lealtad', [TarjetasLealtadController::class, 'index'])->name('tarjetas-lealtad.index');
+    Route::get('/tarjetas-lealtad/data', [TarjetasLealtadController::class, 'data'])->name('tarjetas-lealtad.data');
+    Route::get('/tarjetas-lealtad/cliente/{id}', [TarjetasLealtadController::class, 'clienteHistorial'])->name('tarjetas-lealtad.cliente');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

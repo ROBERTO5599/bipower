@@ -27,6 +27,14 @@ class Sucursal extends Model
     }
 
     /**
+     * Get the razon social / zona of this sucursal.
+     */
+    public function razonSocial()
+    {
+        return $this->belongsTo(RazonSocial::class, 'zona');
+    }
+
+    /**
      * Get the card configuration for the sucursal.
      */
     public function configuracionTarjeta()

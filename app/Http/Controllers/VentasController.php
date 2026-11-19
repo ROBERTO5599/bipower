@@ -134,69 +134,75 @@ class VentasController extends Controller
 
                 // 1. Obtener Ventas, Utilidad, Descuentos, Efectivo y Tarjeta usando UNION ALL optimizado
                 $rows = DB::connection($connectionName)->select("
-                    SELECT ve.cod_tipo_prenda, pre.prenda, al.prestamo, dv.descuento, dv.venta10, 
-                           mo.monto_efectivo, mo.monto_tarjeta, 'venta' as origen, al.kilataje, al.cod_prenda
+                    SELECT ve.cod_tipo_prenda, COALESCE(pre.prenda, 'ALHAJA') as prenda, COALESCE(al.prestamo, 0) as prestamo, COALESCE(dv.descuento, 0) as descuento, 
+                           COALESCE(dv.venta10, dv.precio - COALESCE(dv.descuento, 0)) as venta10, 
+                           COALESCE(mo.monto_efectivo, 0) as monto_efectivo, COALESCE(mo.monto_tarjeta, 0) as monto_tarjeta, 'venta' as origen, COALESCE(al.kilataje, 0) as kilataje, dv.cod_prenda
                     FROM detalle_venta dv 
                     INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
-                    INNER JOIN alhajas al ON al.cod_alhaja = dv.cod_prenda
-                    INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda
-                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
-                    WHERE ve.f_cancela IS NULL AND ve.cod_tipo_prenda = 1 AND ve.f_venta BETWEEN ? AND ?
+                    LEFT JOIN alhajas al ON al.cod_alhaja = dv.cod_prenda
+                    LEFT JOIN prendas pre ON pre.cod_prenda = al.cod_prenda
+                    LEFT JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
+                    WHERE ve.f_cancela IS NULL AND COALESCE(dv.activo, 1) = 1 AND ve.cod_tipo_prenda = 1 AND ve.f_venta BETWEEN ? AND ?
                     UNION ALL
-                    SELECT ve.cod_tipo_prenda, pre.prenda, va.prestamo, dv.descuento, dv.venta10, 
-                           mo.monto_efectivo, mo.monto_tarjeta, 'venta' as origen, 0 as kilataje, va.cod_prenda
+                    SELECT ve.cod_tipo_prenda, COALESCE(pre.prenda, 'VARIOS') as prenda, COALESCE(va.prestamo, 0) as prestamo, COALESCE(dv.descuento, 0) as descuento, 
+                           COALESCE(dv.venta10, dv.precio - COALESCE(dv.descuento, 0)) as venta10, 
+                           COALESCE(mo.monto_efectivo, 0) as monto_efectivo, COALESCE(mo.monto_tarjeta, 0) as monto_tarjeta, 'venta' as origen, 0 as kilataje, dv.cod_prenda
                     FROM detalle_venta dv 
                     INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
-                    INNER JOIN varios va ON va.cod_varios = dv.cod_prenda
-                    INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda
-                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
-                    WHERE ve.f_cancela IS NULL AND ve.cod_tipo_prenda = 3 AND ve.f_venta BETWEEN ? AND ?
+                    LEFT JOIN varios va ON va.cod_varios = dv.cod_prenda
+                    LEFT JOIN prendas pre ON pre.cod_prenda = va.cod_prenda
+                    LEFT JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
+                    WHERE ve.f_cancela IS NULL AND COALESCE(dv.activo, 1) = 1 AND ve.cod_tipo_prenda = 3 AND ve.f_venta BETWEEN ? AND ?
                     UNION ALL
-                    SELECT ve.cod_tipo_prenda, pre.prenda, au.prestamo, dv.descuento, dv.venta10, 
-                           mo.monto_efectivo, mo.monto_tarjeta, 'venta' as origen, 0 as kilataje, au.cod_prenda
+                    SELECT ve.cod_tipo_prenda, COALESCE(pre.prenda, 'AUTO') as prenda, COALESCE(au.prestamo, 0) as prestamo, COALESCE(dv.descuento, 0) as descuento, 
+                           COALESCE(dv.venta10, dv.precio - COALESCE(dv.descuento, 0)) as venta10, 
+                           COALESCE(mo.monto_efectivo, 0) as monto_efectivo, COALESCE(mo.monto_tarjeta, 0) as monto_tarjeta, 'venta' as origen, 0 as kilataje, dv.cod_prenda
                     FROM detalle_venta dv 
                     INNER JOIN ventas ve ON ve.cod_venta = dv.cod_venta
-                    INNER JOIN autos au ON au.cod_auto = dv.cod_prenda
-                    INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda
-                    INNER JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
-                    WHERE ve.f_cancela IS NULL AND ve.cod_tipo_prenda = 2 AND ve.f_venta BETWEEN ? AND ?
+                    LEFT JOIN autos au ON au.cod_auto = dv.cod_prenda
+                    LEFT JOIN prendas pre ON pre.cod_prenda = au.cod_prenda
+                    LEFT JOIN movimientos mo ON mo.cod_movimiento = ve.cod_movimiento 
+                    WHERE ve.f_cancela IS NULL AND COALESCE(dv.activo, 1) = 1 AND ve.cod_tipo_prenda = 2 AND ve.f_venta BETWEEN ? AND ?
                     UNION ALL   
-                    SELECT ap.cod_tipo_prenda, pre.prenda, al.prestamo, da.descuento, al.precio as venta10, 
-                           mo.monto_efectivo, mo.monto_tarjeta, 'apartado' as origen, al.kilataje, al.cod_prenda
+                    SELECT ap.cod_tipo_prenda, COALESCE(pre.prenda, 'ALHAJA') as prenda, COALESCE(al.prestamo, 0) as prestamo, COALESCE(da.descuento, 0) as descuento, 
+                           COALESCE(al.precio, apg.monto, ap.total, 0) as venta10, 
+                           COALESCE(mo.monto_efectivo, 0) as monto_efectivo, COALESCE(mo.monto_tarjeta, 0) as monto_tarjeta, 'apartado' as origen, COALESCE(al.kilataje, 0) as kilataje, da.cod_prenda
                     FROM apartado_pagos apg 
                     INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado 
                     INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
-                    INNER JOIN alhajas al ON al.cod_alhaja = da.cod_prenda
-                    INNER JOIN prendas pre ON pre.cod_prenda = al.cod_prenda
-                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
+                    LEFT JOIN alhajas al ON al.cod_alhaja = da.cod_prenda
+                    LEFT JOIN prendas pre ON pre.cod_prenda = al.cod_prenda
+                    LEFT JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
                     WHERE mo.cod_tipo_movimiento=12 AND apg.f_cancela IS NULL AND ap.cod_tipo_prenda = 1 AND apg.f_pago BETWEEN ? AND ?
                     UNION ALL
-                    SELECT ap.cod_tipo_prenda, pre.prenda, au.prestamo, da.descuento, au.precio as venta10, 
-                           mo.monto_efectivo, mo.monto_tarjeta, 'apartado' as origen, 0 as kilataje, au.cod_prenda
+                    SELECT ap.cod_tipo_prenda, COALESCE(pre.prenda, 'AUTO') as prenda, COALESCE(au.prestamo, 0) as prestamo, COALESCE(da.descuento, 0) as descuento, 
+                           COALESCE(au.precio, apg.monto, ap.total, 0) as venta10, 
+                           COALESCE(mo.monto_efectivo, 0) as monto_efectivo, COALESCE(mo.monto_tarjeta, 0) as monto_tarjeta, 'apartado' as origen, 0 as kilataje, da.cod_prenda
                     FROM apartado_pagos apg 
                     INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado 
                     INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
-                    INNER JOIN autos au ON au.cod_auto = da.cod_prenda
-                    INNER JOIN prendas pre ON pre.cod_prenda = au.cod_prenda
-                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
+                    LEFT JOIN autos au ON au.cod_auto = da.cod_prenda
+                    LEFT JOIN prendas pre ON pre.cod_prenda = au.cod_prenda
+                    LEFT JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
                     WHERE mo.cod_tipo_movimiento=12 AND apg.f_cancela IS NULL AND ap.cod_tipo_prenda = 2 AND apg.f_pago BETWEEN ? AND ?
                     UNION ALL
-                    SELECT ap.cod_tipo_prenda, pre.prenda, va.prestamo, da.descuento, va.precio as venta10, 
-                           mo.monto_efectivo, mo.monto_tarjeta, 'apartado' as origen, 0 as kilataje, va.cod_prenda
+                    SELECT ap.cod_tipo_prenda, COALESCE(pre.prenda, 'VARIOS') as prenda, COALESCE(va.prestamo, 0) as prestamo, COALESCE(da.descuento, 0) as descuento, 
+                           COALESCE(va.precio, apg.monto, ap.total, 0) as venta10, 
+                           COALESCE(mo.monto_efectivo, 0) as monto_efectivo, COALESCE(mo.monto_tarjeta, 0) as monto_tarjeta, 'apartado' as origen, 0 as kilataje, da.cod_prenda
                     FROM apartado_pagos apg 
                     INNER JOIN apartados ap ON ap.cod_apartado = apg.cod_apartado
                     INNER JOIN detalle_apartado da ON da.cod_apartado = ap.cod_apartado
-                    INNER JOIN varios va ON va.cod_varios = da.cod_prenda
-                    INNER JOIN prendas pre ON pre.cod_prenda = va.cod_prenda
-                    INNER JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
+                    LEFT JOIN varios va ON va.cod_varios = da.cod_prenda
+                    LEFT JOIN prendas pre ON pre.cod_prenda = va.cod_prenda
+                    LEFT JOIN movimientos mo ON mo.cod_movimiento = apg.cod_movimiento 
                     WHERE mo.cod_tipo_movimiento=12 AND apg.f_cancela IS NULL AND ap.cod_tipo_prenda = 3 AND apg.f_pago BETWEEN ? AND ?
                     UNION ALL
-                    SELECT mo.cod_tipo_prenda, pre.prenda, art.prestamo, 0 as descuento, op.monto_total as venta10, 
-                           mo.monto_efectivo, mo.monto_tarjeta, 'credito' as origen, 0 as kilataje, art.cod_prenda
+                    SELECT mo.cod_tipo_prenda, COALESCE(pre.prenda, 'VARIOS') as prenda, COALESCE(art.prestamo, 0) as prestamo, 0 as descuento, COALESCE(op.monto_total, 0) as venta10, 
+                           COALESCE(mo.monto_efectivo, 0) as monto_efectivo, COALESCE(mo.monto_tarjeta, 0) as monto_tarjeta, 'credito' as origen, 0 as kilataje, COALESCE(art.cod_prenda, 0) as cod_prenda
                     FROM movimientos mo
                     INNER JOIN creditos op ON op.cod_credito = mo.cod_contrato
-                    INNER JOIN varios art ON art.cod_varios = op.cod_varios
-                    INNER JOIN prendas pre ON pre.cod_prenda = art.cod_prenda
+                    LEFT JOIN varios art ON art.cod_varios = op.cod_varios
+                    LEFT JOIN prendas pre ON pre.cod_prenda = art.cod_prenda
                     WHERE mo.cod_estatus IN (1,2) AND mo.cod_tipo_movimiento = 21 AND mo.f_alta BETWEEN ? AND ?
                 ", [
                     $fechaInicio, $fechaFinQuery, $fechaInicio, $fechaFinQuery,

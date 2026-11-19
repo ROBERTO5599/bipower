@@ -168,14 +168,9 @@ class TableroControlController extends Controller
                                 WHEN ve.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
                                 WHEN ve.cod_tipo_prenda = 2 THEN 'AUTOS'
                                 WHEN ve.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
-                                ELSE 'SIN CATEGORIA'
+                                ELSE 'MERCANCIA GENERAL'
                             END AS categoria,
-                            CASE
-                                WHEN ve.cod_tipo_prenda = 1 THEN COALESCE(al.prestamo, 0)
-                                WHEN ve.cod_tipo_prenda = 2 THEN COALESCE(au.prestamo, 0)
-                                WHEN ve.cod_tipo_prenda = 3 THEN COALESCE(va.prestamo, 0)
-                                ELSE 0
-                            END AS avance,
+                            COALESCE(dv.venta10, dv.precio - COALESCE(dv.descuento, 0), 0) AS avance,
                             mo.cod_movimiento AS cod_operacion
                         FROM movimientos mo
                         INNER JOIN ventas ve ON ve.cod_movimiento = mo.cod_movimiento
@@ -185,6 +180,7 @@ class TableroControlController extends Controller
                         LEFT JOIN varios  va ON va.cod_varios = dv.cod_prenda AND ve.cod_tipo_prenda = 3
                         WHERE mo.f_alta BETWEEN :f1_1 AND :f2_1
                           AND mo.f_cancela IS NULL
+                          AND COALESCE(dv.activo, 1) = 1
                           AND mo.cod_tipo_movimiento IN (5, 6)
 
                         UNION ALL
@@ -195,14 +191,9 @@ class TableroControlController extends Controller
                                 WHEN ap.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
                                 WHEN ap.cod_tipo_prenda = 2 THEN 'AUTOS'
                                 WHEN ap.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
-                                ELSE 'SIN CATEGORIA'
+                                ELSE 'MERCANCIA GENERAL'
                             END AS categoria,
-                            CASE
-                                WHEN ap.cod_tipo_prenda = 1 THEN COALESCE(al.prestamo, 0)
-                                WHEN ap.cod_tipo_prenda = 2 THEN COALESCE(au.prestamo, 0)
-                                WHEN ap.cod_tipo_prenda = 3 THEN COALESCE(va.prestamo, 0)
-                                ELSE 0
-                            END AS avance,
+                            COALESCE(da.precio - COALESCE(da.descuento, 0), ap.total, apg.monto, 0) AS avance,
                             mo.cod_movimiento AS cod_operacion
                         FROM movimientos mo
                         LEFT JOIN apartado_pagos apg ON apg.cod_movimiento = mo.cod_movimiento

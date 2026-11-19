@@ -89,15 +89,27 @@ class InventarioRematadoController extends Controller
                 'Autos' => ['articulos' => 0, 'prestamo' => 0.0, 'precio' => 0.0, 'avaluo' => 0.0],
             ];
 
-            // Desglose por Estatus Actual
-            $estatusActualMap = [
-                'Piso de Venta' => ['codigo' => 9, 'articulos' => 0, 'prestamo' => 0.0, 'precio' => 0.0, 'color' => '#f59e0b'],
-                'Vendida' => ['codigo' => 3, 'articulos' => 0, 'prestamo' => 0.0, 'precio' => 0.0, 'color' => '#10b981'],
-                'Apartada' => ['codigo' => 4, 'articulos' => 0, 'prestamo' => 0.0, 'precio' => 0.0, 'color' => '#6366f1'],
-                'Baja / Salida' => ['codigo' => 10, 'articulos' => 0, 'prestamo' => 0.0, 'precio' => 0.0, 'color' => '#ef4444'],
-                'Desempeño Ext.' => ['codigo' => 6, 'articulos' => 0, 'prestamo' => 0.0, 'precio' => 0.0, 'color' => '#06b6d4'],
-                'Otros' => ['codigo' => 0, 'articulos' => 0, 'prestamo' => 0.0, 'precio' => 0.0, 'color' => '#64748b'],
+            // Catálogo oficial de Estatus Actual para desplegar todos sin agrupar en "Otros"
+            $estatusCatalogo = [
+                9  => ['label' => 'Piso de Venta',        'color' => '#f59e0b'],
+                3  => ['label' => 'Vendida',              'color' => '#10b981'],
+                12 => ['label' => 'Venta Crédito',        'color' => '#059669'],
+                4  => ['label' => 'Apartada',             'color' => '#6366f1'],
+                10 => ['label' => 'Salida de Inventario', 'color' => '#f87171'],
+                5  => ['label' => 'Baja',                 'color' => '#ef4444'],
+                14 => ['label' => 'Incobrable',           'color' => '#991b1b'],
+                6  => ['label' => 'Desempeño Ext.',       'color' => '#06b6d4'],
+                1  => ['label' => 'Vigente',              'color' => '#3b82f6'],
+                2  => ['label' => 'Vencida',              'color' => '#f97316'],
+                7  => ['label' => 'Cancelada',            'color' => '#64748b'],
+                8  => ['label' => 'Pre Venta',            'color' => '#14b8a6'],
+                11 => ['label' => 'Solicitud de Crédito', 'color' => '#8b5cf6'],
+                13 => ['label' => 'Dev. Garantía',        'color' => '#ec4899'],
             ];
+            $estatusActualMap = [];
+
+            // Ranking de Familias
+            $familiasMap = [];
 
             // Por Sucursal
             $sucursalesList = [];
@@ -106,12 +118,22 @@ class InventarioRematadoController extends Controller
             $diarioMap = [];
             $cCur = Carbon::parse($rawInicio);
             $cEnd = Carbon::parse($rawFin);
+            $diasEspanol = [
+                'Mon' => 'Lun',
+                'Tue' => 'Mar',
+                'Wed' => 'Mié',
+                'Thu' => 'Jue',
+                'Fri' => 'Vie',
+                'Sat' => 'Sáb',
+                'Sun' => 'Dom',
+            ];
             while ($cCur->lte($cEnd)) {
                 $key = $cCur->toDateString();
+                $diaIng = $cCur->format('D');
                 $diarioMap[$key] = [
                     'fecha' => $key,
                     'fecha_formato' => $cCur->format('d/m'),
-                    'dia_semana' => $cCur->translatedFormat('D'),
+                    'dia_semana' => $diasEspanol[$diaIng] ?? $diaIng,
                     'articulos' => 0,
                     'prestamo' => 0.0,
                     'precio' => 0.0,
@@ -158,6 +180,7 @@ class InventarioRematadoController extends Controller
                                 COALESCE(h.cod_contrato, a.cod_contrato) as cod_contrato,
                                 h.cod_prenda,
                                 COALESCE(pre.prenda, 'ALHAJA') as descripcion,
+                                COALESCE(NULLIF(TRIM(c.categoria), ''), '') as categoria_prenda,
                                 a.observaciones,
                                 h.prestamo,
                                 COALESCE(h.precio, a.precio, 0) as precio,
@@ -173,6 +196,7 @@ class InventarioRematadoController extends Controller
                             ) h
                             INNER JOIN alhajas a ON a.cod_alhaja = h.cod_prenda
                             LEFT JOIN prendas pre ON pre.cod_prenda = a.cod_prenda AND pre.cod_tipo_prenda = 1
+                            LEFT JOIN categorias c ON c.cod_categoria = pre.cod_categoria
                             WHERE h.rn = 1 
                               AND COALESCE(a.p_venta, h.f_movimiento) BETWEEN :f1 AND :f2
 
@@ -185,6 +209,7 @@ class InventarioRematadoController extends Controller
                                 COALESCE(h.cod_contrato, v.cod_contrato) as cod_contrato,
                                 h.cod_prenda,
                                 COALESCE(pre.prenda, 'VARIOS') as descripcion,
+                                COALESCE(NULLIF(TRIM(c.categoria), ''), '') as categoria_prenda,
                                 v.observaciones,
                                 h.prestamo,
                                 COALESCE(h.precio, v.precio, 0) as precio,
@@ -200,6 +225,7 @@ class InventarioRematadoController extends Controller
                             ) h
                             INNER JOIN varios v ON v.cod_varios = h.cod_prenda
                             LEFT JOIN prendas pre ON pre.cod_prenda = v.cod_prenda AND pre.cod_tipo_prenda = 3
+                            LEFT JOIN categorias c ON c.cod_categoria = pre.cod_categoria
                             WHERE h.rn = 1 
                               AND COALESCE(v.p_venta, h.f_movimiento) BETWEEN :f3 AND :f4
 
@@ -212,6 +238,7 @@ class InventarioRematadoController extends Controller
                                 COALESCE(h.cod_contrato, au.cod_contrato) as cod_contrato,
                                 h.cod_prenda,
                                 COALESCE(pre.prenda, 'AUTO') as descripcion,
+                                COALESCE(NULLIF(TRIM(c.categoria), ''), '') as categoria_prenda,
                                 au.observaciones,
                                 h.prestamo,
                                 COALESCE(h.precio, au.precio, 0) as precio,
@@ -227,6 +254,7 @@ class InventarioRematadoController extends Controller
                             ) h
                             INNER JOIN autos au ON au.cod_auto = h.cod_prenda
                             LEFT JOIN prendas pre ON pre.cod_prenda = au.cod_prenda AND pre.cod_tipo_prenda = 2
+                            LEFT JOIN categorias c ON c.cod_categoria = pre.cod_categoria
                             WHERE h.rn = 1 
                               AND COALESCE(au.p_venta, h.f_movimiento) BETWEEN :f5 AND :f6
                         ) t
@@ -288,32 +316,31 @@ class InventarioRematadoController extends Controller
                         $categoriasMap[$cat]['precio'] += $precioVal;
                         $categoriasMap[$cat]['avaluo'] += $avaluoVal;
 
-                        // Estatus Actual
-                        if ($codEstatus === 9) {
-                            $estatusActualMap['Piso de Venta']['articulos']++;
-                            $estatusActualMap['Piso de Venta']['prestamo'] += $prestamoVal;
-                            $estatusActualMap['Piso de Venta']['precio'] += $precioVal;
-                        } elseif ($codEstatus === 3 || $codEstatus === 12) {
-                            $estatusActualMap['Vendida']['articulos']++;
-                            $estatusActualMap['Vendida']['prestamo'] += $prestamoVal;
-                            $estatusActualMap['Vendida']['precio'] += $precioVal;
-                        } elseif ($codEstatus === 4) {
-                            $estatusActualMap['Apartada']['articulos']++;
-                            $estatusActualMap['Apartada']['prestamo'] += $prestamoVal;
-                            $estatusActualMap['Apartada']['precio'] += $precioVal;
-                        } elseif ($codEstatus === 5 || $codEstatus === 10 || $codEstatus === 14) {
-                            $estatusActualMap['Baja / Salida']['articulos']++;
-                            $estatusActualMap['Baja / Salida']['prestamo'] += $prestamoVal;
-                            $estatusActualMap['Baja / Salida']['precio'] += $precioVal;
-                        } elseif ($codEstatus === 6) {
-                            $estatusActualMap['Desempeño Ext.']['articulos']++;
-                            $estatusActualMap['Desempeño Ext.']['prestamo'] += $prestamoVal;
-                            $estatusActualMap['Desempeño Ext.']['precio'] += $precioVal;
+                        // Estatus Actual - Despliegue individual sin agrupar en "Otros"
+                        if (isset($estatusCatalogo[$codEstatus])) {
+                            $eLabel = $estatusCatalogo[$codEstatus]['label'];
+                            $eColor = $estatusCatalogo[$codEstatus]['color'];
                         } else {
-                            $estatusActualMap['Otros']['articulos']++;
-                            $estatusActualMap['Otros']['prestamo'] += $prestamoVal;
-                            $estatusActualMap['Otros']['precio'] += $precioVal;
+                            $rawNombre = trim($row->estatus_actual_nombre ?? '');
+                            $eLabel = (!empty($rawNombre) && $rawNombre !== 'DESCONOCIDO')
+                                ? mb_convert_case($rawNombre, MB_CASE_TITLE, 'UTF-8')
+                                : ('Estatus ' . $codEstatus);
+                            $eColor = '#64748b';
                         }
+
+                        if (!isset($estatusActualMap[$eLabel])) {
+                            $estatusActualMap[$eLabel] = [
+                                'codigo' => $codEstatus,
+                                'label' => $eLabel,
+                                'articulos' => 0,
+                                'prestamo' => 0.0,
+                                'precio' => 0.0,
+                                'color' => $eColor,
+                            ];
+                        }
+                        $estatusActualMap[$eLabel]['articulos']++;
+                        $estatusActualMap[$eLabel]['prestamo'] += $prestamoVal;
+                        $estatusActualMap[$eLabel]['precio'] += $precioVal;
 
                         // Evolución diaria
                         $fDate = substr($row->fecha_remate, 0, 10);
@@ -322,6 +349,53 @@ class InventarioRematadoController extends Controller
                             $diarioMap[$fDate]['prestamo'] += $prestamoVal;
                             $diarioMap[$fDate]['precio'] += $precioVal;
                         }
+
+                        // Normalización de Familia de Prenda para Ranking
+                        $tipoP = $row->tipo_prenda;
+                        $cCat = $row->categoria;
+                        $cPrendaRaw = strtoupper(trim($row->categoria_prenda ?? ''));
+                        $pDescRaw = strtoupper(trim($row->descripcion ?? ''));
+
+                        if ($tipoP === 'Oro') {
+                            $nombreFam = ($cCat === 'Plata') ? "Plata: {$pDescRaw}" : "Oro: {$pDescRaw}";
+                        } elseif ($tipoP === 'Autos') {
+                            $nombreFam = (!empty($cPrendaRaw) && $cPrendaRaw !== 'AUTOS') ? "Vehículos: {$cPrendaRaw}" : "Vehículos: {$pDescRaw}";
+                        } else {
+                            $fClean = $cPrendaRaw;
+                            if (in_array($fClean, ['CELULAR', 'CELULARES', 'CELURARES'])) $fClean = 'CELULARES';
+                            elseif (in_array($fClean, ['PANTALLA', 'PANTALLAS'])) $fClean = 'PANTALLAS';
+                            elseif (in_array($fClean, ['EQUIPO DE COMPTO', 'EQUIPO DE COMPUTO', 'COMPUTADORA', 'COMPUTADORAS'])) $fClean = 'EQUIPO DE CÓMPUTO';
+                            elseif (in_array($fClean, ['HERRAMIENTA', 'HERRAMIENTAS'])) $fClean = 'HERRAMIENTAS';
+                            elseif (in_array($fClean, ['LINEA BLANCA'])) $fClean = 'LÍNEA BLANCA';
+                            elseif (in_array($fClean, ['ELECTRONICA', 'ELECTRONICOS'])) $fClean = 'ELECTRÓNICA';
+                            elseif (in_array($fClean, ['AUDIO', 'EQUIPO DE SONIDO'])) $fClean = 'AUDIO Y SONIDO';
+                            elseif (in_array($fClean, ['BICICLETA', 'BICICLETAS'])) $fClean = 'BICICLETAS';
+                            elseif (in_array($fClean, ['ELECTRODOMESTICO', 'ELECTRODOMESTICOS'])) $fClean = 'ELECTRODOMÉSTICOS';
+                            elseif (in_array($fClean, ['INSTRUMENTO MUSICAL', 'INSTRUMENTOS MUSICALES'])) $fClean = 'INSTRUMENTOS MUSICALES';
+                            elseif (in_array($fClean, ['CAMARA', 'CAMARAS'])) $fClean = 'CÁMARAS';
+                            elseif (in_array($fClean, ['VIDEOJUEGOS', 'VIDEOJUEGO'])) $fClean = 'VIDEOJUEGOS';
+                            elseif (in_array($fClean, ['RELOJ', 'RELOJES'])) $fClean = 'RELOJES';
+                            elseif (empty($fClean) || $fClean === 'VARIOS' || $fClean === 'ARTICULOS VARIOS') {
+                                $fClean = (!empty($pDescRaw) && $pDescRaw !== 'VARIOS') ? "VARIOS: {$pDescRaw}" : 'ARTÍCULOS VARIOS';
+                            }
+                            $nombreFam = $fClean;
+                        }
+
+                        if (!isset($familiasMap[$nombreFam])) {
+                            $familiasMap[$nombreFam] = [
+                                'familia' => $nombreFam,
+                                'categoria' => $cat,
+                                'tipo_prenda' => $tipoP,
+                                'articulos' => 0,
+                                'prestamo' => 0.0,
+                                'precio' => 0.0,
+                                'avaluo' => 0.0,
+                            ];
+                        }
+                        $familiasMap[$nombreFam]['articulos']++;
+                        $familiasMap[$nombreFam]['prestamo'] += $prestamoVal;
+                        $familiasMap[$nombreFam]['precio'] += $precioVal;
+                        $familiasMap[$nombreFam]['avaluo'] += $avaluoVal;
 
                         // Agregar al listado detallado (limitado a 2500 artículos para optimizar memoria en browser)
                         if (count($articulosDetallados) < 2500) {
@@ -334,6 +408,7 @@ class InventarioRematadoController extends Controller
                                 'cod_prenda' => (int)$row->cod_prenda,
                                 'tipo_prenda' => $row->tipo_prenda,
                                 'categoria' => $cat,
+                                'familia' => $nombreFam,
                                 'descripcion' => $row->descripcion,
                                 'observaciones' => $row->observaciones ? trim($row->observaciones) : '',
                                 'prestamo' => $prestamoVal,
@@ -374,6 +449,40 @@ class InventarioRematadoController extends Controller
                 return strcmp($b['fecha_remate'], $a['fecha_remate']);
             });
 
+            // Desplegar todos los estatus reales presentes (articulos > 0) sin agrupar en "Otros"
+            $estatusActualMap = array_filter($estatusActualMap, fn($e) => $e['articulos'] > 0);
+            uasort($estatusActualMap, fn($a, $b) => $b['prestamo'] <=> $a['prestamo']);
+
+            // Procesar y ordenar Ranking de Familias
+            $familiasList = [];
+            foreach ($familiasMap as $fam) {
+                $fPrestamo = $fam['prestamo'];
+                $fPrecio = $fam['precio'];
+                $fArts = $fam['articulos'];
+                $fMargenMonto = $fPrecio - $fPrestamo;
+                $fMargenPct = ($fPrestamo > 0) ? round(($fMargenMonto / $fPrestamo) * 100, 1) : 0.0;
+                $fTicketPromedio = ($fArts > 0) ? round($fPrestamo / $fArts, 2) : 0.0;
+                $fPorcentajeTotal = ($totalPrestamo > 0) ? round(($fPrestamo / $totalPrestamo) * 100, 2) : 0.0;
+
+                $familiasList[] = [
+                    'familia' => $fam['familia'],
+                    'categoria' => $fam['categoria'],
+                    'tipo_prenda' => $fam['tipo_prenda'],
+                    'articulos' => $fArts,
+                    'prestamo' => $fPrestamo,
+                    'precio' => $fPrecio,
+                    'avaluo' => $fam['avaluo'],
+                    'margen_monto' => $fMargenMonto,
+                    'margen_pct' => $fMargenPct,
+                    'ticket_promedio' => $fTicketPromedio,
+                    'porcentaje_total' => $fPorcentajeTotal,
+                ];
+            }
+
+            usort($familiasList, function ($a, $b) {
+                return $b['prestamo'] <=> $a['prestamo'];
+            });
+
             $margenMonto = $totalPrecio - $totalPrestamo;
             $margenPct = ($totalPrestamo > 0) ? round(($margenMonto / $totalPrestamo) * 100, 1) : 0.0;
             $totalContratos = count($contratosSet);
@@ -396,6 +505,7 @@ class InventarioRematadoController extends Controller
                 'por_estatus_actual' => $estatusActualMap,
                 'por_sucursal' => $sucursalesList,
                 'evolucion_diaria' => array_values($diarioMap),
+                'ranking_familias' => array_values($familiasList),
                 'articulos' => $articulosDetallados,
             ]);
 

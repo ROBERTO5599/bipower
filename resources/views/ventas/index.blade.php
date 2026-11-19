@@ -657,7 +657,7 @@
             function updateDashboard(data) {
                 // KPIs Principales
                 updateElementText('kpi-ventas-totales', formatter.format(data.ventasTotales || 0));
-                updateElementText('kpi-ticket-promedio', `Monto prestamo: ${formatter.format(data.montoPrestamo || 0)}`);
+                updateElementText('kpi-ticket-promedio', `Ticket Promedio: ${formatter.format(data.ticketPromedio || 0)}`);
                 updateElementText('kpi-total-tickets', `${numberFormatter.format(data.totalTickets || 0)} Contratos`);
  
                 updateElementText('kpi-utilidad-bruta', formatter.format(data.utilidadBruta || 0));

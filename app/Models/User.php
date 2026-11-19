@@ -61,7 +61,7 @@ class User extends Authenticatable
     public function rolesPowerBi()
     {
         return $this->belongsToMany(RolePowerBi::class, 'roles_user_powerbi', 'user_id', 'role_powerbi_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     /**
@@ -76,19 +76,29 @@ class User extends Authenticatable
         // 1. Super Administrador (77 o is_admin): Acceso total
         if (
             $this->is_admin ||
-            in_array('PBI Super Administrador', $roleNames) || 
-            in_array('Super Administrador', $roleNames) || 
+            in_array('PBI Super Administrador', $roleNames) ||
+            in_array('Super Administrador', $roleNames) ||
             $userRoles->contains('id', 77)
         ) {
             return true;
         }
 
         // 2. Inicio (Rol 1): Acceso automático para roles normales (Gerente 79, Regional 78, etc.) o con módulos
-        if ((int)$roleId === 1 && !is_null($this->getPbiRoleType())) {
+        if ((int) $roleId === 1 && !is_null($this->getPbiRoleType())) {
             return true;
         }
 
-        // 3. Módulos adicionales (2 al 19): Se consultan desde los nuevos roles Power BI (roles_user_powerbi)
+        // 2.1 Crédito Externo (Atrato) (Rol 21): Acceso por permiso 84 o 85
+        if ((int) $roleId === 21 && ($this->hasPermission(84) || $this->hasPermission(85))) {
+            return true;
+        }
+
+        // 2.2 Tarjetas de Lealtad (Rol 22): Acceso por permiso 30 o 31
+        if ((int)$roleId === 22 && ($this->hasPermission(30) || $this->hasPermission(31))) {
+            return true;
+        }
+
+        // 3. Módulos adicionales (2 al 22): Se consultan desde los nuevos roles Power BI (roles_user_powerbi)
         if ($this->relationLoaded('rolesPowerBi')) {
             return $this->rolesPowerBi->contains('id', $roleId);
         }
@@ -125,6 +135,9 @@ class User extends Authenticatable
             17 => 'metas-forecast.index',
             18 => 'tablero-control.index',
             19 => 'graficas.index',
+            20 => 'caminado.index',
+            21 => 'credito-externo.index',
+            22 => 'tarjetas-lealtad.index',
         ];
 
         $userRoleIds = $this->rolesPowerBi()->pluck('roles_powerbi.id')->toArray();
@@ -146,6 +159,15 @@ class User extends Authenticatable
     }
 
     /**
+     * Verificar si el usuario tiene un permiso / rol específico por ID.
+     */
+    public function hasPermission($permissionId)
+    {
+        $userRoles = $this->relationLoaded('roles') ? $this->roles : $this->roles()->get();
+        return $userRoles->pluck('id')->contains($permissionId);
+    }
+
+    /**
      * Verificar si el usuario tiene un rol específico.
      */
     public function hasRole($roleName)
@@ -164,32 +186,32 @@ class User extends Authenticatable
 
         if (
             $this->is_admin ||
-            in_array('PBI Super Administrador', $roleNames) || 
-            in_array('Super Administrador', $roleNames) || 
+            in_array('PBI Super Administrador', $roleNames) ||
+            in_array('Super Administrador', $roleNames) ||
             $userRoles->contains('id', 77)
         ) {
             return 'super_admin';
         }
 
         if (
-            in_array('PBI Regional', $roleNames) || 
-            in_array('Regional', $roleNames) || 
+            in_array('PBI Regional', $roleNames) ||
+            in_array('Regional', $roleNames) ||
             $userRoles->contains('id', 78)
         ) {
             return 'regional';
         }
 
         if (
-            in_array('PBI Gerente', $roleNames) || 
-            in_array('Gerente', $roleNames) || 
+            in_array('PBI Gerente', $roleNames) ||
+            in_array('Gerente', $roleNames) ||
             $userRoles->contains('id', 79)
         ) {
             return 'gerente';
         }
 
         // Si tiene asignado algún rol en la tabla roles_user_powerbi
-        $hasPbiRoles = $this->relationLoaded('rolesPowerBi') 
-            ? $this->rolesPowerBi->isNotEmpty() 
+        $hasPbiRoles = $this->relationLoaded('rolesPowerBi')
+            ? $this->rolesPowerBi->isNotEmpty()
             : $this->rolesPowerBi()->exists();
 
         if ($hasPbiRoles) {
@@ -219,9 +241,9 @@ class User extends Authenticatable
 
         if ($roleType === 'regional') {
             return $this->sucursalesRegionales()
-                        ->whereNotNull('id_valora_mas')
-                        ->pluck('id_valora_mas')
-                        ->toArray();
+                ->whereNotNull('id_valora_mas')
+                ->pluck('id_valora_mas')
+                ->toArray();
         }
 
         if ($roleType === 'gerente') {
