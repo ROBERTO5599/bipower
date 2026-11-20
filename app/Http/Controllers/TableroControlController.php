@@ -158,7 +158,7 @@ class TableroControlController extends Controller
                     }
                 }
 
-                // 2. Fetch Avance Categorizado (Movimientos C# SQL)
+                // 2. Fetch Avance Categorizado (Movimientos C# SQL basado 100% en el campo PRESTAMO de Sistema Prendario)
                 $movsQuery = DB::connection($connectionName)->select("
                     SELECT indicador, categoria, SUM(avance) AS avance, COUNT(DISTINCT cod_operacion) AS operaciones
                     FROM (
@@ -166,11 +166,17 @@ class TableroControlController extends Controller
                             CASE
                                 WHEN ve.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8  AND 26  THEN 'ORO'
                                 WHEN ve.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN ve.cod_tipo_prenda = 1 THEN 'ORO'
                                 WHEN ve.cod_tipo_prenda = 2 THEN 'AUTOS'
                                 WHEN ve.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
                                 ELSE 'MERCANCIA GENERAL'
                             END AS categoria,
-                            COALESCE(dv.venta10, dv.precio - COALESCE(dv.descuento, 0), 0) AS avance,
+                            CASE
+                                WHEN ve.cod_tipo_prenda = 1 THEN COALESCE(al.prestamo, h.prestamo, 0)
+                                WHEN ve.cod_tipo_prenda = 2 THEN COALESCE(au.prestamo, h.prestamo, 0)
+                                WHEN ve.cod_tipo_prenda = 3 THEN COALESCE(va.prestamo, h.prestamo, 0)
+                                ELSE COALESCE(h.prestamo, 0)
+                            END AS avance,
                             mo.cod_movimiento AS cod_operacion
                         FROM movimientos mo
                         INNER JOIN ventas ve ON ve.cod_movimiento = mo.cod_movimiento
@@ -178,6 +184,11 @@ class TableroControlController extends Controller
                         LEFT JOIN alhajas al ON al.cod_alhaja = dv.cod_prenda AND ve.cod_tipo_prenda = 1
                         LEFT JOIN autos   au ON au.cod_auto   = dv.cod_prenda AND ve.cod_tipo_prenda = 2
                         LEFT JOIN varios  va ON va.cod_varios = dv.cod_prenda AND ve.cod_tipo_prenda = 3
+                        LEFT JOIN (
+                            SELECT cod_prenda, cod_tipo_prenda, prestamo,
+                                   ROW_NUMBER() OVER (PARTITION BY cod_prenda, cod_tipo_prenda ORDER BY id_historico DESC) as rn
+                            FROM historico_articulos
+                        ) h ON h.cod_prenda = dv.cod_prenda AND h.cod_tipo_prenda = ve.cod_tipo_prenda AND h.rn = 1
                         WHERE mo.f_alta BETWEEN :f1_1 AND :f2_1
                           AND mo.f_cancela IS NULL
                           AND COALESCE(dv.activo, 1) = 1
@@ -189,11 +200,17 @@ class TableroControlController extends Controller
                             CASE
                                 WHEN ap.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8  AND 26  THEN 'ORO'
                                 WHEN ap.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN ap.cod_tipo_prenda = 1 THEN 'ORO'
                                 WHEN ap.cod_tipo_prenda = 2 THEN 'AUTOS'
                                 WHEN ap.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
                                 ELSE 'MERCANCIA GENERAL'
                             END AS categoria,
-                            COALESCE(da.precio - COALESCE(da.descuento, 0), ap.total, apg.monto, 0) AS avance,
+                            CASE
+                                WHEN ap.cod_tipo_prenda = 1 THEN COALESCE(al.prestamo, h.prestamo, 0)
+                                WHEN ap.cod_tipo_prenda = 2 THEN COALESCE(au.prestamo, h.prestamo, 0)
+                                WHEN ap.cod_tipo_prenda = 3 THEN COALESCE(va.prestamo, h.prestamo, 0)
+                                ELSE COALESCE(h.prestamo, 0)
+                            END AS avance,
                             mo.cod_movimiento AS cod_operacion
                         FROM movimientos mo
                         LEFT JOIN apartado_pagos apg ON apg.cod_movimiento = mo.cod_movimiento
@@ -202,6 +219,11 @@ class TableroControlController extends Controller
                         LEFT JOIN alhajas al ON al.cod_alhaja = da.cod_prenda AND ap.cod_tipo_prenda = 1
                         LEFT JOIN autos   au ON au.cod_auto   = da.cod_prenda AND ap.cod_tipo_prenda = 2
                         LEFT JOIN varios  va ON va.cod_varios = da.cod_prenda AND ap.cod_tipo_prenda = 3
+                        LEFT JOIN (
+                            SELECT cod_prenda, cod_tipo_prenda, prestamo,
+                                   ROW_NUMBER() OVER (PARTITION BY cod_prenda, cod_tipo_prenda ORDER BY id_historico DESC) as rn
+                            FROM historico_articulos
+                        ) h ON h.cod_prenda = da.cod_prenda AND h.cod_tipo_prenda = ap.cod_tipo_prenda AND h.rn = 1
                         WHERE mo.f_cancela IS NULL
                           AND mo.cod_tipo_movimiento = 12
                           AND mo.f_alta BETWEEN :f1_2 AND :f2_2
@@ -213,8 +235,9 @@ class TableroControlController extends Controller
                                 WHEN con.cod_tipo_prenda = 2 THEN 'AUTOS'
                                 WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8   AND 26  THEN 'ORO'
                                 WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN con.cod_tipo_prenda = 1 THEN 'ORO'
                                 WHEN con.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
-                                ELSE 'SIN CATEGORIA'
+                                ELSE 'MERCANCIA GENERAL'
                             END AS categoria,
                             COALESCE(
                                 CASE
@@ -222,15 +245,16 @@ class TableroControlController extends Controller
                                     WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
                                     WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
                                 END
-                            , 0) AS avance,
+                            , con.prestamo, 0) AS avance,
                             mo.cod_movimiento AS cod_operacion
                         FROM movimientos mo
                         INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
-                        LEFT JOIN autos   au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
-                        LEFT JOIN varios  va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                        LEFT JOIN alhajas al ON al.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato) AND con.cod_tipo_prenda = 1
+                        LEFT JOIN autos   au ON au.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato) AND con.cod_tipo_prenda = 2
+                        LEFT JOIN varios  va ON va.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato) AND con.cod_tipo_prenda = 3
                         WHERE con.f_cancelacion IS NULL                             
                           AND mo.cod_tipo_movimiento = 1
+                          AND mo.f_cancela IS NULL
                           AND mo.f_alta BETWEEN :f1_3 AND :f2_3
 
                         UNION ALL
@@ -240,8 +264,9 @@ class TableroControlController extends Controller
                                 WHEN con.cod_tipo_prenda = 2 THEN 'AUTOS'
                                 WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8   AND 26  THEN 'ORO'
                                 WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                WHEN con.cod_tipo_prenda = 1 THEN 'ORO'
                                 WHEN con.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
-                                ELSE 'SIN CATEGORIA'
+                                ELSE 'MERCANCIA GENERAL'
                             END AS categoria,
                             COALESCE(
                                 CASE
@@ -249,15 +274,16 @@ class TableroControlController extends Controller
                                     WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
                                     WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
                                 END
-                            , 0) AS avance,
+                            , con.prestamo, 0) AS avance,
                             mo.cod_movimiento AS cod_operacion
                         FROM movimientos mo
                         INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
-                        LEFT JOIN autos   au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
-                        LEFT JOIN varios  va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                        LEFT JOIN alhajas al ON al.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato) AND con.cod_tipo_prenda = 1
+                        LEFT JOIN autos   au ON au.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato) AND con.cod_tipo_prenda = 2
+                        LEFT JOIN varios  va ON va.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato) AND con.cod_tipo_prenda = 3
                         WHERE mo.f_alta BETWEEN :f1_4 AND :f2_4
                           AND mo.f_cancela IS NULL
+                          AND con.f_cancelacion IS NULL
                           AND mo.cod_tipo_movimiento IN (2, 3)
 
                         UNION ALL
@@ -269,23 +295,25 @@ class TableroControlController extends Controller
                                     WHEN con.cod_tipo_prenda = 2 THEN 'AUTOS'
                                     WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8   AND 26  THEN 'ORO'
                                     WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                    WHEN con.cod_tipo_prenda = 1 THEN 'ORO'
                                     WHEN con.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
-                                    ELSE 'SIN CATEGORIA'
+                                    ELSE 'MERCANCIA GENERAL'
                                 END AS categoria,
                                 0 AS abono_capital,
                                 COALESCE(CASE
                                     WHEN con.cod_tipo_prenda = 1 THEN al.prestamo
                                     WHEN con.cod_tipo_prenda = 2 THEN au.prestamo
                                     WHEN con.cod_tipo_prenda = 3 THEN va.prestamo
-                                END, 0) AS prestamo_desempenio,
+                                END, con.prestamo, 0) AS prestamo_desempenio,
                                 mo.cod_movimiento AS cod_operacion
                             FROM movimientos mo
                             INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                            LEFT JOIN alhajas al ON al.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 1
-                            LEFT JOIN autos   au ON au.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 2
-                            LEFT JOIN varios  va ON va.cod_contrato = con.cod_seguimiento AND con.cod_tipo_prenda = 3
+                            LEFT JOIN alhajas al ON al.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato) AND con.cod_tipo_prenda = 1
+                            LEFT JOIN autos   au ON au.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato) AND con.cod_tipo_prenda = 2
+                            LEFT JOIN varios  va ON va.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato) AND con.cod_tipo_prenda = 3
                             WHERE con.f_cancelacion IS NULL
                               AND mo.cod_tipo_movimiento = 4
+                              AND mo.f_cancela IS NULL
                               AND mo.f_alta BETWEEN :f1_5 AND :f2_5
 
                             UNION ALL
@@ -295,8 +323,9 @@ class TableroControlController extends Controller
                                     WHEN con.cod_tipo_prenda = 2 THEN 'AUTOS'
                                     WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 8   AND 26  THEN 'ORO'
                                     WHEN con.cod_tipo_prenda = 1 AND al.kilataje BETWEEN 500 AND 999 THEN 'PLATA'
+                                    WHEN con.cod_tipo_prenda = 1 THEN 'ORO'
                                     WHEN con.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
-                                    ELSE 'SIN CATEGORIA'
+                                    ELSE 'MERCANCIA GENERAL'
                                 END AS categoria,
                                 COALESCE((SELECT abono FROM contratos WHERE cod_contrato = con.cod_anterior ORDER BY f_contrato DESC LIMIT 1), 0) AS abono_capital,
                                 0 AS prestamo_desempenio,
@@ -311,6 +340,7 @@ class TableroControlController extends Controller
                                  AND va.id = (SELECT MIN(id) FROM varios WHERE cod_contrato = con.cod_seguimiento)
                             WHERE con.f_cancelacion IS NULL
                               AND mo.cod_tipo_movimiento = 3
+                              AND mo.f_cancela IS NULL
                               AND mo.f_alta BETWEEN :f1_6 AND :f2_6
                         ) AS desempeno_movs
                         GROUP BY indicador, categoria, cod_operacion
@@ -404,16 +434,16 @@ class TableroControlController extends Controller
 
                         SELECT con.cod_contrato, 'AUTOS' AS categoria,
                             CASE
-                                WHEN mo.cod_tipo_movimiento = 4       THEN (mo.monto10 - con.prestamo) / cnt.total
-                                WHEN mo.cod_tipo_movimiento IN (2, 3) THEN (mo.monto10 - COALESCE(ca.abono, 0)) / cnt.total
+                                WHEN mo.cod_tipo_movimiento = 4       THEN (mo.monto10 - con.prestamo) / COALESCE(cnt.total, 1)
+                                WHEN mo.cod_tipo_movimiento IN (2, 3) THEN (mo.monto10 - COALESCE(ca.abono, 0)) / COALESCE(cnt.total, 1)
                                 ELSE 0
                             END AS interesCobrado,
                             mo.cod_movimiento AS cod_operacion
                         FROM movimientos mo
                         INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        INNER JOIN autos au ON au.cod_contrato = con.cod_seguimiento
+                        LEFT JOIN autos au ON au.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato)
                         LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
-                        LEFT JOIN (SELECT cod_contrato, COALESCE(NULLIF(COUNT(*),0),1) AS total FROM autos GROUP BY cod_contrato) cnt ON cnt.cod_contrato = con.cod_seguimiento
+                        LEFT JOIN (SELECT cod_contrato, COALESCE(NULLIF(COUNT(*),0),1) AS total FROM autos GROUP BY cod_contrato) cnt ON cnt.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato)
                         WHERE mo.f_cancela IS NULL AND con.f_cancelacion IS NULL
                           AND con.cod_tipo_prenda = 2
                           AND mo.cod_tipo_movimiento IN (2, 3, 4)
@@ -423,16 +453,16 @@ class TableroControlController extends Controller
 
                         SELECT con.cod_contrato, 'MERCANCIA GENERAL' AS categoria,
                             CASE
-                                WHEN mo.cod_tipo_movimiento = 4       THEN (mo.monto10 - con.prestamo) / cnt.total
-                                WHEN mo.cod_tipo_movimiento IN (2, 3) THEN (mo.monto10 - COALESCE(ca.abono, 0)) / cnt.total
+                                WHEN mo.cod_tipo_movimiento = 4       THEN (mo.monto10 - con.prestamo) / COALESCE(cnt.total, 1)
+                                WHEN mo.cod_tipo_movimiento IN (2, 3) THEN (mo.monto10 - COALESCE(ca.abono, 0)) / COALESCE(cnt.total, 1)
                                 ELSE 0
                             END AS interesCobrado,
                             mo.cod_movimiento AS cod_operacion
                         FROM movimientos mo
                         INNER JOIN contratos con ON con.cod_contrato = mo.cod_contrato
-                        INNER JOIN varios va ON va.cod_contrato = con.cod_seguimiento
+                        LEFT JOIN varios va ON va.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato)
                         LEFT JOIN contratos ca ON ca.cod_contrato = con.cod_anterior
-                        LEFT JOIN (SELECT cod_contrato, COALESCE(NULLIF(COUNT(*),0),1) AS total FROM varios GROUP BY cod_contrato) cnt ON cnt.cod_contrato = con.cod_seguimiento
+                        LEFT JOIN (SELECT cod_contrato, COALESCE(NULLIF(COUNT(*),0),1) AS total FROM varios GROUP BY cod_contrato) cnt ON cnt.cod_contrato = COALESCE(con.cod_seguimiento, con.cod_contrato)
                         WHERE mo.f_cancela IS NULL AND con.f_cancelacion IS NULL
                           AND con.cod_tipo_prenda = 3
                           AND mo.cod_tipo_movimiento IN (2, 3, 4)
@@ -468,12 +498,15 @@ class TableroControlController extends Controller
                                 WHEN ve.cod_tipo_prenda = 3 THEN 'MERCANCIA GENERAL'
                                 ELSE 'MERCANCIA GENERAL'
                             END AS categoria,
-                            COALESCE(dv.venta10, 0) - CASE
-                                WHEN ve.cod_tipo_prenda = 1 THEN COALESCE(al.prestamo, 0)
-                                WHEN ve.cod_tipo_prenda = 2 THEN COALESCE(au.prestamo, 0)
-                                WHEN ve.cod_tipo_prenda = 3 THEN COALESCE(va.prestamo, 0)
-                                ELSE 0
-                            END AS avance,
+                            COALESCE(dv.venta10, 0) - COALESCE(
+                                CASE
+                                    WHEN ve.cod_tipo_prenda = 1 THEN al.prestamo
+                                    WHEN ve.cod_tipo_prenda = 2 THEN au.prestamo
+                                    WHEN ve.cod_tipo_prenda = 3 THEN va.prestamo
+                                END,
+                                h.prestamo,
+                                0
+                            ) AS avance,
                             mo.cod_movimiento AS cod_operacion
                         FROM movimientos mo
                         INNER JOIN ventas ve ON ve.cod_movimiento = mo.cod_movimiento
@@ -481,8 +514,14 @@ class TableroControlController extends Controller
                         LEFT JOIN alhajas al ON al.cod_alhaja = dv.cod_prenda AND ve.cod_tipo_prenda = 1
                         LEFT JOIN autos   au ON au.cod_auto   = dv.cod_prenda AND ve.cod_tipo_prenda = 2
                         LEFT JOIN varios  va ON va.cod_varios = dv.cod_prenda AND ve.cod_tipo_prenda = 3
+                        LEFT JOIN (
+                            SELECT cod_prenda, cod_tipo_prenda, prestamo,
+                                   ROW_NUMBER() OVER (PARTITION BY cod_prenda, cod_tipo_prenda ORDER BY id_historico DESC) as rn
+                            FROM historico_articulos
+                        ) h ON h.cod_prenda = dv.cod_prenda AND h.cod_tipo_prenda = ve.cod_tipo_prenda AND h.rn = 1
                         WHERE mo.f_alta BETWEEN :f1_1 AND :f2_1
                           AND mo.f_cancela IS NULL
+                          AND COALESCE(dv.activo, 1) = 1
                           AND mo.cod_tipo_movimiento IN (5, 6)
 
                         UNION ALL
@@ -497,10 +536,10 @@ class TableroControlController extends Controller
                                 ELSE 'SIN CATEGORIA'
                             END AS categoria,
                             CASE
-                                WHEN ap.cod_tipo_prenda = 1 THEN COALESCE(al.precio, 0) - COALESCE(al.prestamo, 0)
-                                WHEN ap.cod_tipo_prenda = 2 THEN COALESCE(au.precio, 0) - COALESCE(au.prestamo, 0)
-                                WHEN ap.cod_tipo_prenda = 3 THEN COALESCE(va.precio, 0) - COALESCE(va.prestamo, 0)
-                                ELSE 0
+                                WHEN ap.cod_tipo_prenda = 1 THEN COALESCE(al.precio, h.precio, 0) - COALESCE(al.prestamo, h.prestamo, 0)
+                                WHEN ap.cod_tipo_prenda = 2 THEN COALESCE(au.precio, h.precio, 0) - COALESCE(au.prestamo, h.prestamo, 0)
+                                WHEN ap.cod_tipo_prenda = 3 THEN COALESCE(va.precio, h.precio, 0) - COALESCE(va.prestamo, h.prestamo, 0)
+                                ELSE COALESCE(h.precio, 0) - COALESCE(h.prestamo, 0)
                             END AS avance,
                             mo.cod_movimiento AS cod_operacion
                         FROM movimientos mo
@@ -510,6 +549,11 @@ class TableroControlController extends Controller
                         LEFT JOIN alhajas al ON al.cod_alhaja = da.cod_prenda AND ap.cod_tipo_prenda = 1
                         LEFT JOIN autos   au ON au.cod_auto   = da.cod_prenda AND ap.cod_tipo_prenda = 2
                         LEFT JOIN varios  va ON va.cod_varios = da.cod_prenda AND ap.cod_tipo_prenda = 3
+                        LEFT JOIN (
+                            SELECT cod_prenda, cod_tipo_prenda, prestamo, precio,
+                                   ROW_NUMBER() OVER (PARTITION BY cod_prenda, cod_tipo_prenda ORDER BY id_historico DESC) as rn
+                            FROM historico_articulos
+                        ) h ON h.cod_prenda = da.cod_prenda AND h.cod_tipo_prenda = ap.cod_tipo_prenda AND h.rn = 1
                         WHERE mo.f_cancela IS NULL
                           AND mo.cod_tipo_movimiento = 12
                           AND mo.f_alta BETWEEN :f1_2 AND :f2_2
