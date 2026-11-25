@@ -404,6 +404,7 @@
                             <label for="table_transaccion" class="form-label fw-bold text-muted small text-uppercase mb-1">TRANSACCIÓN</label>
                             <select id="table_transaccion" class="form-select">
                                 <option value="">-- Todas --</option>
+                                <option value="ATRATO">ATRATO</option>
                                 <option value="CLIP">CLIP</option>
                                 <option value="TERMINAL">TERMINAL</option>
                                 <option value="TRANSFERENCIA">TRANSFERENCIA</option>
@@ -746,7 +747,7 @@
                     const transSelect = document.getElementById('table_transaccion');
                     const currentTrans = transSelect.value;
                     transSelect.innerHTML = '<option value="">-- Todas --</option>';
-                    const defaultTrans = ['CLIP', 'TERMINAL', 'TRANSFERENCIA', 'DEPOSITO'];
+                    const defaultTrans = ['ATRATO', 'CLIP', 'TERMINAL', 'TRANSFERENCIA', 'DEPOSITO'];
                     const allTrans = Array.from(new Set([...defaultTrans, ...Array.from(transaccionesSet)])).sort();
                     allTrans.forEach(t => {
                         const opt = document.createElement('option');
@@ -772,7 +773,7 @@
 
         function calculateMovement(m) {
             const isCanceled = m.status === 'CANCELADO';
-            const aplicaComision = (m.transaccion === 'CLIP' || m.transaccion === 'TERMINAL' || m.tipo_pago === 'TARJETA');
+            const aplicaComision = (m.transaccion === 'CLIP' || m.transaccion === 'TERMINAL' || (m.tipo_pago === 'TARJETA' && m.transaccion !== 'TRANSFERENCIA' && m.transaccion !== 'DEPOSITO' && m.transaccion !== 'ATRATO'));
             
             const rates = sucursalRates[m.sucursal_id] || { base: 2.99, msi3: 4.5, msi6: 7.5, msi9: 9.9, msi12: 11.95 };
             const rowOverride = rowOverrides[m.cod_movimiento] || { overrides: {} };
@@ -1181,7 +1182,7 @@
             const fechaInicioVal = document.getElementById('fecha_inicio').value;
             const fechaFinVal = document.getElementById('fecha_fin').value;
             const sucursalName = sucursalSelect.options[sucursalSelect.selectedIndex].text.replace(/[^a-zA-Z0-9]/g, "_");
-            const transaccionSelect = document.getElementById('transaccion');
+            const transaccionSelect = document.getElementById('table_transaccion') || document.getElementById('transaccion');
             const transaccionName = transaccionSelect && transaccionSelect.value ? `_${transaccionSelect.value}` : '';
             
             const filename = `Reporte_Pagos_Tarjeta_${sucursalName}${transaccionName}_${fechaInicioVal}_al_${fechaFinVal}.xlsx`;

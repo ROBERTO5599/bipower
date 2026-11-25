@@ -246,9 +246,10 @@
                     </a>
                 @endif
                 @if(Auth::user()->hasPowerBiRole(22) || Auth::user()->is_admin || (method_exists(Auth::user(), 'hasPermission') && (Auth::user()->hasPermission(30) || Auth::user()->hasPermission(31))))
-                <a href="{{ route('tarjetas-lealtad.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('tarjetas-lealtad.*') ? 'active' : '' }}">
-                    <i class="bi bi-star-fill me-2"></i>Tarjetas de Lealtad
-                </a>
+                    <a href="{{ route('tarjetas-lealtad.index') }}"
+                        class="list-group-item list-group-item-action {{ request()->routeIs('tarjetas-lealtad.*') ? 'active' : '' }}">
+                        <i class="bi bi-star-fill me-2"></i>Tarjetas de Lealtad
+                    </a>
                 @endif
                 @if(Auth::user()->hasPowerBiRole(10))
                     <a href="{{ route('certificados.index') }}"

@@ -54,7 +54,11 @@ class ReportePagosTarjetaController extends Controller
                 Config::set("database.connections.$connectionName", $config);
                 DB::purge($connectionName);
 
-                // We query transactions where card amount > 0 OR card/mix payment method OR transaction type is set
+                $hasPlataformaAtrato = \Illuminate\Support\Facades\Schema::connection($connectionName)->hasColumn('movimientos', 'plataforma_atrato');
+                $atratoCol = $hasPlataformaAtrato ? 'm.plataforma_atrato' : '0 AS plataforma_atrato';
+                $atratoWhere = $hasPlataformaAtrato ? 'OR m.plataforma_atrato = 1' : '';
+
+                // We query transactions where card amount > 0 OR card/mix payment method OR transaction type is set OR atrato
                 $rows = DB::connection($connectionName)->select("
                     SELECT 
                         m.cod_movimiento,
@@ -68,6 +72,7 @@ class ReportePagosTarjetaController extends Controller
                         tp.tipo_pago AS tipo_pago_nombre,
                         m.cod_tipo_transaccion,
                         tt.tipo_transaccion AS tipo_transaccion_nombre,
+                        {$atratoCol},
                         m.f_cancela,
                         m.cod_estatus,
                         t.nombre_titular AS cuenta_destino,
@@ -80,12 +85,19 @@ class ReportePagosTarjetaController extends Controller
                     LEFT JOIN tarjetas t ON m.id_tarjeta = t.id_tarjeta
                     LEFT JOIN bancos b ON t.id_banco = b.id_banco
                     WHERE m.f_alta BETWEEN ? AND ?
-                      AND (m.monto_tarjeta > 0 OR m.cod_tipo_pago IN (2, 3) OR m.cod_tipo_transaccion IS NOT NULL)
+                      AND (m.monto_tarjeta > 0 OR m.cod_tipo_pago IN (2, 3) OR m.cod_tipo_transaccion IS NOT NULL {$atratoWhere} OR m.referencia LIKE '%ATRATO%')
                     ORDER BY m.f_alta ASC
                 ", [$fechaInicio, $fechaFin]);
 
                 foreach ($rows as $row) {
+                    $isAtrato = (!empty($row->plataforma_atrato) && (int)$row->plataforma_atrato === 1)
+                        || (!empty($row->referencia) && stripos($row->referencia, 'ATRATO') !== false);
+
                     $monto = (float) $row->monto_tarjeta;
+                    if ($monto == 0 && $isAtrato && (float)$row->monto_efectivo > 0) {
+                        $monto = (float) $row->monto_efectivo;
+                    }
+
                     $esCancelado = !empty($row->f_cancela) || $row->cod_estatus == 3;
                     
                     // Format concept to match receipt format (uppercase)
@@ -105,9 +117,11 @@ class ReportePagosTarjetaController extends Controller
                         }
                     }
 
-                    // Map tipo_transaccion
+                    // Map tipo_transaccion (Detectar ATRATO tal como en Sistema Prendario)
                     $tipoTransaccion = 'NO DEFINIDO';
-                    if (!empty($row->tipo_transaccion_nombre)) {
+                    if ($isAtrato) {
+                        $tipoTransaccion = 'ATRATO';
+                    } elseif (!empty($row->tipo_transaccion_nombre)) {
                         $tipoTransaccion = strtoupper($row->tipo_transaccion_nombre);
                     }
 
@@ -115,7 +129,7 @@ class ReportePagosTarjetaController extends Controller
                     $pctClip = ($configTarjeta && !is_null($configTarjeta->comision_clip)) ? ($configTarjeta->comision_clip / 100) : 0.0299;
                     $pctIva = ($configTarjeta && !is_null($configTarjeta->iva_comision)) ? ($configTarjeta->iva_comision / 100) : 0.16;
 
-                    $aplicaComision = ($tipoTransaccion === 'CLIP' || $tipoTransaccion === 'TERMINAL' || $tipoPago === 'TARJETA');
+                    $aplicaComision = ($tipoTransaccion === 'CLIP' || $tipoTransaccion === 'TERMINAL' || ($tipoPago === 'TARJETA' && $tipoTransaccion !== 'TRANSFERENCIA' && $tipoTransaccion !== 'DEPOSITO' && $tipoTransaccion !== 'ATRATO'));
                     $comision_meses = 0.00;
                     if ($aplicaComision && $monto > 0) {
                         $comision = round(($monto * $pctClip) + $comision_meses + 1, 2);

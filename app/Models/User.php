@@ -94,7 +94,7 @@ class User extends Authenticatable
         }
 
         // 2.2 Tarjetas de Lealtad (Rol 22): Acceso por permiso 30 o 31
-        if ((int)$roleId === 22 && ($this->hasPermission(30) || $this->hasPermission(31))) {
+        if ((int) $roleId === 22 && ($this->hasPermission(30) || $this->hasPermission(31))) {
             return true;
         }
 
@@ -105,7 +105,7 @@ class User extends Authenticatable
 
         return $this->rolesPowerBi()->where('roles_powerbi.id', $roleId)->exists();
     }
-
+ 
     /**
      * Retorna la URL de la primera pantalla autorizada para el usuario.
      */
